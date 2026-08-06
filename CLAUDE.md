@@ -71,6 +71,12 @@ Chromaprint/AcousticID, Librosa, Essentia, FastAPI.
 Stage 1 (Docker Compose environment) verified working as of 2026-08-06 — all
 9 containers report healthy.
 
+Stage 2 (Seed dataset ingestion) verified working as of 2026-08-06 — 411
+tracks ingested from Jamendo into PostgreSQL/MinIO (target was 500; see
+`docs/stage2-ingestion.md` for why 411 is within spec and considered done).
+All 5 tests in `tests/test_stage2_ingestion.py` pass. Metrics/plots in
+`reports/stage2/`.
+
 ## Working agreement
 
 - Propose a plan before editing more than one file. Wait for confirmation.

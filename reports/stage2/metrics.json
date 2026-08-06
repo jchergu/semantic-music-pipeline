@@ -1,0 +1,53 @@
+{
+  "total_tracks": 411,
+  "musicbrainz_match_rate": 0.4939,
+  "musicbrainz_matched": 203,
+  "duration_sec": {
+    "min": 76,
+    "max": 953,
+    "mean": 231.1
+  },
+  "distinct_genre_tags": 77,
+  "top_genres": [
+    [
+      "pop",
+      185
+    ],
+    [
+      "rock",
+      102
+    ],
+    [
+      "electronic",
+      73
+    ],
+    [
+      "indie",
+      37
+    ],
+    [
+      "singersongwriter",
+      31
+    ],
+    [
+      "dance",
+      21
+    ],
+    [
+      "rnb",
+      19
+    ],
+    [
+      "folk",
+      18
+    ],
+    [
+      "hiphop",
+      15
+    ],
+    [
+      "jazz",
+      15
+    ]
+  ]
+}
