@@ -77,6 +77,50 @@ tracks ingested from Jamendo into PostgreSQL/MinIO (target was 500; see
 All 5 tests in `tests/test_stage2_ingestion.py` pass. Metrics/plots in
 `reports/stage2/`.
 
+Stage 3 (L2 enrichment: CLAP → Milvus, Neo4j) verified working as of
+2026-08-07 — all 411 tracks embedded (laion_clap, 512-dim) and indexed in
+Milvus, graph written to Neo4j (411 Track / 201 Artist / 77 Genre nodes).
+See `docs/stage3-enrichment.md` for the run outcome and a packaging note on
+`enrichment/install.sh` (laion-clap's declared deps don't install cleanly
+via a plain `pip install -r requirements.txt` on Python 3.12). All 6 tests
+in `tests/test_stage3_enrichment.py` pass. Re-verified 2026-08-07 with a
+full `--force` re-enrichment run; caught and fixed a Milvus test flakiness
+bug in the process (see doc).
+
+Stage 4 (Semantic API, FastAPI) verified working as of 2026-08-07 — one
+shared read-only service over Postgres/Milvus/Neo4j: `/health`,
+`/tracks/{id}`, `/tracks/{id}/similar`, `/tracks/{id}/graph`,
+`/artists/{name}/tracks`, `/genres/{name}/tracks`. See
+`docs/stage4-semantic-api.md`. All 7 tests in `tests/test_stage4_api.py`
+pass (19/19 total across stages 2+3+4).
+
+Stage 5 (Recommender Engine: trigger handler, context builder, ranking)
+verified working as of 2026-08-07 — seed-track-only trigger model (no
+fabricated user/session identity), consumes the Semantic API over HTTP,
+combines CLAP similarity + genre-sibling + same-artist signals into a
+scored ranked list, writes to a new Postgres `recommendations` table. Full
+batch run: 411/411 seeds, 4110 rows, zero skips, ~8.8s wall-clock. See
+`docs/stage5-recommender.md` for the ranking formula and its dataset-
+grounded weight justification. All 8 tests in
+`tests/test_stage5_recommender.py` pass (27/27 total across stages
+2+3+4+5).
+
+Stage 6 (end-to-end test) verified working as of 2026-08-07 — lineage test
+tracing 3 golden tracks through every layer (Postgres/MinIO → Milvus/Neo4j
+→ Semantic API → Recommender), run against the live already-populated
+stack (not a destructive from-scratch rebuild; that sequence is documented
+as a runbook in `docs/stage6-e2e.md` for on-demand use, e.g. a thesis
+defense demo, but not exercised automatically). Found and fixed a real bug
+in the process: `api/dependencies.py` shared pymilvus's default connection
+alias (`"default"`) with `tests/conftest.py`'s `milvus_collection` fixture,
+so `test_stage4_api.py`'s in-process `TestClient` teardown silently broke
+Milvus for every test running after it in the same session — fixed by
+giving the API its own alias (`"api"`). All 5 tests in
+`tests/test_stage6_e2e.py` pass (32/32 total across all six stages).
+
+**8.1 (batch, reactive) build order is now complete** — see the capstone
+summary at the bottom of `docs/stage6-e2e.md`.
+
 ## Working agreement
 
 - Propose a plan before editing more than one file. Wait for confirmation.

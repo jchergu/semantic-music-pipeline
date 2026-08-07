@@ -1,0 +1,14 @@
+# Pinned, verified-working versions. Install via `bash install.sh`, not a
+# plain `pip install -r requirements.txt` — see install.sh for why (same
+# pymilvus/setuptools/environs interaction hit in enrichment/, minus the
+# laion-clap-specific numpy/torch headaches, which don't apply here).
+
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+httpx==0.27.2
+psycopg2-binary==2.9.9
+pymilvus==2.4.9
+neo4j==5.28.1
+python-dotenv==1.0.1
+setuptools==80.10.2
+environs==15.1.0
