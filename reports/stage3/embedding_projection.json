@@ -1,0 +1,3297 @@
+{
+  "top3_genres": [
+    "pop",
+    "rock",
+    "electronic"
+  ],
+  "points": [
+    {
+      "track_id": 1,
+      "title": "Wish You Were Here",
+      "artist_name": "The.madpix.project",
+      "genre": "electronic",
+      "x": -3.815,
+      "y": -7.613
+    },
+    {
+      "track_id": 2,
+      "title": "Love Will Come Back Again",
+      "artist_name": "Chaz Robinson",
+      "genre": "pop",
+      "x": 4.915,
+      "y": 3.956
+    },
+    {
+      "track_id": 3,
+      "title": "What Is Love",
+      "artist_name": "Melanie Ungar",
+      "genre": "pop",
+      "x": 1.241,
+      "y": 1.748
+    },
+    {
+      "track_id": 4,
+      "title": "In Tune (J. Glaze Remix)",
+      "artist_name": "Kellee Maize",
+      "genre": "pop",
+      "x": -13.832,
+      "y": 2.465
+    },
+    {
+      "track_id": 7,
+      "title": "Energy",
+      "artist_name": "Pokki DJ",
+      "genre": "electronic",
+      "x": -17.223,
+      "y": -0.636
+    },
+    {
+      "track_id": 8,
+      "title": "Good Old Times",
+      "artist_name": "Alex Cohen",
+      "genre": "pop",
+      "x": 11.052,
+      "y": -3.6
+    },
+    {
+      "track_id": 9,
+      "title": "Strong",
+      "artist_name": "JekK",
+      "genre": "pop",
+      "x": 0.282,
+      "y": 4.753
+    },
+    {
+      "track_id": 10,
+      "title": "Possibilities",
+      "artist_name": "Jasmine Jordan",
+      "genre": "Other",
+      "x": -5.031,
+      "y": 4.695
+    },
+    {
+      "track_id": 11,
+      "title": "sad robot",
+      "artist_name": "pornophonique",
+      "genre": "pop",
+      "x": 6.935,
+      "y": 3.603
+    },
+    {
+      "track_id": 12,
+      "title": "Moments",
+      "artist_name": "The.madpix.project",
+      "genre": "pop",
+      "x": -16.31,
+      "y": 4.188
+    },
+    {
+      "track_id": 13,
+      "title": "Constellate",
+      "artist_name": "Fleurie",
+      "genre": "Other",
+      "x": -5.285,
+      "y": -9.627
+    },
+    {
+      "track_id": 14,
+      "title": "Gates",
+      "artist_name": "Bellevue",
+      "genre": "pop",
+      "x": 5.461,
+      "y": 7.336
+    },
+    {
+      "track_id": 15,
+      "title": "Billy Comes Home",
+      "artist_name": "Heifervescent",
+      "genre": "pop",
+      "x": -14.775,
+      "y": -8.629
+    },
+    {
+      "track_id": 16,
+      "title": "Give Me Hope",
+      "artist_name": "Modern Pitch",
+      "genre": "pop",
+      "x": 13.777,
+      "y": 8.72
+    },
+    {
+      "track_id": 17,
+      "title": "Anyway - Produced by J. Glaze",
+      "artist_name": "Kellee Maize",
+      "genre": "pop",
+      "x": -7.72,
+      "y": 8.964
+    },
+    {
+      "track_id": 18,
+      "title": "Se Ne Va",
+      "artist_name": "Millionaire Blonde",
+      "genre": "pop",
+      "x": 16.018,
+      "y": 2.661
+    },
+    {
+      "track_id": 19,
+      "title": "Love is a Journey",
+      "artist_name": "Robert Avellanet",
+      "genre": "pop",
+      "x": 7.494,
+      "y": 7.295
+    },
+    {
+      "track_id": 20,
+      "title": "Five O'Clock",
+      "artist_name": "JekK",
+      "genre": "pop",
+      "x": -6.482,
+      "y": 6.407
+    },
+    {
+      "track_id": 21,
+      "title": "Oh Laura",
+      "artist_name": "Ben K Adams",
+      "genre": "rock",
+      "x": -4.415,
+      "y": -2.133
+    },
+    {
+      "track_id": 22,
+      "title": "Survive",
+      "artist_name": "JekK",
+      "genre": "electronic",
+      "x": -13.845,
+      "y": 6.419
+    },
+    {
+      "track_id": 23,
+      "title": "RED LIGHT",
+      "artist_name": "Egor Budennyy",
+      "genre": "pop",
+      "x": -15.905,
+      "y": 7.863
+    },
+    {
+      "track_id": 24,
+      "title": "Safe and Warm in Hunter's Arms",
+      "artist_name": "Roller Genoa",
+      "genre": "rock",
+      "x": 12.965,
+      "y": 9.751
+    },
+    {
+      "track_id": 25,
+      "title": "Wonder Doll",
+      "artist_name": "Sunwill",
+      "genre": "pop",
+      "x": -10.176,
+      "y": -1.421
+    },
+    {
+      "track_id": 26,
+      "title": "Do You Still Dream",
+      "artist_name": "Explosive Ear Candy",
+      "genre": "pop",
+      "x": 12.735,
+      "y": 2.149
+    },
+    {
+      "track_id": 28,
+      "title": "It's Coming Together",
+      "artist_name": "Heifervescent",
+      "genre": "pop",
+      "x": 14.647,
+      "y": 0.177
+    },
+    {
+      "track_id": 29,
+      "title": "Divergence (Remastered VIP)",
+      "artist_name": "TheBlackParrot",
+      "genre": "electronic",
+      "x": -16.219,
+      "y": -1.94
+    },
+    {
+      "track_id": 30,
+      "title": "R\u00e9alit\u00e9",
+      "artist_name": "Silence",
+      "genre": "electronic",
+      "x": -10.163,
+      "y": -15.451
+    },
+    {
+      "track_id": 31,
+      "title": "Who Cares",
+      "artist_name": "Sam Brown",
+      "genre": "rock",
+      "x": 14.393,
+      "y": 9.919
+    },
+    {
+      "track_id": 32,
+      "title": "Waltz Into the Moonlight",
+      "artist_name": "Tryad",
+      "genre": "pop",
+      "x": -8.967,
+      "y": -17.788
+    },
+    {
+      "track_id": 33,
+      "title": "Lollita Don't Let Me Go feat. Youngbirdy",
+      "artist_name": "Lollita",
+      "genre": "pop",
+      "x": -9.016,
+      "y": 7.366
+    },
+    {
+      "track_id": 34,
+      "title": "More Than Just a Little Bit (Without Sound) (MM)",
+      "artist_name": "Mike Falzone",
+      "genre": "Other",
+      "x": -8.33,
+      "y": 7.071
+    },
+    {
+      "track_id": 35,
+      "title": "The Feel",
+      "artist_name": "Backnbloom",
+      "genre": "pop",
+      "x": 17.719,
+      "y": 2.575
+    },
+    {
+      "track_id": 36,
+      "title": "Dreams",
+      "artist_name": "Manhat10",
+      "genre": "pop",
+      "x": -7.381,
+      "y": -0.684
+    },
+    {
+      "track_id": 37,
+      "title": "Dark Horse",
+      "artist_name": "Bella Ruse",
+      "genre": "pop",
+      "x": 9.865,
+      "y": -3.628
+    },
+    {
+      "track_id": 38,
+      "title": "Talk To Me",
+      "artist_name": "Allie Farris",
+      "genre": "pop",
+      "x": 9.666,
+      "y": -5.76
+    },
+    {
+      "track_id": 39,
+      "title": "Show me",
+      "artist_name": "Liz Turner",
+      "genre": "pop",
+      "x": 13.82,
+      "y": 3.162
+    },
+    {
+      "track_id": 40,
+      "title": "Sunset",
+      "artist_name": "Chasing Eidolon",
+      "genre": "rock",
+      "x": 4.262,
+      "y": 8.277
+    },
+    {
+      "track_id": 41,
+      "title": "Headphonetic",
+      "artist_name": "Revolution Void",
+      "genre": "electronic",
+      "x": -12.833,
+      "y": -18.658
+    },
+    {
+      "track_id": 42,
+      "title": "Figment",
+      "artist_name": "MOPI",
+      "genre": "pop",
+      "x": -3.52,
+      "y": 5.958
+    },
+    {
+      "track_id": 43,
+      "title": "Tunnel Vision",
+      "artist_name": "Jill Zimmerman",
+      "genre": "pop",
+      "x": 2.416,
+      "y": -8.075
+    },
+    {
+      "track_id": 44,
+      "title": "Lollita On Flawless",
+      "artist_name": "Lollita",
+      "genre": "pop",
+      "x": -8.365,
+      "y": 9.234
+    },
+    {
+      "track_id": 45,
+      "title": "Ghost",
+      "artist_name": "madelyn munsell",
+      "genre": "pop",
+      "x": 13.338,
+      "y": 0.123
+    },
+    {
+      "track_id": 46,
+      "title": "Down Day",
+      "artist_name": "Leslie Hunt",
+      "genre": "Other",
+      "x": 8.134,
+      "y": -7.711
+    },
+    {
+      "track_id": 47,
+      "title": "I Had it All",
+      "artist_name": "The Monster Brothers",
+      "genre": "rock",
+      "x": 6.782,
+      "y": 11.742
+    },
+    {
+      "track_id": 48,
+      "title": "Shining Eyes",
+      "artist_name": "Lyonn",
+      "genre": "pop",
+      "x": -12.404,
+      "y": 4.032
+    },
+    {
+      "track_id": 49,
+      "title": "Everywhere I Go (Airplay Mix)",
+      "artist_name": "eddie e feat eliza",
+      "genre": "Other",
+      "x": -13.051,
+      "y": 2.947
+    },
+    {
+      "track_id": 50,
+      "title": "We'll Light The Sky",
+      "artist_name": "Lyonn",
+      "genre": "pop",
+      "x": -12.23,
+      "y": -0.387
+    },
+    {
+      "track_id": 51,
+      "title": "The Devil You Know",
+      "artist_name": "Lilly Wolf",
+      "genre": "pop",
+      "x": -13.95,
+      "y": 2.475
+    },
+    {
+      "track_id": 52,
+      "title": "Mesmerize",
+      "artist_name": "Tryad",
+      "genre": "Other",
+      "x": -18.524,
+      "y": -20.812
+    },
+    {
+      "track_id": 53,
+      "title": "analog",
+      "artist_name": "Hiroumi",
+      "genre": "pop",
+      "x": -6.774,
+      "y": -10.817
+    },
+    {
+      "track_id": 54,
+      "title": " Over Me",
+      "artist_name": "Jemex",
+      "genre": "pop",
+      "x": -10.536,
+      "y": 7.622
+    },
+    {
+      "track_id": 55,
+      "title": "Last Song",
+      "artist_name": "The Jaygles",
+      "genre": "pop",
+      "x": 8.828,
+      "y": 2.609
+    },
+    {
+      "track_id": 56,
+      "title": "No Words (Director's Cut)",
+      "artist_name": "WE ARE FM",
+      "genre": "rock",
+      "x": -1.416,
+      "y": 13.446
+    },
+    {
+      "track_id": 57,
+      "title": "Without You (C.Rizzo)",
+      "artist_name": "Mistery",
+      "genre": "pop",
+      "x": 10.545,
+      "y": 1.054
+    },
+    {
+      "track_id": 58,
+      "title": "Porcelain Judas",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "Other",
+      "x": 18.576,
+      "y": 12.556
+    },
+    {
+      "track_id": 59,
+      "title": "You Can't Have Everything",
+      "artist_name": "Chasing Eidolon",
+      "genre": "Other",
+      "x": 6.241,
+      "y": 8.441
+    },
+    {
+      "track_id": 60,
+      "title": "California Moon",
+      "artist_name": "Robert Avellanet",
+      "genre": "pop",
+      "x": 6.428,
+      "y": -1.034
+    },
+    {
+      "track_id": 61,
+      "title": "Moon & Sun - Salt & Indigo",
+      "artist_name": "Moon & Sun",
+      "genre": "Other",
+      "x": -0.196,
+      "y": -11.635
+    },
+    {
+      "track_id": 62,
+      "title": "Supergirl (C.Rizzo)",
+      "artist_name": "Mistery",
+      "genre": "pop",
+      "x": 0.844,
+      "y": 0.625
+    },
+    {
+      "track_id": 63,
+      "title": "Crash and Burn",
+      "artist_name": "JARA",
+      "genre": "pop",
+      "x": -3.684,
+      "y": 9.333
+    },
+    {
+      "track_id": 64,
+      "title": "Balrog Boogie",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "Other",
+      "x": 10.583,
+      "y": 15.427
+    },
+    {
+      "track_id": 65,
+      "title": "All The Things She Said",
+      "artist_name": "MoOt",
+      "genre": "rock",
+      "x": 13.501,
+      "y": 4.745
+    },
+    {
+      "track_id": 66,
+      "title": "My Favorite Escape",
+      "artist_name": "Explosive Ear Candy",
+      "genre": "pop",
+      "x": 4.685,
+      "y": 7.705
+    },
+    {
+      "track_id": 67,
+      "title": "Best I Can (Feat. Habit Blcx)",
+      "artist_name": "Jasmine Jordan",
+      "genre": "pop",
+      "x": -2.398,
+      "y": 5.216
+    },
+    {
+      "track_id": 68,
+      "title": "Strictly Luxury",
+      "artist_name": "Lilly Wolf",
+      "genre": "pop",
+      "x": -17.512,
+      "y": -1.393
+    },
+    {
+      "track_id": 69,
+      "title": "Empty Bed",
+      "artist_name": "Lyonn",
+      "genre": "pop",
+      "x": -4.61,
+      "y": 1.538
+    },
+    {
+      "track_id": 70,
+      "title": "I_",
+      "artist_name": "Leslie Hunt",
+      "genre": "pop",
+      "x": 10.934,
+      "y": -5.751
+    },
+    {
+      "track_id": 71,
+      "title": "PerfectFit",
+      "artist_name": "Malika Rai",
+      "genre": "Other",
+      "x": 0.402,
+      "y": 0.922
+    },
+    {
+      "track_id": 72,
+      "title": "Leave a Little for the Fallout",
+      "artist_name": "Mike Falzone and the Peppermint Trick",
+      "genre": "rock",
+      "x": 11.092,
+      "y": 14.575
+    },
+    {
+      "track_id": 73,
+      "title": "Give U My Name",
+      "artist_name": "Jyant",
+      "genre": "pop",
+      "x": -5.161,
+      "y": 8.043
+    },
+    {
+      "track_id": 74,
+      "title": "First",
+      "artist_name": "JekK",
+      "genre": "Other",
+      "x": -14.954,
+      "y": 1.84
+    },
+    {
+      "track_id": 75,
+      "title": "C'est La Vie",
+      "artist_name": "NaTtA",
+      "genre": "pop",
+      "x": 0.681,
+      "y": 2.643
+    },
+    {
+      "track_id": 76,
+      "title": "Skydiving (feat. Jasmine Kara)",
+      "artist_name": "Jonay",
+      "genre": "pop",
+      "x": -9.33,
+      "y": 10.243
+    },
+    {
+      "track_id": 77,
+      "title": "Mi raz\u00f3n de ser / de La Banda MS / Con Proyecto G",
+      "artist_name": "Proyecto G",
+      "genre": "Other",
+      "x": 3.976,
+      "y": -8.064
+    },
+    {
+      "track_id": 78,
+      "title": "To the Death",
+      "artist_name": "Andre Rodriguez",
+      "genre": "Other",
+      "x": 13.125,
+      "y": -3.486
+    },
+    {
+      "track_id": 79,
+      "title": "For Your Love (feat. Rashani)",
+      "artist_name": "Jonay",
+      "genre": "pop",
+      "x": -3.836,
+      "y": 9.657
+    },
+    {
+      "track_id": 80,
+      "title": "Beautiful Girl",
+      "artist_name": "Babypaul",
+      "genre": "pop",
+      "x": 6.284,
+      "y": 5.366
+    },
+    {
+      "track_id": 81,
+      "title": "Show Me What You Got",
+      "artist_name": "14ice_music",
+      "genre": "Other",
+      "x": -6.157,
+      "y": -16.337
+    },
+    {
+      "track_id": 82,
+      "title": "To Die For",
+      "artist_name": "JARA",
+      "genre": "pop",
+      "x": -4.119,
+      "y": 9.12
+    },
+    {
+      "track_id": 83,
+      "title": "Nebulous Notions",
+      "artist_name": "Revolution Void",
+      "genre": "electronic",
+      "x": -6.671,
+      "y": -16.97
+    },
+    {
+      "track_id": 84,
+      "title": "Games",
+      "artist_name": "The Windy City",
+      "genre": "rock",
+      "x": 2.107,
+      "y": 8.208
+    },
+    {
+      "track_id": 85,
+      "title": "Oh, Conspiracy",
+      "artist_name": "Flat People",
+      "genre": "Other",
+      "x": 9.027,
+      "y": 9.45
+    },
+    {
+      "track_id": 86,
+      "title": "Slip Away",
+      "artist_name": "Backnbloom",
+      "genre": "pop",
+      "x": 16.001,
+      "y": -0.755
+    },
+    {
+      "track_id": 87,
+      "title": "A Better Place",
+      "artist_name": "Deanmoore",
+      "genre": "pop",
+      "x": 11.083,
+      "y": -2.268
+    },
+    {
+      "track_id": 88,
+      "title": "Legends",
+      "artist_name": "Galdson",
+      "genre": "Other",
+      "x": -19.995,
+      "y": -20.918
+    },
+    {
+      "track_id": 89,
+      "title": "This Ain't Love",
+      "artist_name": "Jyant",
+      "genre": "pop",
+      "x": -12.927,
+      "y": 7.654
+    },
+    {
+      "track_id": 90,
+      "title": "Waiting For Love",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 5.729,
+      "y": 0.586
+    },
+    {
+      "track_id": 91,
+      "title": "Unfortunate lovestory",
+      "artist_name": "The Nuri",
+      "genre": "pop",
+      "x": 10.999,
+      "y": 0.33
+    },
+    {
+      "track_id": 92,
+      "title": "Prelude in E major",
+      "artist_name": "Maya Filipi\u010d",
+      "genre": "Other",
+      "x": -22.137,
+      "y": -22.244
+    },
+    {
+      "track_id": 93,
+      "title": "Beauty",
+      "artist_name": "Tryad",
+      "genre": "pop",
+      "x": -10.604,
+      "y": -13.773
+    },
+    {
+      "track_id": 94,
+      "title": "Built To Last",
+      "artist_name": "Fall Walk Run",
+      "genre": "pop",
+      "x": 10.297,
+      "y": 3.959
+    },
+    {
+      "track_id": 95,
+      "title": "Let Me Go",
+      "artist_name": "STEEP",
+      "genre": "rock",
+      "x": 16.301,
+      "y": 8.825
+    },
+    {
+      "track_id": 96,
+      "title": "Mr.&Mrs Rains",
+      "artist_name": "Intoxicated Piano",
+      "genre": "pop",
+      "x": 0.778,
+      "y": -7.192
+    },
+    {
+      "track_id": 97,
+      "title": "Deep blue (2005)",
+      "artist_name": "Antony Raijekov",
+      "genre": "Other",
+      "x": -8.632,
+      "y": -17.919
+    },
+    {
+      "track_id": 98,
+      "title": "In Tune",
+      "artist_name": "Kellee Maize",
+      "genre": "pop",
+      "x": 0.939,
+      "y": -8.099
+    },
+    {
+      "track_id": 99,
+      "title": "Bad Intentions",
+      "artist_name": "Bessonn&amp;sa",
+      "genre": "pop",
+      "x": -13.788,
+      "y": 6.356
+    },
+    {
+      "track_id": 100,
+      "title": "I'll Wait",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 8.092,
+      "y": 1.914
+    },
+    {
+      "track_id": 101,
+      "title": "Flight",
+      "artist_name": "Pianochocolate",
+      "genre": "electronic",
+      "x": -16.202,
+      "y": -2.575
+    },
+    {
+      "track_id": 102,
+      "title": "Wedding March for a Bullet",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "Other",
+      "x": 18.597,
+      "y": 12.329
+    },
+    {
+      "track_id": 103,
+      "title": "Summer",
+      "artist_name": "Michael Ellis",
+      "genre": "pop",
+      "x": 9.753,
+      "y": 14.992
+    },
+    {
+      "track_id": 104,
+      "title": "Butterfly",
+      "artist_name": "Jediah",
+      "genre": "pop",
+      "x": 6.191,
+      "y": 9.589
+    },
+    {
+      "track_id": 105,
+      "title": "From Here",
+      "artist_name": "Danielle Helena",
+      "genre": "Other",
+      "x": 2.705,
+      "y": 8.522
+    },
+    {
+      "track_id": 106,
+      "title": "take me to the bonuslevel because i need an extralife",
+      "artist_name": "pornophonique",
+      "genre": "pop",
+      "x": 15.418,
+      "y": 16.191
+    },
+    {
+      "track_id": 107,
+      "title": "I Want You",
+      "artist_name": "Neon NiteClub",
+      "genre": "pop",
+      "x": -15.852,
+      "y": 7.551
+    },
+    {
+      "track_id": 108,
+      "title": "Alone",
+      "artist_name": "Color Out",
+      "genre": "Other",
+      "x": 11.392,
+      "y": 1.299
+    },
+    {
+      "track_id": 109,
+      "title": "Round and Round",
+      "artist_name": "LAWRENCE BEAMEN",
+      "genre": "pop",
+      "x": -4.167,
+      "y": 10.39
+    },
+    {
+      "track_id": 110,
+      "title": "Dan Darnell - Right Now",
+      "artist_name": "Dan Darnell",
+      "genre": "pop",
+      "x": -15.671,
+      "y": 3.914
+    },
+    {
+      "track_id": 111,
+      "title": "Way Too Much",
+      "artist_name": "Leslie Hunt",
+      "genre": "Other",
+      "x": 10.675,
+      "y": -0.534
+    },
+    {
+      "track_id": 112,
+      "title": "Just A Day (Exclusive)",
+      "artist_name": "RVNS",
+      "genre": "pop",
+      "x": -17.555,
+      "y": -19.245
+    },
+    {
+      "track_id": 113,
+      "title": "Meant to Be",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -20.464,
+      "y": -19.894
+    },
+    {
+      "track_id": 114,
+      "title": "Make Believe",
+      "artist_name": "Felixjd",
+      "genre": "electronic",
+      "x": -11.027,
+      "y": -8.3
+    },
+    {
+      "track_id": 115,
+      "title": "LEEONA - Do I",
+      "artist_name": "Zara Arshakian",
+      "genre": "electronic",
+      "x": -12.171,
+      "y": 0.19
+    },
+    {
+      "track_id": 116,
+      "title": "Leather Jacket",
+      "artist_name": "JARA",
+      "genre": "pop",
+      "x": 12.401,
+      "y": 4.749
+    },
+    {
+      "track_id": 117,
+      "title": "Invisible Walls",
+      "artist_name": "Revolution Void",
+      "genre": "Other",
+      "x": -9.817,
+      "y": -16.838
+    },
+    {
+      "track_id": 118,
+      "title": "Always part I",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 11.664,
+      "y": -6.092
+    },
+    {
+      "track_id": 119,
+      "title": "This",
+      "artist_name": "Tryad",
+      "genre": "Other",
+      "x": 3.803,
+      "y": 15.298
+    },
+    {
+      "track_id": 120,
+      "title": "The Little Robot",
+      "artist_name": "Forget the Whale",
+      "genre": "rock",
+      "x": 14.561,
+      "y": 4.494
+    },
+    {
+      "track_id": 121,
+      "title": "Heart and Soul",
+      "artist_name": "Robert Avellanet",
+      "genre": "pop",
+      "x": 3.436,
+      "y": 2.83
+    },
+    {
+      "track_id": 122,
+      "title": "Exp\u00e9rience",
+      "artist_name": "Silence",
+      "genre": "rock",
+      "x": -9.801,
+      "y": -18.584
+    },
+    {
+      "track_id": 123,
+      "title": "You Are You",
+      "artist_name": "Fall Walk Run",
+      "genre": "Other",
+      "x": 6.884,
+      "y": 2.479
+    },
+    {
+      "track_id": 124,
+      "title": "Rational Behaviour",
+      "artist_name": "Heifervescent",
+      "genre": "rock",
+      "x": 11.231,
+      "y": 9.748
+    },
+    {
+      "track_id": 125,
+      "title": "The Promise",
+      "artist_name": "Swear and Shake",
+      "genre": "Other",
+      "x": 9.85,
+      "y": 9.77
+    },
+    {
+      "track_id": 126,
+      "title": "Demon",
+      "artist_name": "Marco Margna",
+      "genre": "pop",
+      "x": -10.667,
+      "y": 6.029
+    },
+    {
+      "track_id": 127,
+      "title": "Remembering Ten",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 7.644,
+      "y": 14.472
+    },
+    {
+      "track_id": 128,
+      "title": "Before I sleep",
+      "artist_name": "Muciojad",
+      "genre": "Other",
+      "x": -11.133,
+      "y": -3.003
+    },
+    {
+      "track_id": 129,
+      "title": "Zodiac Virtues",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "Other",
+      "x": -5.842,
+      "y": -12.767
+    },
+    {
+      "track_id": 130,
+      "title": "Bones",
+      "artist_name": "Swear and Shake",
+      "genre": "Other",
+      "x": 7.879,
+      "y": 11.381
+    },
+    {
+      "track_id": 131,
+      "title": "Stereo Time",
+      "artist_name": "Sunwill",
+      "genre": "rock",
+      "x": -0.425,
+      "y": 10.008
+    },
+    {
+      "track_id": 132,
+      "title": "When Waves Trying to Catch a Marvel",
+      "artist_name": "Antony Raijekov",
+      "genre": "Other",
+      "x": -5.293,
+      "y": -16.66
+    },
+    {
+      "track_id": 133,
+      "title": "Time Travel (Feat. Blanchard De Wave)",
+      "artist_name": "Jasmine Jordan",
+      "genre": "Other",
+      "x": -3.784,
+      "y": 3.211
+    },
+    {
+      "track_id": 134,
+      "title": "GO!GO!GO!",
+      "artist_name": "Emerald Park",
+      "genre": "Other",
+      "x": -7.349,
+      "y": -6.281
+    },
+    {
+      "track_id": 135,
+      "title": "Welcome Me Back",
+      "artist_name": "Brady Harris",
+      "genre": "Other",
+      "x": 2.5,
+      "y": -4.331
+    },
+    {
+      "track_id": 136,
+      "title": "Wake Me When Its Over",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 8.844,
+      "y": -0.167
+    },
+    {
+      "track_id": 137,
+      "title": "Love Will Break the Walls",
+      "artist_name": "Robert Avellanet",
+      "genre": "pop",
+      "x": 1.729,
+      "y": 3.56
+    },
+    {
+      "track_id": 138,
+      "title": "sweet tania",
+      "artist_name": "Arnaud Martin Jazabana",
+      "genre": "Other",
+      "x": -3.591,
+      "y": -16.931
+    },
+    {
+      "track_id": 139,
+      "title": "Hold Me Tonight",
+      "artist_name": "JARA",
+      "genre": "pop",
+      "x": 2.362,
+      "y": 11.16
+    },
+    {
+      "track_id": 140,
+      "title": "Bal de Nuit",
+      "artist_name": "Remy Bourgeois",
+      "genre": "electronic",
+      "x": -13.995,
+      "y": -19.037
+    },
+    {
+      "track_id": 141,
+      "title": "Boys, Girls, Toys & Words",
+      "artist_name": "Modern Pitch",
+      "genre": "pop",
+      "x": 11.776,
+      "y": 11.854
+    },
+    {
+      "track_id": 142,
+      "title": "Stories from Emona V",
+      "artist_name": "Maya Filipi\u010d",
+      "genre": "Other",
+      "x": -22.288,
+      "y": -21.006
+    },
+    {
+      "track_id": 143,
+      "title": "Ready Set Stay",
+      "artist_name": "Grace Kelly",
+      "genre": "pop",
+      "x": 2.655,
+      "y": -4.128
+    },
+    {
+      "track_id": 144,
+      "title": "Time To Forget",
+      "artist_name": "The Monster Brothers",
+      "genre": "rock",
+      "x": 5.89,
+      "y": -8.782
+    },
+    {
+      "track_id": 145,
+      "title": "Stay Tuned",
+      "artist_name": "SONIC MYSTERY",
+      "genre": "Other",
+      "x": -12.073,
+      "y": -9.515
+    },
+    {
+      "track_id": 146,
+      "title": "Human Light",
+      "artist_name": "John Dada &amp; the Weathermen",
+      "genre": "pop",
+      "x": 0.158,
+      "y": 5.064
+    },
+    {
+      "track_id": 147,
+      "title": "Heroines",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "rock",
+      "x": 6.524,
+      "y": 16.393
+    },
+    {
+      "track_id": 148,
+      "title": "No Rest Or Endless Rest",
+      "artist_name": "Lisofv",
+      "genre": "Other",
+      "x": -7.253,
+      "y": -15.597
+    },
+    {
+      "track_id": 149,
+      "title": "Borderline",
+      "artist_name": "Brad Sucks",
+      "genre": "Other",
+      "x": 2.017,
+      "y": 11.839
+    },
+    {
+      "track_id": 150,
+      "title": "Young love",
+      "artist_name": "J Lynn the Bride",
+      "genre": "pop",
+      "x": -1.558,
+      "y": 0.177
+    },
+    {
+      "track_id": 151,
+      "title": "Johnnie",
+      "artist_name": "Swear and Shake",
+      "genre": "Other",
+      "x": 14.001,
+      "y": -9.135
+    },
+    {
+      "track_id": 152,
+      "title": "I wanna Be",
+      "artist_name": "Quentin Hannappe",
+      "genre": "Other",
+      "x": 2.912,
+      "y": -4.83
+    },
+    {
+      "track_id": 153,
+      "title": "Anything But Everything",
+      "artist_name": "Color Out",
+      "genre": "rock",
+      "x": 14.7,
+      "y": 10.889
+    },
+    {
+      "track_id": 154,
+      "title": "Tulip Trees",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -21.118,
+      "y": -19.435
+    },
+    {
+      "track_id": 155,
+      "title": "Gotta Love Me - Produced by Golden Day",
+      "artist_name": "Kellee Maize",
+      "genre": "Other",
+      "x": -6.599,
+      "y": 9.391
+    },
+    {
+      "track_id": 156,
+      "title": "Stop!",
+      "artist_name": "Silence",
+      "genre": "electronic",
+      "x": -12.753,
+      "y": -11.975
+    },
+    {
+      "track_id": 157,
+      "title": "Open Your Eyes",
+      "artist_name": "Leslie Hunt",
+      "genre": "rock",
+      "x": -1.224,
+      "y": 12.945
+    },
+    {
+      "track_id": 158,
+      "title": "antisocial",
+      "artist_name": "Rxbyn",
+      "genre": "Other",
+      "x": -11.308,
+      "y": 9.855
+    },
+    {
+      "track_id": 159,
+      "title": "All I Ever Wanted",
+      "artist_name": "Devon Elizabeth",
+      "genre": "pop",
+      "x": 11.993,
+      "y": 0.265
+    },
+    {
+      "track_id": 160,
+      "title": "Promises",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 9.122,
+      "y": 13.596
+    },
+    {
+      "track_id": 161,
+      "title": "Wake Up",
+      "artist_name": "Square a Saw",
+      "genre": "pop",
+      "x": -12.726,
+      "y": 2.061
+    },
+    {
+      "track_id": 162,
+      "title": "Ballad of a Townie",
+      "artist_name": "Mike Falzone and the Peppermint Trick",
+      "genre": "Other",
+      "x": 7.328,
+      "y": 8.671
+    },
+    {
+      "track_id": 163,
+      "title": "My World",
+      "artist_name": "WE ARE FM",
+      "genre": "rock",
+      "x": 10.907,
+      "y": 17.096
+    },
+    {
+      "track_id": 164,
+      "title": "Ambient Flight (Electro Vocal Mix)",
+      "artist_name": "Zeropage",
+      "genre": "Other",
+      "x": -8.051,
+      "y": -9.427
+    },
+    {
+      "track_id": 165,
+      "title": "In Tune - Remix 2 (2017 Version)",
+      "artist_name": "Kellee Maize",
+      "genre": "electronic",
+      "x": -16.652,
+      "y": 3.086
+    },
+    {
+      "track_id": 166,
+      "title": "Into The Dream",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 2.943,
+      "y": -2.679
+    },
+    {
+      "track_id": 167,
+      "title": "Make It New",
+      "artist_name": "Major Major",
+      "genre": "Other",
+      "x": 8.224,
+      "y": 4.987
+    },
+    {
+      "track_id": 168,
+      "title": "Gunpowder Chant",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "Other",
+      "x": -10.483,
+      "y": -6.597
+    },
+    {
+      "track_id": 169,
+      "title": "You're Always With Me",
+      "artist_name": "Marco Margna",
+      "genre": "pop",
+      "x": 4.296,
+      "y": -3.965
+    },
+    {
+      "track_id": 170,
+      "title": "My Love",
+      "artist_name": "MODUS",
+      "genre": "pop",
+      "x": -14.296,
+      "y": 3.985
+    },
+    {
+      "track_id": 171,
+      "title": "Swell",
+      "artist_name": "Hypercute",
+      "genre": "pop",
+      "x": -3.778,
+      "y": 4.67
+    },
+    {
+      "track_id": 172,
+      "title": "Closer at the start",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 12.288,
+      "y": -5.586
+    },
+    {
+      "track_id": 173,
+      "title": "When You Are Gone",
+      "artist_name": "Marco Margna",
+      "genre": "pop",
+      "x": -10.689,
+      "y": 6.462
+    },
+    {
+      "track_id": 174,
+      "title": "Alone",
+      "artist_name": "Tryad",
+      "genre": "pop",
+      "x": -10.345,
+      "y": 4.556
+    },
+    {
+      "track_id": 175,
+      "title": "longtime",
+      "artist_name": "Reman",
+      "genre": "Other",
+      "x": -17.549,
+      "y": -18.048
+    },
+    {
+      "track_id": 176,
+      "title": "Pasadena",
+      "artist_name": "Emerald Park",
+      "genre": "pop",
+      "x": -11.182,
+      "y": -8.383
+    },
+    {
+      "track_id": 177,
+      "title": "La face cach\u00e9e de la lune",
+      "artist_name": "Greg Baumont",
+      "genre": "Other",
+      "x": -8.809,
+      "y": -16.313
+    },
+    {
+      "track_id": 178,
+      "title": "Distance friend",
+      "artist_name": "Galdson",
+      "genre": "Other",
+      "x": -20.262,
+      "y": -20.807
+    },
+    {
+      "track_id": 179,
+      "title": "Closer",
+      "artist_name": "Jasmine Jordan",
+      "genre": "pop",
+      "x": -0.582,
+      "y": 2.523
+    },
+    {
+      "track_id": 180,
+      "title": "Perverting The American Dream",
+      "artist_name": "The Bourgeois",
+      "genre": "rock",
+      "x": 16.113,
+      "y": 11.078
+    },
+    {
+      "track_id": 181,
+      "title": "The Soft and Rising Dawn",
+      "artist_name": "Paul Lisak & After The Ice",
+      "genre": "pop",
+      "x": 6.954,
+      "y": 9.293
+    },
+    {
+      "track_id": 182,
+      "title": "Iceberg",
+      "artist_name": "Lyonn",
+      "genre": "pop",
+      "x": -14.098,
+      "y": -15.328
+    },
+    {
+      "track_id": 183,
+      "title": "Empty",
+      "artist_name": "Tryad",
+      "genre": "pop",
+      "x": -5.964,
+      "y": -5.644
+    },
+    {
+      "track_id": 184,
+      "title": "My Thoughts",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 9.331,
+      "y": -3.686
+    },
+    {
+      "track_id": 185,
+      "title": "The Dreamer's Overture",
+      "artist_name": "JT Bruce",
+      "genre": "rock",
+      "x": 18.413,
+      "y": 15.56
+    },
+    {
+      "track_id": 186,
+      "title": "Be Cool",
+      "artist_name": "Big Infinite",
+      "genre": "rock",
+      "x": 13.532,
+      "y": -4.374
+    },
+    {
+      "track_id": 187,
+      "title": "D'angelo",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "Other",
+      "x": 7.086,
+      "y": -4.529
+    },
+    {
+      "track_id": 188,
+      "title": "Adventure",
+      "artist_name": "madelyn munsell",
+      "genre": "pop",
+      "x": 15.274,
+      "y": -0.937
+    },
+    {
+      "track_id": 189,
+      "title": "Eight or Nine",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": -13.797,
+      "y": -9.435
+    },
+    {
+      "track_id": 190,
+      "title": "La Luna - feat SIzu Yantra (Caf\u00e9 Tacuba)",
+      "artist_name": "Butumbaba",
+      "genre": "Other",
+      "x": -2.582,
+      "y": -17.256
+    },
+    {
+      "track_id": 191,
+      "title": "Sunsets within",
+      "artist_name": "Serakina",
+      "genre": "Other",
+      "x": -6.265,
+      "y": -15.442
+    },
+    {
+      "track_id": 192,
+      "title": "Calling You",
+      "artist_name": "Sam Garbett",
+      "genre": "pop",
+      "x": 9.654,
+      "y": -8.36
+    },
+    {
+      "track_id": 193,
+      "title": "Prelude in C# minor",
+      "artist_name": "Maya Filipi\u010d",
+      "genre": "Other",
+      "x": -21.284,
+      "y": -21.894
+    },
+    {
+      "track_id": 194,
+      "title": "Blancoz - La solita storia pt.2",
+      "artist_name": "Blancoz",
+      "genre": "Other",
+      "x": -4.93,
+      "y": -13.25
+    },
+    {
+      "track_id": 195,
+      "title": "Julius Marx - Vices",
+      "artist_name": "Julius Marx",
+      "genre": "pop",
+      "x": 4.464,
+      "y": -3.207
+    },
+    {
+      "track_id": 196,
+      "title": "Ska One",
+      "artist_name": "HiGhMaS",
+      "genre": "Other",
+      "x": -9.416,
+      "y": -15.635
+    },
+    {
+      "track_id": 197,
+      "title": "Runaways",
+      "artist_name": "Elle Lefant",
+      "genre": "pop",
+      "x": 0.585,
+      "y": -6.437
+    },
+    {
+      "track_id": 198,
+      "title": "The Symphony",
+      "artist_name": "Lyonn",
+      "genre": "pop",
+      "x": -14.452,
+      "y": 5.929
+    },
+    {
+      "track_id": 199,
+      "title": "Ignite",
+      "artist_name": "The Spin Wires",
+      "genre": "rock",
+      "x": 18.442,
+      "y": 10.722
+    },
+    {
+      "track_id": 200,
+      "title": "Down the Road",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -20.78,
+      "y": -18.976
+    },
+    {
+      "track_id": 201,
+      "title": "Istanbul",
+      "artist_name": "Emerald Park",
+      "genre": "Other",
+      "x": -15.749,
+      "y": -8.597
+    },
+    {
+      "track_id": 202,
+      "title": "Kind of light",
+      "artist_name": "Dofhei Project",
+      "genre": "rock",
+      "x": 10.149,
+      "y": 16.511
+    },
+    {
+      "track_id": 203,
+      "title": "OMG...  It's a Pop Song (Radio Edit)",
+      "artist_name": "Class 99",
+      "genre": "pop",
+      "x": -7.355,
+      "y": 6.998
+    },
+    {
+      "track_id": 206,
+      "title": "City",
+      "artist_name": "WE ARE FM",
+      "genre": "pop",
+      "x": 9.65,
+      "y": 6.078
+    },
+    {
+      "track_id": 209,
+      "title": "The Sting (C.Rizzo)",
+      "artist_name": "Mistery",
+      "genre": "pop",
+      "x": 4.781,
+      "y": 5.728
+    },
+    {
+      "track_id": 210,
+      "title": "Burn Your Love",
+      "artist_name": "Sunwill",
+      "genre": "pop",
+      "x": -7.252,
+      "y": 4.312
+    },
+    {
+      "track_id": 212,
+      "title": "my_heart",
+      "artist_name": "Mistery",
+      "genre": "pop",
+      "x": -0.748,
+      "y": 1.909
+    },
+    {
+      "track_id": 213,
+      "title": "I Miss You",
+      "artist_name": "Olga Zhilkova",
+      "genre": "rock",
+      "x": 4.206,
+      "y": 4.77
+    },
+    {
+      "track_id": 214,
+      "title": "Ley de Gravitaci\u00f3n Universal",
+      "artist_name": "Miss Caffeina",
+      "genre": "pop",
+      "x": 3.965,
+      "y": 4.8
+    },
+    {
+      "track_id": 217,
+      "title": "Pieces of me",
+      "artist_name": "J Lynn the Bride",
+      "genre": "pop",
+      "x": 0.077,
+      "y": 0.009
+    },
+    {
+      "track_id": 219,
+      "title": "It Could Be You",
+      "artist_name": "STEEP",
+      "genre": "rock",
+      "x": 14.085,
+      "y": 5.747
+    },
+    {
+      "track_id": 221,
+      "title": "How Things Change",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 10.112,
+      "y": 12.014
+    },
+    {
+      "track_id": 222,
+      "title": "Day-X",
+      "artist_name": "Sunwill",
+      "genre": "rock",
+      "x": -13.739,
+      "y": 1.444
+    },
+    {
+      "track_id": 225,
+      "title": "Give Me a Change",
+      "artist_name": "Marco Margna",
+      "genre": "pop",
+      "x": -5.128,
+      "y": 7.038
+    },
+    {
+      "track_id": 226,
+      "title": "Let Them Go",
+      "artist_name": "Leslie Hunt",
+      "genre": "Other",
+      "x": -8.906,
+      "y": -0.229
+    },
+    {
+      "track_id": 227,
+      "title": "Awakening",
+      "artist_name": "Anne Davis",
+      "genre": "pop",
+      "x": 11.795,
+      "y": 0.711
+    },
+    {
+      "track_id": 228,
+      "title": "Miss Understanding",
+      "artist_name": "Sam Brown",
+      "genre": "pop",
+      "x": 2.449,
+      "y": 4.739
+    },
+    {
+      "track_id": 229,
+      "title": "Always part II",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 11.945,
+      "y": -6.893
+    },
+    {
+      "track_id": 231,
+      "title": "Freak (C.Rizzo)",
+      "artist_name": "Mistery",
+      "genre": "Other",
+      "x": 12.086,
+      "y": -0.82
+    },
+    {
+      "track_id": 232,
+      "title": "Never Do (C.Rizzo)",
+      "artist_name": "Mistery",
+      "genre": "Other",
+      "x": 5.403,
+      "y": 14.112
+    },
+    {
+      "track_id": 233,
+      "title": "Lets Restart",
+      "artist_name": "madelyn munsell",
+      "genre": "pop",
+      "x": 14.922,
+      "y": -1.658
+    },
+    {
+      "track_id": 234,
+      "title": "Lover At Night",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 11.421,
+      "y": 7.856
+    },
+    {
+      "track_id": 237,
+      "title": "Sexy jouet",
+      "artist_name": "Lollita",
+      "genre": "pop",
+      "x": -9.075,
+      "y": 8.4
+    },
+    {
+      "track_id": 238,
+      "title": "To Be Alive",
+      "artist_name": "Non Camera",
+      "genre": "pop",
+      "x": 11.087,
+      "y": -7.507
+    },
+    {
+      "track_id": 241,
+      "title": "Feeling Light",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 7.697,
+      "y": 12.729
+    },
+    {
+      "track_id": 245,
+      "title": "He Knows",
+      "artist_name": "Hulyoson",
+      "genre": "pop",
+      "x": 12.239,
+      "y": -7.634
+    },
+    {
+      "track_id": 246,
+      "title": "All The Way",
+      "artist_name": "Leslie Hunt",
+      "genre": "rock",
+      "x": 12.972,
+      "y": 9.239
+    },
+    {
+      "track_id": 247,
+      "title": "I Was Born For You",
+      "artist_name": "Robert Avellanet",
+      "genre": "pop",
+      "x": 5.966,
+      "y": -1.245
+    },
+    {
+      "track_id": 250,
+      "title": "The Worst And Best",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 8.609,
+      "y": 2.49
+    },
+    {
+      "track_id": 252,
+      "title": "Thru the Line",
+      "artist_name": "The Monster Brothers",
+      "genre": "Other",
+      "x": 7.325,
+      "y": 1.047
+    },
+    {
+      "track_id": 253,
+      "title": "Don't you go away featuring Dr Llynx",
+      "artist_name": "Lollita",
+      "genre": "pop",
+      "x": -6.118,
+      "y": 8.468
+    },
+    {
+      "track_id": 256,
+      "title": "Pangea",
+      "artist_name": "Professor Kliq",
+      "genre": "electronic",
+      "x": -12.567,
+      "y": -12.559
+    },
+    {
+      "track_id": 257,
+      "title": "Illuminate (feat. Mey)",
+      "artist_name": "Yavor",
+      "genre": "pop",
+      "x": -4.874,
+      "y": 4.68
+    },
+    {
+      "track_id": 260,
+      "title": "When I Have You",
+      "artist_name": "Robert Avellanet",
+      "genre": "pop",
+      "x": 10.198,
+      "y": 2.724
+    },
+    {
+      "track_id": 268,
+      "title": "Back Chat - Jesta",
+      "artist_name": "Jesta",
+      "genre": "Other",
+      "x": 12.849,
+      "y": 5.677
+    },
+    {
+      "track_id": 269,
+      "title": "I'm Getting Better",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "pop",
+      "x": 13.424,
+      "y": -8.68
+    },
+    {
+      "track_id": 272,
+      "title": "The Walk",
+      "artist_name": "JARA",
+      "genre": "pop",
+      "x": 12.114,
+      "y": 3.623
+    },
+    {
+      "track_id": 274,
+      "title": "The One and Only",
+      "artist_name": "Robert Avellanet",
+      "genre": "pop",
+      "x": 1.784,
+      "y": 3.364
+    },
+    {
+      "track_id": 275,
+      "title": "The Saymory - The Mirror Of You(Dr.Synthetique mix) wav",
+      "artist_name": "the saymory",
+      "genre": "Other",
+      "x": -9.556,
+      "y": 0.613
+    },
+    {
+      "track_id": 277,
+      "title": "Lies",
+      "artist_name": "Jonathan Dimmel",
+      "genre": "rock",
+      "x": 11.256,
+      "y": 12.148
+    },
+    {
+      "track_id": 278,
+      "title": "Heavy Hopes",
+      "artist_name": "The Ease Down",
+      "genre": "pop",
+      "x": -6.585,
+      "y": -19.717
+    },
+    {
+      "track_id": 279,
+      "title": "Waves",
+      "artist_name": "studyBreak",
+      "genre": "electronic",
+      "x": -14.797,
+      "y": 4.871
+    },
+    {
+      "track_id": 281,
+      "title": "Star Fall",
+      "artist_name": "Sunwill",
+      "genre": "pop",
+      "x": 13.704,
+      "y": 12.139
+    },
+    {
+      "track_id": 282,
+      "title": "Get Lost",
+      "artist_name": "Anne Davis",
+      "genre": "Other",
+      "x": 5.073,
+      "y": -2.323
+    },
+    {
+      "track_id": 283,
+      "title": "Dos Diamantes",
+      "artist_name": "Javier Jerez",
+      "genre": "Other",
+      "x": 12.36,
+      "y": 10.466
+    },
+    {
+      "track_id": 290,
+      "title": "Wild Hearts (feat. Ashley Jana)",
+      "artist_name": "David Amber",
+      "genre": "pop",
+      "x": -9.445,
+      "y": 6.159
+    },
+    {
+      "track_id": 291,
+      "title": "Temple Of Contradictions",
+      "artist_name": "Anne Davis",
+      "genre": "pop",
+      "x": 12.329,
+      "y": 1.907
+    },
+    {
+      "track_id": 292,
+      "title": "I Only Care About You When You're Gone",
+      "artist_name": "Leslie Hunt",
+      "genre": "Other",
+      "x": -3.597,
+      "y": 3.098
+    },
+    {
+      "track_id": 293,
+      "title": "lemmings in love",
+      "artist_name": "pornophonique",
+      "genre": "Other",
+      "x": 3.745,
+      "y": 2.246
+    },
+    {
+      "track_id": 294,
+      "title": "Second Time Around (feat. Ashley Jana, Raymond Lee, and Ryan Notes)",
+      "artist_name": "David Amber",
+      "genre": "pop",
+      "x": -9.283,
+      "y": 6.148
+    },
+    {
+      "track_id": 295,
+      "title": "Poetic Pitbull Revolutions",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "Other",
+      "x": 16.386,
+      "y": 12.392
+    },
+    {
+      "track_id": 296,
+      "title": "I Cleaned Up",
+      "artist_name": "JARA",
+      "genre": "pop",
+      "x": -2.045,
+      "y": 6.908
+    },
+    {
+      "track_id": 298,
+      "title": "I want you ",
+      "artist_name": "Lollita",
+      "genre": "pop",
+      "x": -9.422,
+      "y": 11.073
+    },
+    {
+      "track_id": 299,
+      "title": "Oh baby (featuring Blunty)",
+      "artist_name": "Lollita",
+      "genre": "pop",
+      "x": -4.907,
+      "y": 9.883
+    },
+    {
+      "track_id": 300,
+      "title": "Here to Stay (feat. Amanda Droste)",
+      "artist_name": "David Amber",
+      "genre": "pop",
+      "x": -15.296,
+      "y": 2.862
+    },
+    {
+      "track_id": 301,
+      "title": "Yes or No",
+      "artist_name": "studyBreak",
+      "genre": "electronic",
+      "x": -8.733,
+      "y": -11.977
+    },
+    {
+      "track_id": 302,
+      "title": "Basorexia",
+      "artist_name": "JARA",
+      "genre": "pop",
+      "x": -12.305,
+      "y": -5.911
+    },
+    {
+      "track_id": 303,
+      "title": "Thats How You Like It",
+      "artist_name": "JARA",
+      "genre": "pop",
+      "x": -16.564,
+      "y": -22.8
+    },
+    {
+      "track_id": 304,
+      "title": "Surely Dont",
+      "artist_name": "JARA",
+      "genre": "pop",
+      "x": 8.71,
+      "y": -8.001
+    },
+    {
+      "track_id": 305,
+      "title": "Follow me",
+      "artist_name": "Silence",
+      "genre": "Other",
+      "x": -10.554,
+      "y": -15.952
+    },
+    {
+      "track_id": 306,
+      "title": "Burnin Star",
+      "artist_name": "StrangeZero",
+      "genre": "electronic",
+      "x": -12.295,
+      "y": -5.673
+    },
+    {
+      "track_id": 308,
+      "title": "Love of My Life",
+      "artist_name": "Ben Lvcas",
+      "genre": "pop",
+      "x": -14.234,
+      "y": -16.529
+    },
+    {
+      "track_id": 309,
+      "title": "PISSED OFF",
+      "artist_name": "NYCO",
+      "genre": "Other",
+      "x": 6.067,
+      "y": 10.692
+    },
+    {
+      "track_id": 310,
+      "title": "Mi soledad",
+      "artist_name": "Lubok",
+      "genre": "Other",
+      "x": 9.967,
+      "y": 13.343
+    },
+    {
+      "track_id": 311,
+      "title": "Choices",
+      "artist_name": "studyBreak",
+      "genre": "electronic",
+      "x": -10.619,
+      "y": -1.595
+    },
+    {
+      "track_id": 313,
+      "title": "Making Me Nervous",
+      "artist_name": "Brad Sucks",
+      "genre": "rock",
+      "x": -6.459,
+      "y": -6.692
+    },
+    {
+      "track_id": 315,
+      "title": "Effac\u00e9",
+      "artist_name": "Silence",
+      "genre": "Other",
+      "x": -11.388,
+      "y": -15.56
+    },
+    {
+      "track_id": 316,
+      "title": "Larmes",
+      "artist_name": "Silence",
+      "genre": "Other",
+      "x": -13.139,
+      "y": -15.127
+    },
+    {
+      "track_id": 317,
+      "title": "Lofi Chillout Hip Hop Beat",
+      "artist_name": "Joystock",
+      "genre": "Other",
+      "x": -7.981,
+      "y": -13.217
+    },
+    {
+      "track_id": 318,
+      "title": "Cali",
+      "artist_name": "Barefoot McCoy",
+      "genre": "Other",
+      "x": 6.088,
+      "y": -3.995
+    },
+    {
+      "track_id": 319,
+      "title": "Particule",
+      "artist_name": "Silence",
+      "genre": "electronic",
+      "x": -12.28,
+      "y": -15.98
+    },
+    {
+      "track_id": 320,
+      "title": "OUT OF MY HEAD",
+      "artist_name": "NYCO",
+      "genre": "rock",
+      "x": 6.109,
+      "y": 6.544
+    },
+    {
+      "track_id": 321,
+      "title": "Deeper For You",
+      "artist_name": "Melanie Ungar",
+      "genre": "pop",
+      "x": 5.213,
+      "y": -2.98
+    },
+    {
+      "track_id": 322,
+      "title": "World War III Rocketeer",
+      "artist_name": "The Very Sexuals",
+      "genre": "rock",
+      "x": 5.536,
+      "y": 9.814
+    },
+    {
+      "track_id": 324,
+      "title": "Aquanue",
+      "artist_name": "Malika Rai",
+      "genre": "Other",
+      "x": -4.677,
+      "y": 14.592
+    },
+    {
+      "track_id": 325,
+      "title": "Won't Give Up",
+      "artist_name": "This is lizzard",
+      "genre": "Other",
+      "x": 13.196,
+      "y": 13.734
+    },
+    {
+      "track_id": 326,
+      "title": "Games",
+      "artist_name": "The Windy City",
+      "genre": "Other",
+      "x": -3.333,
+      "y": 7.51
+    },
+    {
+      "track_id": 329,
+      "title": "The Soundtrack Of Our Summer",
+      "artist_name": "The League",
+      "genre": "rock",
+      "x": 14.869,
+      "y": 12.129
+    },
+    {
+      "track_id": 331,
+      "title": "Vernissage - Parole Leben",
+      "artist_name": "Vernissage",
+      "genre": "Other",
+      "x": -5.931,
+      "y": 1.421
+    },
+    {
+      "track_id": 332,
+      "title": "Just to be OK",
+      "artist_name": "NODREAMS",
+      "genre": "Other",
+      "x": 9.462,
+      "y": 1.21
+    },
+    {
+      "track_id": 333,
+      "title": "SURRENDER",
+      "artist_name": "NYCO",
+      "genre": "rock",
+      "x": 7.298,
+      "y": 10.005
+    },
+    {
+      "track_id": 336,
+      "title": "Rag Doll Physics",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "rock",
+      "x": 16.929,
+      "y": 11.875
+    },
+    {
+      "track_id": 337,
+      "title": "LET ME IN",
+      "artist_name": "NYCO",
+      "genre": "Other",
+      "x": 3.263,
+      "y": 6.457
+    },
+    {
+      "track_id": 338,
+      "title": "OFFICE DAYS",
+      "artist_name": "NYCO",
+      "genre": "Other",
+      "x": 14.186,
+      "y": -5.655
+    },
+    {
+      "track_id": 339,
+      "title": "the state i'm in",
+      "artist_name": "Blakeley Walker Band",
+      "genre": "Other",
+      "x": 10.786,
+      "y": 3.055
+    },
+    {
+      "track_id": 343,
+      "title": "As We Were",
+      "artist_name": "Jediah",
+      "genre": "pop",
+      "x": 5.958,
+      "y": -0.021
+    },
+    {
+      "track_id": 344,
+      "title": "Perfect combination",
+      "artist_name": "NODREAMS",
+      "genre": "Other",
+      "x": 10.058,
+      "y": 1.874
+    },
+    {
+      "track_id": 346,
+      "title": "Sale",
+      "artist_name": "Silence",
+      "genre": "electronic",
+      "x": -13.772,
+      "y": -6.584
+    },
+    {
+      "track_id": 348,
+      "title": "Our Whole World Circling (Loveshadow Mix)",
+      "artist_name": "Emily Richards",
+      "genre": "pop",
+      "x": -8.613,
+      "y": -0.104
+    },
+    {
+      "track_id": 349,
+      "title": "Endorphin",
+      "artist_name": "The Easton Ellises",
+      "genre": "Other",
+      "x": 15.373,
+      "y": 2.914
+    },
+    {
+      "track_id": 350,
+      "title": "DreamOn",
+      "artist_name": "Malika Rai",
+      "genre": "Other",
+      "x": -4.259,
+      "y": 5.874
+    },
+    {
+      "track_id": 351,
+      "title": "Madly, Deeply",
+      "artist_name": "Melanie Ungar",
+      "genre": "pop",
+      "x": 14.043,
+      "y": -9.178
+    },
+    {
+      "track_id": 352,
+      "title": "Infralove",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "Other",
+      "x": 18.425,
+      "y": -0.908
+    },
+    {
+      "track_id": 354,
+      "title": "Born Free",
+      "artist_name": "Pokki DJ",
+      "genre": "electronic",
+      "x": -17.321,
+      "y": -0.468
+    },
+    {
+      "track_id": 355,
+      "title": "Carla",
+      "artist_name": "The Very Sexuals",
+      "genre": "Other",
+      "x": 5.161,
+      "y": 11.11
+    },
+    {
+      "track_id": 357,
+      "title": "Laziness",
+      "artist_name": "Malika Rai",
+      "genre": "Other",
+      "x": -2.545,
+      "y": 2.668
+    },
+    {
+      "track_id": 358,
+      "title": "Velvet Embracer",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "rock",
+      "x": -18.731,
+      "y": -14.72
+    },
+    {
+      "track_id": 359,
+      "title": "Famous (MM)",
+      "artist_name": "Mike Falzone",
+      "genre": "Other",
+      "x": -9.423,
+      "y": 5.168
+    },
+    {
+      "track_id": 360,
+      "title": "Przemek Puk - Ocean \u0141ez",
+      "artist_name": "Przemek Puk",
+      "genre": "Other",
+      "x": -2.928,
+      "y": 0.201
+    },
+    {
+      "track_id": 362,
+      "title": "Go!",
+      "artist_name": "Mike Falzone and the Peppermint Trick",
+      "genre": "rock",
+      "x": 9.135,
+      "y": 11.016
+    },
+    {
+      "track_id": 364,
+      "title": "Pink Noise Waltz",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "rock",
+      "x": -14.6,
+      "y": -11.064
+    },
+    {
+      "track_id": 365,
+      "title": "Truckstop Flower",
+      "artist_name": "Swear and Shake",
+      "genre": "Other",
+      "x": 9.004,
+      "y": 10.426
+    },
+    {
+      "track_id": 366,
+      "title": "Hear Me Out",
+      "artist_name": "Mercury in Summer",
+      "genre": "Other",
+      "x": 19.36,
+      "y": 6.056
+    },
+    {
+      "track_id": 369,
+      "title": "Everyone Is Fine",
+      "artist_name": "Jediah",
+      "genre": "rock",
+      "x": 9.956,
+      "y": 7.604
+    },
+    {
+      "track_id": 372,
+      "title": "Drop Down",
+      "artist_name": "Mike Falzone and the Peppermint Trick",
+      "genre": "Other",
+      "x": 13.915,
+      "y": 10.622
+    },
+    {
+      "track_id": 374,
+      "title": "Qualms of Conscience",
+      "artist_name": "Diablo Swing Orchestra",
+      "genre": "Other",
+      "x": -21.098,
+      "y": -22.57
+    },
+    {
+      "track_id": 375,
+      "title": "These Nights",
+      "artist_name": "Modern Pitch",
+      "genre": "rock",
+      "x": 11.755,
+      "y": 12.52
+    },
+    {
+      "track_id": 376,
+      "title": "Just One Wink",
+      "artist_name": "Mercury in Summer",
+      "genre": "Other",
+      "x": 2.934,
+      "y": -10.461
+    },
+    {
+      "track_id": 378,
+      "title": "Blood",
+      "artist_name": "All My Friends Hate Me",
+      "genre": "rock",
+      "x": 12.304,
+      "y": 10.734
+    },
+    {
+      "track_id": 379,
+      "title": "April Showers",
+      "artist_name": "ProleteR",
+      "genre": "Other",
+      "x": 4.715,
+      "y": -9.087
+    },
+    {
+      "track_id": 380,
+      "title": "The Final Rewind",
+      "artist_name": "Tryad",
+      "genre": "rock",
+      "x": -3.031,
+      "y": -13.291
+    },
+    {
+      "track_id": 382,
+      "title": "Breathe In Breathe Out",
+      "artist_name": "Singleton",
+      "genre": "rock",
+      "x": 9.319,
+      "y": 11.92
+    },
+    {
+      "track_id": 383,
+      "title": "Glitter Bomb",
+      "artist_name": "Juanitos",
+      "genre": "pop",
+      "x": 16.479,
+      "y": 8.288
+    },
+    {
+      "track_id": 384,
+      "title": "Not the One to Say (I Told You So) (24-bit Master)",
+      "artist_name": "Cole Powell",
+      "genre": "pop",
+      "x": 4.243,
+      "y": 0.676
+    },
+    {
+      "track_id": 386,
+      "title": "To The Roofs",
+      "artist_name": "Colaars",
+      "genre": "rock",
+      "x": 10.185,
+      "y": 10.594
+    },
+    {
+      "track_id": 387,
+      "title": "See The World",
+      "artist_name": "Mercury &amp; The Architects",
+      "genre": "pop",
+      "x": -12.792,
+      "y": 4.653
+    },
+    {
+      "track_id": 388,
+      "title": "Emptiness",
+      "artist_name": "Alexander Blu",
+      "genre": "electronic",
+      "x": -9.76,
+      "y": -10.629
+    },
+    {
+      "track_id": 389,
+      "title": "Motivation",
+      "artist_name": "Akashic Records",
+      "genre": "Other",
+      "x": -8.771,
+      "y": -9.853
+    },
+    {
+      "track_id": 391,
+      "title": "All Or Nothing",
+      "artist_name": "David Krystal",
+      "genre": "Other",
+      "x": 4.875,
+      "y": -0.561
+    },
+    {
+      "track_id": 393,
+      "title": "space invaders",
+      "artist_name": "pornophonique",
+      "genre": "rock",
+      "x": 15.706,
+      "y": 15.813
+    },
+    {
+      "track_id": 394,
+      "title": "Brave Soul (ft. Juliet Lyons)",
+      "artist_name": "Bohemian Hideaway",
+      "genre": "pop",
+      "x": -10.477,
+      "y": 7.375
+    },
+    {
+      "track_id": 395,
+      "title": "Not Alone",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -19.633,
+      "y": -21.626
+    },
+    {
+      "track_id": 396,
+      "title": "Like I Do",
+      "artist_name": "I. D. F. X.",
+      "genre": "pop",
+      "x": -5.076,
+      "y": 14.056
+    },
+    {
+      "track_id": 397,
+      "title": "Dj Rostej - Long Way",
+      "artist_name": "Dj Rostej",
+      "genre": "Other",
+      "x": -7.933,
+      "y": -14.19
+    },
+    {
+      "track_id": 398,
+      "title": "The Field",
+      "artist_name": "Reno Project",
+      "genre": "electronic",
+      "x": -4.045,
+      "y": -17.048
+    },
+    {
+      "track_id": 400,
+      "title": "rock'n'roll hall of fame",
+      "artist_name": "pornophonique",
+      "genre": "rock",
+      "x": 18.39,
+      "y": 15.614
+    },
+    {
+      "track_id": 402,
+      "title": "M\u00e1s All\u00e1",
+      "artist_name": "Vince Miranda",
+      "genre": "pop",
+      "x": -4.018,
+      "y": 0.332
+    },
+    {
+      "track_id": 403,
+      "title": "Winter Sunlight (airtone feat. Leza2unes)",
+      "artist_name": "Snowflake & ccMixter",
+      "genre": "pop",
+      "x": -3.498,
+      "y": -15.996
+    },
+    {
+      "track_id": 404,
+      "title": "I dont need you",
+      "artist_name": "14ice_music",
+      "genre": "Other",
+      "x": 1.575,
+      "y": -2.872
+    },
+    {
+      "track_id": 405,
+      "title": "She Dances",
+      "artist_name": "Anna Jordan",
+      "genre": "rock",
+      "x": -0.742,
+      "y": -10.887
+    },
+    {
+      "track_id": 406,
+      "title": "Goodbye Romeo",
+      "artist_name": "Explosive Ear Candy",
+      "genre": "Other",
+      "x": 11.296,
+      "y": 1.969
+    },
+    {
+      "track_id": 407,
+      "title": "Under Water",
+      "artist_name": "The.madpix.project",
+      "genre": "pop",
+      "x": -14.208,
+      "y": 3.607
+    },
+    {
+      "track_id": 408,
+      "title": "Reflections",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -20.385,
+      "y": -19.559
+    },
+    {
+      "track_id": 409,
+      "title": "Peyote",
+      "artist_name": "Kinematic",
+      "genre": "rock",
+      "x": 15.117,
+      "y": 18.092
+    },
+    {
+      "track_id": 411,
+      "title": "Deep Sea Diver",
+      "artist_name": "Heifervescent",
+      "genre": "rock",
+      "x": 18.22,
+      "y": 11.607
+    },
+    {
+      "track_id": 412,
+      "title": "Fire, Fire",
+      "artist_name": "The Devil Music Co.",
+      "genre": "pop",
+      "x": -4.884,
+      "y": -1.256
+    },
+    {
+      "track_id": 413,
+      "title": "i want to be a machine",
+      "artist_name": "pornophonique",
+      "genre": "electronic",
+      "x": 16.091,
+      "y": 15.661
+    },
+    {
+      "track_id": 414,
+      "title": "Look and Feel Years Younger",
+      "artist_name": "Brad Sucks",
+      "genre": "rock",
+      "x": 4.623,
+      "y": 16.155
+    },
+    {
+      "track_id": 415,
+      "title": "Drake2",
+      "artist_name": "Cartel",
+      "genre": "Other",
+      "x": -15.138,
+      "y": -13.448
+    },
+    {
+      "track_id": 416,
+      "title": "Soprano Trance is Back -FINAL RELEASE- produced by starmann65",
+      "artist_name": "\u00aestarmann65",
+      "genre": "Other",
+      "x": -15.663,
+      "y": -1.218
+    },
+    {
+      "track_id": 418,
+      "title": "Love Isn't Wasted",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 6.834,
+      "y": -2.086
+    },
+    {
+      "track_id": 419,
+      "title": "Sunrise Piano",
+      "artist_name": "Serge Quadrado",
+      "genre": "Other",
+      "x": -18.53,
+      "y": -20.026
+    },
+    {
+      "track_id": 420,
+      "title": "One Bright Morning",
+      "artist_name": "HiGhMaS",
+      "genre": "electronic",
+      "x": -10.289,
+      "y": -13.645
+    },
+    {
+      "track_id": 421,
+      "title": "IDK",
+      "artist_name": "THE DLX",
+      "genre": "pop",
+      "x": -6.952,
+      "y": 3.377
+    },
+    {
+      "track_id": 422,
+      "title": "Addicted",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 3.26,
+      "y": -1.996
+    },
+    {
+      "track_id": 423,
+      "title": "I'm Letting Go",
+      "artist_name": "Josh Woodward",
+      "genre": "Other",
+      "x": 8.669,
+      "y": -3.961
+    },
+    {
+      "track_id": 424,
+      "title": "I See",
+      "artist_name": "Tryad",
+      "genre": "rock",
+      "x": -13.461,
+      "y": -6.61
+    },
+    {
+      "track_id": 425,
+      "title": "Pretty Pretty Girl",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 8.405,
+      "y": -0.141
+    },
+    {
+      "track_id": 426,
+      "title": "1/2 player game",
+      "artist_name": "pornophonique",
+      "genre": "rock",
+      "x": 15.345,
+      "y": 14.3
+    },
+    {
+      "track_id": 427,
+      "title": "game over",
+      "artist_name": "pornophonique",
+      "genre": "rock",
+      "x": 15.746,
+      "y": 13.625
+    },
+    {
+      "track_id": 428,
+      "title": "Criminal",
+      "artist_name": "Axl &amp; Arth",
+      "genre": "pop",
+      "x": -8.145,
+      "y": 3.57
+    },
+    {
+      "track_id": 429,
+      "title": "Loaded Gun",
+      "artist_name": "THE SAME PERSONS",
+      "genre": "Other",
+      "x": -11.597,
+      "y": -0.962
+    },
+    {
+      "track_id": 430,
+      "title": "Roots",
+      "artist_name": "Galdson",
+      "genre": "Other",
+      "x": -20.489,
+      "y": -20.958
+    },
+    {
+      "track_id": 432,
+      "title": "Missing You",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 6.477,
+      "y": 1.222
+    },
+    {
+      "track_id": 433,
+      "title": "Cover Me (album version)",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 4.836,
+      "y": -5.287
+    },
+    {
+      "track_id": 436,
+      "title": "True Gemini",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -21.912,
+      "y": -19.109
+    },
+    {
+      "track_id": 437,
+      "title": "Drive Me Crazy",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 9.264,
+      "y": -0.54
+    },
+    {
+      "track_id": 438,
+      "title": "Reflections (feat. Mathias Hagen)",
+      "artist_name": "Kevin S.",
+      "genre": "pop",
+      "x": -8.329,
+      "y": -2.862
+    },
+    {
+      "track_id": 439,
+      "title": "Hide In The Night",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 6.315,
+      "y": 7.661
+    },
+    {
+      "track_id": 440,
+      "title": "Hollow City",
+      "artist_name": "Project Divinity",
+      "genre": "Other",
+      "x": -9.324,
+      "y": -13.763
+    },
+    {
+      "track_id": 441,
+      "title": "Like Yesterday",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 8.501,
+      "y": 1.055
+    },
+    {
+      "track_id": 442,
+      "title": "Painted Dream",
+      "artist_name": "John Dada &amp; the Weathermen",
+      "genre": "pop",
+      "x": 8.31,
+      "y": -4.779
+    },
+    {
+      "track_id": 443,
+      "title": "On And On",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 8.319,
+      "y": -1.105
+    },
+    {
+      "track_id": 444,
+      "title": "One More Dance",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 3.923,
+      "y": -1.045
+    },
+    {
+      "track_id": 445,
+      "title": "Wipe Away Your Tears",
+      "artist_name": "David Krystal",
+      "genre": "pop",
+      "x": 5.859,
+      "y": -6.038
+    },
+    {
+      "track_id": 446,
+      "title": "LEEONA \u2013 Moment",
+      "artist_name": "Zara Arshakian",
+      "genre": "pop",
+      "x": -6.402,
+      "y": -0.58
+    },
+    {
+      "track_id": 448,
+      "title": "Ride",
+      "artist_name": "Fox &amp; Mew",
+      "genre": "electronic",
+      "x": -7.268,
+      "y": -0.471
+    },
+    {
+      "track_id": 449,
+      "title": "Dame M\u00e1s (acoustic)",
+      "artist_name": "Alfonso Lugo",
+      "genre": "pop",
+      "x": 10.047,
+      "y": -2.623
+    },
+    {
+      "track_id": 450,
+      "title": "The Deep",
+      "artist_name": "Anitek",
+      "genre": "electronic",
+      "x": -8.762,
+      "y": -7.294
+    },
+    {
+      "track_id": 451,
+      "title": "Lady (feat Kid Randie &amp; Myster Sandman)",
+      "artist_name": "Le_J_James",
+      "genre": "pop",
+      "x": -2.073,
+      "y": 4.894
+    },
+    {
+      "track_id": 452,
+      "title": "Dance of the Urbanite",
+      "artist_name": "Tryad",
+      "genre": "electronic",
+      "x": -12.799,
+      "y": -13.967
+    },
+    {
+      "track_id": 453,
+      "title": "Our Lives Change",
+      "artist_name": "Tryad",
+      "genre": "electronic",
+      "x": -3.178,
+      "y": -14.4
+    },
+    {
+      "track_id": 454,
+      "title": "Stories from Emona IV",
+      "artist_name": "Maya Filipi\u010d",
+      "genre": "Other",
+      "x": -21.781,
+      "y": -21.694
+    },
+    {
+      "track_id": 455,
+      "title": "Sorry",
+      "artist_name": "Dayung",
+      "genre": "pop",
+      "x": 11.219,
+      "y": 8.866
+    },
+    {
+      "track_id": 456,
+      "title": "Witness ",
+      "artist_name": "Tryad",
+      "genre": "electronic",
+      "x": -1.734,
+      "y": -4.345
+    },
+    {
+      "track_id": 457,
+      "title": "Just a Stranger",
+      "artist_name": "MCKOOL",
+      "genre": "pop",
+      "x": -7.511,
+      "y": 4.872
+    },
+    {
+      "track_id": 459,
+      "title": "My Piano Sings (Part 4) (with Joana Smith)",
+      "artist_name": "Tryad",
+      "genre": "pop",
+      "x": 0.036,
+      "y": -12.595
+    },
+    {
+      "track_id": 460,
+      "title": "Peace On Earth (Same Place)",
+      "artist_name": "Tryad",
+      "genre": "pop",
+      "x": 3.955,
+      "y": 15.52
+    },
+    {
+      "track_id": 461,
+      "title": "Fantas\u00eda",
+      "artist_name": "Maya Filipi\u010d",
+      "genre": "Other",
+      "x": -22.941,
+      "y": -21.674
+    },
+    {
+      "track_id": 462,
+      "title": "New Life",
+      "artist_name": "Explosive Ear Candy",
+      "genre": "pop",
+      "x": 11.818,
+      "y": 2.647
+    },
+    {
+      "track_id": 463,
+      "title": "Sick as a Dog",
+      "artist_name": "Brad Sucks",
+      "genre": "Other",
+      "x": 10.89,
+      "y": 5.417
+    },
+    {
+      "track_id": 464,
+      "title": "Mourning Day",
+      "artist_name": "SadMe",
+      "genre": "rock",
+      "x": -18.733,
+      "y": -14.793
+    },
+    {
+      "track_id": 465,
+      "title": "do it over",
+      "artist_name": "am\u00e9lie",
+      "genre": "pop",
+      "x": 8.174,
+      "y": 3.394
+    },
+    {
+      "track_id": 466,
+      "title": "The Rising",
+      "artist_name": "Tryad",
+      "genre": "Other",
+      "x": -1.077,
+      "y": -14.13
+    },
+    {
+      "track_id": 467,
+      "title": "Erick Fill &amp; Alwaro - You'll Be Fine ft. Crushboys (Original Mix)",
+      "artist_name": "erickfill",
+      "genre": "Other",
+      "x": -1.535,
+      "y": -2.321
+    },
+    {
+      "track_id": 468,
+      "title": "Beat Into Submission (Solo)",
+      "artist_name": "Tryad",
+      "genre": "electronic",
+      "x": -11.305,
+      "y": -11.682
+    },
+    {
+      "track_id": 470,
+      "title": "Seduction ",
+      "artist_name": "Tryad",
+      "genre": "electronic",
+      "x": 16.174,
+      "y": -4.449
+    },
+    {
+      "track_id": 471,
+      "title": "When the Stars Fall from Grace",
+      "artist_name": "Heifervescent",
+      "genre": "pop",
+      "x": 10.259,
+      "y": 8.962
+    },
+    {
+      "track_id": 472,
+      "title": "Sampling Memory",
+      "artist_name": "Tryad",
+      "genre": "pop",
+      "x": -12.372,
+      "y": -12.716
+    },
+    {
+      "track_id": 473,
+      "title": "Les files d'attente",
+      "artist_name": "Law'",
+      "genre": "pop",
+      "x": 5.28,
+      "y": 2.201
+    },
+    {
+      "track_id": 474,
+      "title": "My Placid Island",
+      "artist_name": "Tryad",
+      "genre": "electronic",
+      "x": -12.779,
+      "y": -13.762
+    },
+    {
+      "track_id": 475,
+      "title": "Host",
+      "artist_name": "Color Out",
+      "genre": "Other",
+      "x": -5.182,
+      "y": 0.118
+    },
+    {
+      "track_id": 476,
+      "title": "TripToJazz",
+      "artist_name": "Manuzik",
+      "genre": "Other",
+      "x": -4.813,
+      "y": -9.801
+    },
+    {
+      "track_id": 477,
+      "title": "Friend",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -21.444,
+      "y": -20.059
+    },
+    {
+      "track_id": 478,
+      "title": "Arcadia",
+      "artist_name": "Tryad",
+      "genre": "Other",
+      "x": -1.94,
+      "y": -4.596
+    },
+    {
+      "track_id": 479,
+      "title": "Star Guide",
+      "artist_name": "Tryad",
+      "genre": "Other",
+      "x": 5.239,
+      "y": -6.45
+    },
+    {
+      "track_id": 480,
+      "title": "Beautiful Piano - full version",
+      "artist_name": "WhiteCat",
+      "genre": "Other",
+      "x": -17.566,
+      "y": -18.584
+    },
+    {
+      "track_id": 482,
+      "title": "Universal Funk",
+      "artist_name": "Duo Teslar",
+      "genre": "electronic",
+      "x": -16.314,
+      "y": 1.845
+    },
+    {
+      "track_id": 484,
+      "title": "Prelude in Eb major",
+      "artist_name": "Maya Filipi\u010d",
+      "genre": "Other",
+      "x": -22.343,
+      "y": -21.542
+    },
+    {
+      "track_id": 485,
+      "title": "Dark Room Full of Lonely People",
+      "artist_name": "Dutilleul",
+      "genre": "Other",
+      "x": -7.798,
+      "y": -12.703
+    },
+    {
+      "track_id": 486,
+      "title": "Woods of Chaos",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -16.682,
+      "y": -22.751
+    },
+    {
+      "track_id": 487,
+      "title": "Lucky Number Seven",
+      "artist_name": "Triplexity",
+      "genre": "Other",
+      "x": -6.219,
+      "y": -11.262
+    },
+    {
+      "track_id": 488,
+      "title": "My Heart Blows Up (Explosions)",
+      "artist_name": "Anton Leuba",
+      "genre": "pop",
+      "x": -6.501,
+      "y": 10.417
+    },
+    {
+      "track_id": 489,
+      "title": "Semester Days",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -18.934,
+      "y": -21.715
+    },
+    {
+      "track_id": 490,
+      "title": "I'm Growing Fangs",
+      "artist_name": "Great White Buffalo",
+      "genre": "rock",
+      "x": -12.508,
+      "y": -8.957
+    },
+    {
+      "track_id": 491,
+      "title": "Middlenight Cat Walking Chicago",
+      "artist_name": "Helios Salah",
+      "genre": "Other",
+      "x": -20.033,
+      "y": -22.431
+    },
+    {
+      "track_id": 493,
+      "title": "Twilight",
+      "artist_name": "Rob Costlow",
+      "genre": "Other",
+      "x": -21.133,
+      "y": -20.198
+    },
+    {
+      "track_id": 494,
+      "title": "Adult Only & SaReGaMa - Afterzone",
+      "artist_name": "SaReGaMa",
+      "genre": "Other",
+      "x": -8.338,
+      "y": -11.01
+    },
+    {
+      "track_id": 495,
+      "title": "Beyond All Their Wishes",
+      "artist_name": "James Bell",
+      "genre": "pop",
+      "x": 3.108,
+      "y": -6.392
+    },
+    {
+      "track_id": 496,
+      "title": "Dropping out of School",
+      "artist_name": "Brad Sucks",
+      "genre": "rock",
+      "x": 1.941,
+      "y": 12.108
+    },
+    {
+      "track_id": 498,
+      "title": "Salsa di Soy",
+      "artist_name": "Boom Boom Beckett",
+      "genre": "Other",
+      "x": -3.814,
+      "y": -17.936
+    },
+    {
+      "track_id": 499,
+      "title": "Obscure Terrain",
+      "artist_name": "Revolution Void",
+      "genre": "electronic",
+      "x": -8.206,
+      "y": -14.694
+    },
+    {
+      "track_id": 501,
+      "title": "Fell In Love With Summer",
+      "artist_name": "Songwriterz",
+      "genre": "pop",
+      "x": -7.012,
+      "y": 5.444
+    },
+    {
+      "track_id": 502,
+      "title": "Way to Success",
+      "artist_name": "ADDICT SOUND",
+      "genre": "pop",
+      "x": -13.804,
+      "y": -9.777
+    }
+  ]
+}
