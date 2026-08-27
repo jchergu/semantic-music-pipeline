@@ -11,7 +11,7 @@ reused by every L3 consumer — the stage 5 Recommender Engine now, and
 eventually Similarity Search / Auto-tagging / Playlist Generation for
 8.2/8.3 — so it exposes generic reads, not anything recommender-specific.
 
-Code: `api/main.py` (app + routes), `api/dependencies.py` (connection
+Code: `platform/semantic_api/main.py` (app + routes), `platform/semantic_api/dependencies.py` (connection
 lifecycle).
 
 ## Endpoints
@@ -32,7 +32,7 @@ empty-result response.
 
 ## Connection lifecycle
 
-A FastAPI `lifespan` context (`api/dependencies.py: connect_all` /
+A FastAPI `lifespan` context (`platform/semantic_api/dependencies.py: connect_all` /
 `disconnect_all`) opens, once per process:
 
 - a `psycopg2.pool.ThreadedConnectionPool` (1-10 connections, autocommit —
@@ -40,7 +40,7 @@ A FastAPI `lifespan` context (`api/dependencies.py: connect_all` /
   request)
 - one Milvus `connections.connect(alias="api")` + a loaded `Collection`
   handle, reused across requests. Uses a dedicated alias rather than
-  pymilvus's default `"default"` — see `docs/stage6-e2e.md` for why (a
+  pymilvus's default `"default"` — see `usecases/8_1_batch_reactive/docs/stage6-e2e.md` for why (a
   cross-test-file bug found while building stage 6, fixed here).
 - one `neo4j.GraphDatabase.driver`, with a fresh `session()` per request
   (the driver-level connection pooling happens underneath, per the neo4j
@@ -51,7 +51,7 @@ connection setup directly.
 
 ## Verification
 
-Ran the server locally (`uvicorn api.main:app --port 8010`) and hit every
+Ran the server locally (`uvicorn semantic_api.main:app --port 8010`) and hit every
 endpoint by hand against the live 411-track dataset before writing
 automated tests:
 
@@ -84,8 +84,8 @@ total across all three stages).
 
 ## Packaging note
 
-`api/install.sh` exists instead of a plain `pip install -r
-requirements.txt` for the same reason as `enrichment/install.sh`:
+`platform/semantic_api/install.sh` exists instead of a plain `pip install -r
+requirements.txt` for the same reason as `platform/enrichment/install.sh`:
 `pymilvus==2.4.9` needs `setuptools<81` (pkg_resources was removed in
 setuptools 81+) and a newer `environs` than it declares (its
 `environs<=9.5.0` pin resolves to a version bundled with a `marshmallow`
@@ -104,12 +104,12 @@ source .venv/bin/activate  # or use .venv/bin/python directly
 bash install.sh
 
 cd ..
-api/.venv/bin/uvicorn api.main:app --reload --port 8010   # run the server
+platform/semantic_api/.venv/bin/python -m uvicorn semantic_api.main:app --app-dir platform --reload --port 8010   # run the server
 
-enrichment/.venv/bin/pip install fastapi==0.115.0 "uvicorn[standard]==0.32.0" httpx==0.27.2
-enrichment/.venv/bin/pytest tests/                          # verify (stages 2+3+4)
+platform/enrichment/.venv/bin/python -m pip install fastapi==0.115.0 "uvicorn[standard]==0.32.0" httpx==0.27.2
+platform/enrichment/.venv/bin/python -m pytest tests/                          # verify (stages 2+3+4)
 ```
 
 Requires the full stack up (`docker compose up -d`) and stage 3 already run
-(the API reads Milvus/Neo4j data that `enrichment/enrich.py` writes — it
+(the API reads Milvus/Neo4j data that `platform/enrichment/enrich.py` writes — it
 doesn't populate anything itself).

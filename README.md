@@ -41,17 +41,17 @@ modules.
 | # | Stage | Code | Docs |
 |---|---|---|---|
 | 1 | Docker Compose environment | `docker-compose.yml` | — |
-| 2 | Seed dataset ingestion (Jamendo → Postgres/MinIO) | `ingestion/` | [`docs/stage2-ingestion.md`](docs/stage2-ingestion.md) |
-| 3 | L2 enrichment (CLAP → Milvus, Neo4j) | `enrichment/` | [`docs/stage3-enrichment.md`](docs/stage3-enrichment.md) |
-| 4 | Semantic API (FastAPI) | `api/` | [`docs/stage4-semantic-api.md`](docs/stage4-semantic-api.md) |
-| 5 | Recommender Engine | `recommender/` | [`docs/stage5-recommender.md`](docs/stage5-recommender.md) |
-| 6 | End-to-end test | `tests/test_stage6_e2e.py` | [`docs/stage6-e2e.md`](docs/stage6-e2e.md) |
+| 2 | Seed dataset ingestion (Jamendo → Postgres/MinIO) | `platform/ingestion/` | [`docs/platform/stage2-ingestion.md`](docs/platform/stage2-ingestion.md) |
+| 3 | L2 enrichment (CLAP → Milvus, Neo4j) | `platform/enrichment/` | [`docs/platform/stage3-enrichment.md`](docs/platform/stage3-enrichment.md) |
+| 4 | Semantic API (FastAPI) | `platform/semantic_api/` | [`docs/platform/stage4-semantic-api.md`](docs/platform/stage4-semantic-api.md) |
+| 5 | Recommender Engine | `usecases/8_1_batch_reactive/recommender/` | [`usecases/8_1_batch_reactive/docs/stage5-recommender.md`](usecases/8_1_batch_reactive/docs/stage5-recommender.md) |
+| 6 | End-to-end test | `usecases/8_1_batch_reactive/tests/test_stage6_e2e.py` | [`usecases/8_1_batch_reactive/docs/stage6-e2e.md`](usecases/8_1_batch_reactive/docs/stage6-e2e.md) |
 
 ## Dataset
 
 411 real, Creative-Commons-licensed tracks pulled from the Jamendo API —
 deliberately kept to a 200–500 track seed (not a full corpus) to keep CLAP
-inference feasible on a local CPU. See `docs/stage2-ingestion.md` for why
+inference feasible on a local CPU. See `docs/platform/stage2-ingestion.md` for why
 Jamendo was chosen over alternatives and how the dataset was assembled.
 
 ## Quickstart
@@ -73,32 +73,41 @@ stack is up and the previous stage's data exists:
 
 ```bash
 # Stage 2 — ingest the seed dataset
-cd ingestion && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cd .. && ingestion/.venv/bin/python ingestion/ingest.py --limit 500
+cd platform/ingestion && python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
+cd ../.. && platform/ingestion/.venv/bin/python platform/ingestion/ingest.py --limit 500
 
 # Stage 3 — CLAP embeddings → Milvus + Neo4j
-cd enrichment && python3 -m venv .venv && bash install.sh
-cd .. && enrichment/.venv/bin/python enrichment/enrich.py
+cd platform/enrichment && python3 -m venv .venv && bash install.sh
+cd ../.. && platform/enrichment/.venv/bin/python platform/enrichment/enrich.py
 
 # Stage 4 — Semantic API
-cd api && python3 -m venv .venv && bash install.sh
-cd .. && api/.venv/bin/uvicorn api.main:app --port 8010
+cd platform/semantic_api && python3 -m venv .venv && bash install.sh
+cd ../.. && platform/semantic_api/.venv/bin/python -m uvicorn semantic_api.main:app \
+    --app-dir platform --port 8010
 
 # Stage 5 — Recommender Engine (with the API running)
-cd recommender && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-cd .. && recommender/.venv/bin/python recommender/recommend.py
+cd usecases/8_1_batch_reactive/recommender && python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
+cd ../../.. && usecases/8_1_batch_reactive/recommender/.venv/bin/python usecases/8_1_batch_reactive/recommender/recommend.py
 ```
 
-`enrichment/install.sh` and `api/install.sh` exist (rather than a plain
-`pip install -r requirements.txt`) because of real dependency-resolution
-issues on Python 3.12 — see each stage's doc for the specifics.
+`platform/enrichment/install.sh` and `platform/semantic_api/install.sh` exist
+(rather than a plain `pip install -r requirements.txt`) because of real
+dependency-resolution issues on Python 3.12 — see each stage's doc for the
+specifics.
+
+Note the `-m pip` / `-m uvicorn` / (below) `-m pytest` forms rather than the
+`.venv/bin/pip` / `.venv/bin/uvicorn` / `.venv/bin/pytest` console-script
+wrappers: those wrappers hardcode an absolute shebang path back to the venv's
+original location at creation time, which breaks if the venv directory is
+ever moved (as happened in the platform/usecases restructuring). Invoking the
+interpreter directly with `-m` sidesteps that.
 
 ## Tests
 
 ```bash
-enrichment/.venv/bin/pip install -r recommender/requirements.txt \
+platform/enrichment/.venv/bin/python -m pip install -r usecases/8_1_batch_reactive/recommender/requirements.txt \
     fastapi==0.115.0 "uvicorn[standard]==0.32.0" httpx==0.27.2
-enrichment/.venv/bin/pytest tests/ -v
+platform/enrichment/.venv/bin/python -m pytest -v
 ```
 
 Runs all 32 tests across stages 2–6 against the live stack. The Semantic

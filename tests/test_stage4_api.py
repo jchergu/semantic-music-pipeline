@@ -5,11 +5,11 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "platform"))
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-from api.main import app  # noqa: E402
+from semantic_api.main import app  # noqa: E402
 
 
 @pytest.fixture(scope="module")

@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pymilvus import Collection
 
-from api import dependencies as deps
+from semantic_api import dependencies as deps
 
 
 @asynccontextmanager

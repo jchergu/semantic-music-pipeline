@@ -10,8 +10,8 @@ Track/Artist/Genre subgraph into Neo4j from the existing Postgres metadata.
 Idempotent — only processes rows where `tracks.enriched_at IS NULL`, so a
 partial or interrupted run can simply be re-invoked.
 
-Code: `enrichment/enrich.py`. Schema change: `enriched_at TIMESTAMPTZ` added
-to `tracks` (`ingestion/schema.sql`, applied automatically by `enrich.py`
+Code: `platform/enrichment/enrich.py`. Schema change: `enriched_at TIMESTAMPTZ` added
+to `tracks` (`platform/ingestion/schema.sql`, applied automatically by `enrich.py`
 on startup, same pattern as `ingest.py`).
 
 ## Embedding model
@@ -60,7 +60,7 @@ file, runs `get_audio_embedding_from_filelist`, and cleans up.
 pipeline end-to-end before committing to the full batch; the remaining 406
 picked up automatically via the `enriched_at IS NULL` idempotency check.)
 
-## Packaging note: why `enrichment/install.sh` instead of `pip install -r requirements.txt`
+## Packaging note: why `platform/enrichment/install.sh` instead of `pip install -r requirements.txt`
 
 `laion-clap==1.1.6`'s own package metadata pins `numpy==1.23.5` exactly.
 That version has no Python 3.12 wheel and fails to build from source under
@@ -117,16 +117,16 @@ source .venv/bin/activate  # or use .venv/bin/python directly
 bash install.sh
 
 cd ..
-enrichment/.venv/bin/python enrichment/enrich.py              # fresh/resume run
-enrichment/.venv/bin/python enrichment/enrich.py --limit 5    # small dry run
-enrichment/.venv/bin/python enrichment/enrich.py --force      # re-enrich everything
+platform/enrichment/.venv/bin/python platform/enrichment/enrich.py              # fresh/resume run
+platform/enrichment/.venv/bin/python platform/enrichment/enrich.py --limit 5    # small dry run
+platform/enrichment/.venv/bin/python platform/enrichment/enrich.py --force      # re-enrich everything
 
-enrichment/.venv/bin/pip install -r requirements-dev.txt      # adds pytest, for running tests from this venv
-enrichment/.venv/bin/pytest tests/                             # verify (stage 2 + stage 3)
+platform/enrichment/.venv/bin/python -m pip install -r requirements-dev.txt      # adds pytest, for running tests from this venv
+platform/enrichment/.venv/bin/python -m pytest tests/                             # verify (stage 2 + stage 3)
 ```
 
 Requires the full stack up (`docker compose up -d`) — Postgres, MinIO,
 Milvus (+ etcd/MinIO deps), Neo4j — and the same `.env` used by stage 2.
 First run downloads the ~1.8GB CLAP checkpoint into
-`enrichment/.venv/lib/python3.12/site-packages/laion_clap/`; cached after
+`platform/enrichment/.venv/lib/python3.12/site-packages/laion_clap/`; cached after
 that (`load_ckpt()` skips the download if the file already exists).

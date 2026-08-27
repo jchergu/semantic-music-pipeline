@@ -75,7 +75,8 @@ def _free_port() -> int:
 
 @pytest.fixture(scope="session")
 def semantic_api_server():
-    """Launches `uvicorn api.main:app` as a subprocess on a free port,
+    """Launches `uvicorn semantic_api.main:app` (via --app-dir platform/) as
+    a subprocess on a free port,
     polls /health until it's ready, yields the base URL, and tears the
     process down afterward. Session-scoped: one server for the whole test
     run, shared by every test that needs a live Semantic API instance.
@@ -90,7 +91,9 @@ def semantic_api_server():
             sys.executable,
             "-m",
             "uvicorn",
-            "api.main:app",
+            "semantic_api.main:app",
+            "--app-dir",
+            str(ROOT / "platform"),
             "--host",
             "127.0.0.1",
             "--port",

@@ -18,8 +18,8 @@ behavioral-event topics to 8.2, not 8.1), so a user-personalized design
 would have meant fabricating a data model the rest of the pipeline doesn't
 have.
 
-Code: `recommender/trigger_handler.py`, `context_builder.py`, `ranking.py`,
-`recommend.py`. Schema: `recommender/schema.sql` (new `recommendations`
+Code: `usecases/8_1_batch_reactive/recommender/trigger_handler.py`, `context_builder.py`, `ranking.py`,
+`recommend.py`. Schema: `usecases/8_1_batch_reactive/recommender/schema.sql` (new `recommendations`
 table, applied automatically by `recommend.py` on startup, same pattern as
 the other stages).
 
@@ -63,7 +63,7 @@ score = similarity              (Milvus cosine, ~0-1; 0 if the track
 ```
 
 Weights are grounded in the actual stage-3 dataset stats
-(`docs/stage3-enrichment.md`): 764 `HAS_GENRE` edges / 77 genres ≈ 9.9
+(`docs/platform/stage3-enrichment.md`): 764 `HAS_GENRE` edges / 77 genres ≈ 9.9
 tracks per genre on average — genre co-membership is a coarse, low-precision
 signal, so it gets a small boost. 411 tracks / 201 artists ≈ 2.0 tracks per
 artist — same-artist is rare and high-precision, so it gets a bigger boost.
@@ -113,7 +113,7 @@ seed-exclusion.
 ## Test fixture: `semantic_api_server`
 
 `tests/conftest.py` gained a new session-scoped fixture that launches
-`python -m uvicorn api.main:app` as a subprocess on a dynamically-assigned
+`python -m uvicorn semantic_api.main:app` as a subprocess on a dynamically-assigned
 free port (avoiding both the known-occupied `:8000` on the dev machine and
 the docs' example `:8010`), polls `/health` until ready (30s timeout),
 yields the base URL, and tears the process down afterward. This keeps the
@@ -134,7 +134,7 @@ auto-connecting to the live stack rather than requiring setup.
 
 ## Verification
 
-`tests/test_stage5_recommender.py`:
+`usecases/8_1_batch_reactive/tests/test_stage5_recommender.py`:
 
 - 7 unit tests for `ranking.py` against synthetic candidate dicts (no live
   services): default similarity ordering, additive genre+artist boosts,
@@ -158,14 +158,14 @@ source .venv/bin/activate  # or use .venv/bin/python directly
 pip install -r requirements.txt   # no install.sh needed here
 
 cd ..
-api/.venv/bin/uvicorn api.main:app --port 8010 &   # run the Semantic API
+platform/semantic_api/.venv/bin/python -m uvicorn semantic_api.main:app --app-dir platform --port 8010 &   # run the Semantic API
 
-recommender/.venv/bin/python recommender/recommend.py --seed-track-id 1 --top-k 5   # single seed
-recommender/.venv/bin/python recommender/recommend.py --limit 20                     # small batch
-recommender/.venv/bin/python recommender/recommend.py                                 # full batch, all 411 tracks
+usecases/8_1_batch_reactive/recommender/.venv/bin/python usecases/8_1_batch_reactive/recommender/recommend.py --seed-track-id 1 --top-k 5   # single seed
+usecases/8_1_batch_reactive/recommender/.venv/bin/python usecases/8_1_batch_reactive/recommender/recommend.py --limit 20                     # small batch
+usecases/8_1_batch_reactive/recommender/.venv/bin/python usecases/8_1_batch_reactive/recommender/recommend.py                                 # full batch, all 411 tracks
 
-enrichment/.venv/bin/pip install fastapi==0.115.0 "uvicorn[standard]==0.32.0" httpx==0.27.2  # stage 4 test deps, if not already installed
-enrichment/.venv/bin/pytest tests/   # verify (stages 2+3+4+5) — spins up its own API instance, no manual server needed
+platform/enrichment/.venv/bin/python -m pip install fastapi==0.115.0 "uvicorn[standard]==0.32.0" httpx==0.27.2  # stage 4 test deps, if not already installed
+platform/enrichment/.venv/bin/python -m pytest   # verify (stages 2+3+4+5, both tests/ and usecases/) — spins up its own API instance, no manual server needed
 ```
 
 Requires the full stack up (`docker compose up -d`) and stages 2-4 already

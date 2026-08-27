@@ -26,7 +26,7 @@ import psycopg2
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "usecases" / "8_1_batch_reactive"))
 
 from recommender import context_builder, ranking  # noqa: E402
 

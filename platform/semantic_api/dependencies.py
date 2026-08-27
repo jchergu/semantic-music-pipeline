@@ -15,7 +15,7 @@ from psycopg2.pool import ThreadedConnectionPool
 from pymilvus import Collection, connections
 
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
+load_dotenv(ROOT.parent / ".env")
 
 MILVUS_COLLECTION = "track_embeddings"
 # A dedicated alias, not "default": when this app runs in-process (e.g.

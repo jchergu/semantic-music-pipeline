@@ -10,7 +10,7 @@ real, licensed audio from the Jamendo API, uploads the raw audio to MinIO
 best-effort AcoustID → MusicBrainz linkage, and writes the metadata to
 PostgreSQL (system of record, per the fixed architecture).
 
-Code: `ingestion/ingest.py`, schema in `ingestion/schema.sql`.
+Code: `platform/ingestion/ingest.py`, schema in `platform/ingestion/schema.sql`.
 
 ## Why Jamendo, not FMA
 
@@ -73,7 +73,7 @@ up to 4 times with backoff before concluding the catalog is exhausted.
 
 ## Verification
 
-`tests/test_stage2_ingestion.py` (run via `ingestion/.venv/bin/pytest tests/`):
+`tests/test_stage2_ingestion.py` (run via `platform/ingestion/.venv/bin/python -m pytest tests/`):
 
 - `test_dataset_within_seed_range` — row count is 200-500
 - `test_no_duplicate_jamendo_ids` — no duplicate source IDs
@@ -94,8 +94,8 @@ python ingest.py --limit 500                    # fresh run
 python ingest.py --limit 300 --offset 200        # resume from a given offset
 
 cd ..
-ingestion/.venv/bin/pytest tests/                # verify
-ingestion/.venv/bin/python reports/stage2_metrics.py  # regenerate plots
+platform/ingestion/.venv/bin/python -m pytest tests/                # verify
+platform/ingestion/.venv/bin/python reports/stage2_metrics.py  # regenerate plots
 ```
 
 Requires `fpcalc` on PATH (`sudo apt install libchromaprint-tools`) and a

@@ -1,7 +1,10 @@
 .env
 *.env
 __pycache__/
-.venv/
+*.pyc
 .pytest_cache/
+.venv/
+venv/
+*.egg-info/
 
 CLAUDE.md

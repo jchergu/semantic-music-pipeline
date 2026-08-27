@@ -31,7 +31,7 @@ sys.path.insert(0, str(ROOT))
 
 from recommender import context_builder, ranking, trigger_handler  # noqa: E402
 
-load_dotenv(ROOT / ".env")
+load_dotenv(ROOT.parent.parent / ".env")
 
 PG_DSN = (
     f"host=localhost port={os.environ.get('POSTGRES_PORT', '5432')} "

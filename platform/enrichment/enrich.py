@@ -32,7 +32,7 @@ from pymilvus import (
 )
 
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
+load_dotenv(ROOT.parent / ".env")
 
 MINIO_ENDPOINT = f"http://localhost:{os.environ.get('MINIO_API_PORT', '9000')}"
 

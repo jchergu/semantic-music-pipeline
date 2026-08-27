@@ -24,7 +24,7 @@ from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(ROOT / ".env")
+load_dotenv(ROOT.parent / ".env")
 
 JAMENDO_CLIENT_ID = os.environ["JAMENDO_CLIENT_ID"]
 ACOUSTID_API_KEY = os.environ["ACOUSTID_API_KEY"]
