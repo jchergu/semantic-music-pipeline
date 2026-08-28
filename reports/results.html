@@ -358,6 +358,38 @@
     .stat-strip { grid-template-columns: repeat(2, 1fr); }
     h1 { font-size: 27px; }
   }
+
+  .bar-chart { display: flex; flex-direction: column; gap: 14px; margin-top: 8px; }
+  .bar-row { display: grid; grid-template-columns: minmax(150px, 240px) 1fr 52px; align-items: center; gap: 12px; }
+  .bar-label { font-size: 13.5px; color: var(--text-secondary); }
+  .bar-track { background: var(--surface-sunken); border-radius: 6px; height: 14px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; }
+  .bar-value {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 13.5px;
+    text-align: right;
+    color: var(--text-primary);
+  }
+
+  .callout {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    background: var(--surface-sunken);
+    border-radius: 8px;
+    padding: 18px 20px;
+  }
+  .callout h3 { font-size: 15px; margin-bottom: 10px; }
+  .callout p { font-size: 14px; margin-bottom: 10px; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  .seed-group-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .seed-group-tags { font-size: 11.5px; color: var(--text-muted); font-weight: 400; }
+  tr.seed-first td { border-top: 1px solid var(--border-strong); }
 </style>
 
 <div class="page">
@@ -647,6 +679,144 @@
           <tr><td><strong>Total</strong></td><td></td><td class="num"><strong>32</strong></td></tr>
         </tbody>
       </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Results &amp; Evaluation</h2>
+    <h3>Two different claims: "the pipeline runs" vs. "the recommendations are good"</h3>
+    <p class="lede">
+      Stage 6 proved the first claim &mdash; data traced correctly through
+      every layer. It didn't touch the second. This section goes past the
+      single worked example in the Stage 5 card above: it mines the full
+      4,110-row recommendation table for patterns, and spot-checks 8
+      additional seeds by hand, chosen to spread across artist-catalog size
+      and genre-tag richness rather than cherry-picked for good results.
+    </p>
+
+    <div class="kv-row" style="margin-top:10px;">
+      <div class="kv"><span class="k">rank-1 same-artist rate</span><span class="v">47.9% (197/411)</span></div>
+      <div class="kv"><span class="k">recs sharing &ge;1 genre tag w/ seed</span><span class="v">53.5% (2,200/4,110)</span></div>
+      <div class="kv"><span class="k">artists w/ &ge;5 tracks in catalog</span><span class="v">19 of 201</span></div>
+      <div class="kv"><span class="k">seeds w/ no genre tags at all</span><span class="v">57 of 411 (13.9%)</span></div>
+    </div>
+
+    <div class="card stage-card" style="margin-top:24px;">
+      <h3 style="font-size:16px;">Finding 1 &mdash; same-artist rate is skewed by catalog size</h3>
+      <p>
+        <code class="font-mono">ARTIST_BOOST</code> was sized against the
+        dataset's <em>average</em> of ~2.0 tracks/artist. That average hides
+        a long tail: 19 artists have 5+ tracks in the 411-track catalog. For
+        seeds by those artists, top-10 recommendations skew heavily toward
+        the seed's own catalog &mdash; a filter-bubble effect the design
+        didn't anticipate.
+      </p>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <div class="bar-label">Small catalog (&lt;5 tracks/artist)</div>
+          <div class="bar-track"><div class="bar-fill" style="width:3.6%;background:var(--chart-1);"></div></div>
+          <div class="bar-value">3.6%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Big catalog (&ge;5 tracks/artist, 19 artists)</div>
+          <div class="bar-track"><div class="bar-fill" style="width:33.0%;background:var(--chart-2);"></div></div>
+          <div class="bar-value">33.0%</div>
+        </div>
+      </div>
+      <figcaption>Share of top-10 recommendations that are by the seed's own artist, by the seed artist's catalog size in this dataset.</figcaption>
+    </div>
+
+    <div class="card stage-card" style="margin-top:18px;">
+      <h3 style="font-size:16px;">Finding 2 &mdash; genre tags confirm just over half the list</h3>
+      <p>
+        Across all 4,110 recommendation rows, 53.5% share at least one genre
+        tag with their seed and 46.5% share none. Cuts both ways: it shows
+        the ranking isn't just echoing metadata already visible in
+        <code class="font-mono">genre_tags</code> &mdash; but it also means
+        genre tags can't independently validate the other half of the list,
+        which rests on CLAP similarity alone.
+      </p>
+      <div class="bar-chart">
+        <div class="bar-row">
+          <div class="bar-label">Shares &ge;1 genre tag with seed</div>
+          <div class="bar-track"><div class="bar-fill" style="width:53.5%;background:var(--chart-1);"></div></div>
+          <div class="bar-value">53.5%</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">No genre tag overlap (CLAP-only)</div>
+          <div class="bar-track"><div class="bar-fill" style="width:46.5%;background:var(--chart-2);"></div></div>
+          <div class="bar-value">46.5%</div>
+        </div>
+      </div>
+      <figcaption>The 57 seeds with zero genre tags of their own still average 0.802 vs. the 0.794 dataset-wide mean score &mdash; the CLAP-only fallback isn't degenerate.</figcaption>
+    </div>
+
+    <div style="margin-top:24px;">
+      <h3 style="font-size:16px;">Spot-check &mdash; top 3 of 10 recommendations, 8 seeds</h3>
+      <p style="margin-bottom:10px;">
+        Full top-10 for all 8, plus per-seed commentary, in
+        <code class="font-mono">docs/results-evaluation.md</code>.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Seed</th><th>#</th><th>Score</th><th>Recommended track</th><th>Artist</th><th>Signal</th></tr></thead>
+          <tbody>
+            <tr class="seed-first"><td rowspan="3"><span class="seed-group-label">Wish You Were Here</span><br><span class="seed-group-tags">The.madpix.project &middot; dance, electronic, house</span></td><td class="num">1</td><td class="num">0.658</td><td>Moments</td><td>The.madpix.project</td><td><span class="badge on">same artist</span></td></tr>
+            <tr><td class="num">2</td><td class="num">0.584</td><td>Adult Only &amp; SaReGaMa - Afterzone</td><td>SaReGaMa</td><td></td></tr>
+            <tr><td class="num">3</td><td class="num">0.570</td><td>Divergence (Remastered VIP)</td><td>TheBlackParrot</td><td><span class="badge off">genre overlap</span></td></tr>
+            <tr class="seed-first"><td rowspan="3"><span class="seed-group-label">Ghost</span><br><span class="seed-group-tags">madelyn munsell &middot; pop, indie, singersongwriter</span></td><td class="num">1</td><td class="num">0.936</td><td>Adventure</td><td>madelyn munsell</td><td><span class="badge on">same artist</span></td></tr>
+            <tr><td class="num">2</td><td class="num">0.896</td><td>Lets Restart</td><td>madelyn munsell</td><td><span class="badge on">same artist</span></td></tr>
+            <tr><td class="num">3</td><td class="num">0.845</td><td>All I Ever Wanted</td><td>Devon Elizabeth</td><td><span class="badge off">genre overlap</span></td></tr>
+            <tr class="seed-first"><td rowspan="3"><span class="seed-group-label">Waiting For Love</span><br><span class="seed-group-tags">David Krystal &middot; pop, singersongwriter</span></td><td class="num">1</td><td class="num">1.108</td><td>Missing You</td><td>David Krystal</td><td><span class="badge on">same artist</span></td></tr>
+            <tr><td class="num">2</td><td class="num">1.053</td><td>Like Yesterday</td><td>David Krystal</td><td><span class="badge on">same artist</span></td></tr>
+            <tr><td class="num">3</td><td class="num">1.023</td><td>Hide In The Night</td><td>David Krystal</td><td><span class="badge on">same artist</span></td></tr>
+            <tr class="seed-first"><td rowspan="3"><span class="seed-group-label">Young love</span><br><span class="seed-group-tags">J Lynn the Bride &middot; pop, rnb</span></td><td class="num">1</td><td class="num">1.004</td><td>Pieces of me</td><td>J Lynn the Bride</td><td><span class="badge on">same artist</span></td></tr>
+            <tr><td class="num">2</td><td class="num">0.838</td><td>All I Ever Wanted</td><td>Devon Elizabeth</td><td><span class="badge off">genre overlap</span></td></tr>
+            <tr><td class="num">3</td><td class="num">0.827</td><td>Five O&#x27;Clock</td><td>JekK</td><td><span class="badge off">genre overlap</span></td></tr>
+            <tr class="seed-first"><td rowspan="3"><span class="seed-group-label">Burn Your Love</span><br><span class="seed-group-tags">Sunwill &middot; pop, dance, rock</span></td><td class="num">1</td><td class="num">0.851</td><td>Just a Stranger</td><td>MCKOOL</td><td><span class="badge off">genre overlap</span></td></tr>
+            <tr><td class="num">2</td><td class="num">0.818</td><td>Stereo Time</td><td>Sunwill</td><td><span class="badge on">same artist</span></td></tr>
+            <tr><td class="num">3</td><td class="num">0.762</td><td>IDK</td><td>THE DLX</td><td><span class="badge off">genre overlap</span></td></tr>
+            <tr class="seed-first"><td rowspan="3"><span class="seed-group-label">All The Way</span><br><span class="seed-group-tags">Leslie Hunt &middot; rock</span></td><td class="num">1</td><td class="num">0.935</td><td>Safe and Warm in Hunter&#x27;s Arms</td><td>Roller Genoa</td><td><span class="badge off">genre overlap</span></td></tr>
+            <tr><td class="num">2</td><td class="num">0.922</td><td>Sorry</td><td>Dayung</td><td><span class="badge off">genre overlap</span></td></tr>
+            <tr><td class="num">3</td><td class="num">0.917</td><td>New Life</td><td>Explosive Ear Candy</td><td><span class="badge off">genre overlap</span></td></tr>
+            <tr class="seed-first"><td rowspan="3"><span class="seed-group-label">The Saymory - The Mirror Of You(Dr.Synthetique mix) wav</span><br><span class="seed-group-tags">the saymory &middot; (none)</span></td><td class="num">1</td><td class="num">0.774</td><td>Let Them Go</td><td>Leslie Hunt</td><td></td></tr>
+            <tr><td class="num">2</td><td class="num">0.755</td><td>Our Whole World Circling (Loveshadow Mix)</td><td>Emily Richards</td><td></td></tr>
+            <tr><td class="num">3</td><td class="num">0.737</td><td>LEEONA - Do I</td><td>Zara Arshakian</td><td></td></tr>
+            <tr class="seed-first"><td rowspan="3"><span class="seed-group-label">rock&#x27;n&#x27;roll hall of fame</span><br><span class="seed-group-tags">pornophonique &middot; rock, electronic, 8bit</span></td><td class="num">1</td><td class="num">0.817</td><td>1/2 player game</td><td>pornophonique</td><td><span class="badge on">same artist</span></td></tr>
+            <tr><td class="num">2</td><td class="num">0.807</td><td>space invaders</td><td>pornophonique</td><td><span class="badge on">same artist</span></td></tr>
+            <tr><td class="num">3</td><td class="num">0.770</td><td>i want to be a machine</td><td>pornophonique</td><td><span class="badge on">same artist</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <figcaption>
+        "The Saymory" (no genre tags, no same-artist candidate) is the
+        cleanest illustration of finding 2: nothing here is checkable
+        against metadata by construction &mdash; it has to be trusted on
+        the CLAP embedding alone. "Waiting For Love" (David Krystal, 15
+        tracks in the catalog) is finding 1 directly: 6 of its 10
+        recommendations turn out to be the seed's own labelmate tracks.
+      </figcaption>
+    </div>
+
+    <div class="callout" style="margin-top:24px;">
+      <h3>Limitation: no ground truth exists for this dataset</h3>
+      <p>
+        No user listens, skips, or explicit similarity labels exist anywhere
+        in this pipeline &mdash; behavioral data is explicitly out of scope
+        until 8.2. The ranking formula is, by its own design doc, "a
+        documented, tunable heuristic... not a learned or validated ranking
+        model." The findings above are <strong>diagnostic</strong>, not
+        <strong>validating</strong>: they show the heuristic behaves as
+        designed and surface one real weakness (catalog-size skew), but they
+        cannot establish that its output matches real listener preference,
+        because no independent relevance signal exists to check it against.
+      </p>
+      <p>
+        "8.1 works" means the pipeline runs correctly end to end and
+        produces output that's internally consistent with its documented
+        design &mdash; not that the recommendations are good in the sense of
+        matching what a listener would actually want next.
+      </p>
     </div>
   </section>
 
