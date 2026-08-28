@@ -26,7 +26,7 @@ benefit beyond what the lineage test already proves. The rebuild sequence
 is documented below as a runbook instead — runnable on demand (e.g. for a
 thesis defense reproducibility demo) but not exercised automatically.
 
-Code: `usecases/8_1_batch_reactive/tests/test_stage6_e2e.py`. No new source modules — this stage only
+Code: `usecases/8_1_batch_reactive/tests/test_uc81_e2e.py`. No new source modules — this stage only
 adds tests, reusing every fixture already built for stages 2-5
 (`pg_conn`, `s3_client`, `milvus_collection`, `neo4j_driver`,
 `semantic_api_server`).
@@ -116,7 +116,7 @@ platform/enrichment/.venv/bin/python -m pytest   # full suite against the rebuil
 
 ## Verification
 
-`usecases/8_1_batch_reactive/tests/test_stage6_e2e.py`:
+`usecases/8_1_batch_reactive/tests/test_uc81_e2e.py`:
 
 - `test_golden_tracks_exist_in_postgres_and_minio`
 - `test_golden_tracks_embedded_in_milvus`
@@ -131,7 +131,7 @@ stage 5 tests (**32/32 total** across all six stages).
 
 ```bash
 docker compose up -d   # if not already running
-platform/enrichment/.venv/bin/python -m pytest usecases/8_1_batch_reactive/tests/test_stage6_e2e.py -v
+platform/enrichment/.venv/bin/python -m pytest usecases/8_1_batch_reactive/tests/test_uc81_e2e.py -v
 # or the whole suite:
 platform/enrichment/.venv/bin/python -m pytest -v
 ```
@@ -152,7 +152,7 @@ All six build-order stages are done and verified:
 | 2 | Seed ingestion (Jamendo → Postgres/MinIO) | ✅ 411 tracks, `docs/platform/stage2-ingestion.md` |
 | 3 | L2 enrichment (CLAP → Milvus, Neo4j) | ✅ 411/411 embedded + graphed, `docs/platform/stage3-enrichment.md` |
 | 4 | Semantic API (FastAPI) | ✅ 6 endpoints, `docs/platform/stage4-semantic-api.md` |
-| 5 | Recommender Engine | ✅ 411/411 seeds, 4110 recommendations, `usecases/8_1_batch_reactive/docs/stage5-recommender.md` |
+| 5 | Recommender Engine | ✅ 411/411 seeds, 4110 recommendations, `usecases/8_1_batch_reactive/docs/uc81-recommender.md` |
 | 6 | End-to-end test | ✅ this document |
 
 **32/32 tests pass** across the whole suite (`platform/enrichment/.venv/bin/python

@@ -134,7 +134,7 @@ auto-connecting to the live stack rather than requiring setup.
 
 ## Verification
 
-`usecases/8_1_batch_reactive/tests/test_stage5_recommender.py`:
+`usecases/8_1_batch_reactive/tests/test_uc81_recommender.py`:
 
 - 7 unit tests for `ranking.py` against synthetic candidate dicts (no live
   services): default similarity ordering, additive genre+artist boosts,

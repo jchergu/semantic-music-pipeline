@@ -2,19 +2,30 @@
 
 A Kappa-style, three-layer streaming/batch pipeline for music semantic
 enrichment and recommendation, built as part of a Master's thesis
-(University of Bologna). This repository implements **8.1 — the batch,
-reactive** track: ingestion, semantic enrichment, a shared semantic API,
-and a recommender engine, verified end to end on a real dataset.
+(University of Bologna). The repository is a shared **platform** (L1
+ingestion, L2 enrichment, L3 Semantic API) plus independent **use cases**
+that each consume it without sharing runtime state or code paths with one
+another:
 
-**Status: 8.1 build order complete.** 411 tracks ingested, embedded, and
+| Use case | Mode | Type | Status |
+|---|---|---|---|
+| 8.1 | Batch | Reactive | **Complete** — see below |
+| 8.2 | Streaming | Reactive | Not started |
+| 8.3 | Streaming | Proactive | Not started |
+
+**8.1 status: build order complete.** 411 tracks ingested, embedded, and
 graphed; 4,110 recommendations generated; 32/32 automated tests passing.
 See [`reports/results.html`](reports/results.html) for the full results
 writeup (architecture, embedding visualization, worked recommendation
-example) — open it directly in a browser, no server required.
+example) — open it directly in a browser, no server required — and
+[`docs/results-evaluation.md`](docs/results-evaluation.md) for the
+quantitative/qualitative evaluation of recommendation quality that sits on
+top of it.
 
 ## Architecture
 
-Three layers, each independently testable:
+Three platform layers, each independently testable, shared by every use
+case:
 
 - **L1 — Data Ingestion.** Raw audio → object storage (MinIO); track
   metadata → PostgreSQL (system of record); Chromaprint/AcoustID
@@ -22,21 +33,28 @@ Three layers, each independently testable:
 - **L2 — Semantic Enrichment.** CLAP audio embeddings → Milvus (vector
   index); a Track/Artist/Genre knowledge graph → Neo4j.
 - **L3 — Application.** A single shared FastAPI Semantic API over all
-  three stores, consumed by the Recommender Engine (trigger handler →
-  context builder → ranking) — and designed to be reused by future
-  sibling consumers (similarity search, auto-tagging, playlist
-  generation) without duplicating store access.
+  three stores — designed to be reused by every use case's own consumers
+  (8.1's Recommender Engine now; similarity search, auto-tagging, playlist
+  generation later) without duplicating store access.
 
-The Recommender Engine only talks to the Semantic API over HTTP — it
+8.1's Recommender Engine only talks to the Semantic API over HTTP — it
 never queries Postgres, Milvus, or Neo4j directly for track content. See
 `reports/results.html` for a diagram.
 
-Kafka and Redis are provisioned in the Docker stack but intentionally
-left unwired in this track — they're reserved for the streaming (8.2) and
-proactive-streaming (8.3) tracks, which are separate, out-of-scope
-modules.
+Kafka and Redis are provisioned in the Docker stack but intentionally left
+unwired by the platform and by 8.1 — they're reserved for 8.2 (streaming,
+reactive) and 8.3 (streaming, proactive), which are independent modules:
+they share the platform (L1/L2/L3) but not each other, and not 8.1.
+
+`contracts/` holds versioned interface artifacts shared between the
+platform and its use cases (OpenAPI export, Kafka topic schemas, the
+recommendation response shape) — empty until a second independent
+consumer (8.2) exists and that contract stops being implicit. See
+[`contracts/README.md`](contracts/README.md).
 
 ## Build order
+
+**Platform (stages 1-4, shared by every use case):**
 
 | # | Stage | Code | Docs |
 |---|---|---|---|
@@ -44,8 +62,18 @@ modules.
 | 2 | Seed dataset ingestion (Jamendo → Postgres/MinIO) | `platform/ingestion/` | [`docs/platform/stage2-ingestion.md`](docs/platform/stage2-ingestion.md) |
 | 3 | L2 enrichment (CLAP → Milvus, Neo4j) | `platform/enrichment/` | [`docs/platform/stage3-enrichment.md`](docs/platform/stage3-enrichment.md) |
 | 4 | Semantic API (FastAPI) | `platform/semantic_api/` | [`docs/platform/stage4-semantic-api.md`](docs/platform/stage4-semantic-api.md) |
-| 5 | Recommender Engine | `usecases/8_1_batch_reactive/recommender/` | [`usecases/8_1_batch_reactive/docs/stage5-recommender.md`](usecases/8_1_batch_reactive/docs/stage5-recommender.md) |
-| 6 | End-to-end test | `usecases/8_1_batch_reactive/tests/test_stage6_e2e.py` | [`usecases/8_1_batch_reactive/docs/stage6-e2e.md`](usecases/8_1_batch_reactive/docs/stage6-e2e.md) |
+
+**8.1 — batch, reactive (stages 5-6, this use case only):**
+
+| # | Stage | Code | Docs |
+|---|---|---|---|
+| 5 | Recommender Engine | `usecases/8_1_batch_reactive/recommender/` | [`usecases/8_1_batch_reactive/docs/uc81-recommender.md`](usecases/8_1_batch_reactive/docs/uc81-recommender.md) |
+| 6 | End-to-end test | `usecases/8_1_batch_reactive/tests/test_uc81_e2e.py` | [`usecases/8_1_batch_reactive/docs/uc81-e2e.md`](usecases/8_1_batch_reactive/docs/uc81-e2e.md) |
+
+8.2 and 8.3 will each get their own stages 5-6 (or however many they need)
+under `usecases/8_2_streaming_reactive/` and
+`usecases/8_3_streaming_proactive/` respectively, reusing platform stages
+1-4 unchanged.
 
 ## Dataset
 
@@ -85,7 +113,7 @@ cd platform/semantic_api && python3 -m venv .venv && bash install.sh
 cd ../.. && platform/semantic_api/.venv/bin/python -m uvicorn semantic_api.main:app \
     --app-dir platform --port 8010
 
-# Stage 5 — Recommender Engine (with the API running)
+# Stage 5 (8.1) — Recommender Engine (with the API running)
 cd usecases/8_1_batch_reactive/recommender && python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
 cd ../../.. && usecases/8_1_batch_reactive/recommender/.venv/bin/python usecases/8_1_batch_reactive/recommender/recommend.py
 ```
@@ -110,11 +138,29 @@ platform/enrichment/.venv/bin/python -m pip install -r usecases/8_1_batch_reacti
 platform/enrichment/.venv/bin/python -m pytest -v
 ```
 
-Runs all 32 tests across stages 2–6 against the live stack. The Semantic
-API test fixture launches its own subprocess on a free port, so nothing
-needs to be started manually first.
+Runs all 32 tests — platform stages 2-4 plus 8.1's stages 5-6 — against
+the live stack. The Semantic API test fixture launches its own subprocess
+on a free port, so nothing needs to be started manually first. To run only
+the platform tests (no use case): `pytest tests/ -v`. To run only 8.1's
+own tests: `pytest usecases/8_1_batch_reactive/tests/ -v`.
+
+## Reports
+
+Standalone scripts in `reports/`, each writing its own subdirectory (or,
+for `results_evaluation.py`, using the shared `reports/_db.py` connection
+helper) plus feeding data into `reports/results.html`:
+
+- `stage2_metrics.py` → `reports/stage2/` — ingestion metrics/plots
+- `stage3_embedding_projection.py` → `reports/stage3/` — CLAP embedding
+  t-SNE projection
+- `uc81_results.py` → `reports/uc81/` — 8.1 recommendation score
+  distribution + one worked ranking example
+- `results_evaluation.py` → `reports/results_evaluation/` — recommendation
+  quality evaluation backing `docs/results-evaluation.md` (same-artist /
+  genre-overlap rates, catalog-skew check, 8-seed qualitative spot-check)
 
 ## Stack
 
 PostgreSQL, MinIO, Milvus, Neo4j, FastAPI, LAION-CLAP, Docker Compose.
-Kafka and Redis are present but unused in this track (see Architecture).
+Kafka and Redis are present but unused by the platform and by 8.1 (see
+Architecture) — reserved for 8.2/8.3.

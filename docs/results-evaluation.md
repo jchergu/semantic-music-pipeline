@@ -1,12 +1,12 @@
 # Results & Evaluation
 
-This is not another build-order stage — 8.1's six stages (docs/stage2 through
-docs/stage6) are complete and verified. This is the write-up that sits on top
-of them: it synthesizes the metrics that were already scattered across
-`reports/stage2`, `reports/stage3`, `reports/stage5`, and the stage docs into
-one interpreted narrative, and it does the qualitative and quantitative
-spot-checking that stage 5/6 didn't — closing the gap between two different
-claims:
+This is not another build-order stage — 8.1's six stages (`docs/platform/`
+stages 2-4 and `usecases/8_1_batch_reactive/docs/` stages 5-6) are complete
+and verified. This is the write-up that sits on top of them: it synthesizes
+the metrics that were already scattered across `reports/stage2`,
+`reports/stage3`, `reports/uc81`, and the stage docs into one interpreted
+narrative, and it does the qualitative and quantitative spot-checking that
+stage 5/6 didn't — closing the gap between two different claims:
 
 - **"The pipeline runs correctly end to end."** Stage 6 established this: 3
   golden tracks traced through every layer, matching data at every hop.
@@ -23,7 +23,7 @@ same numbers back the "Results & Evaluation" section of `reports/results.html`.
 
 | Stage | Headline metric |
 |---|---|
-| 2 · Ingestion | 411 licensed tracks (target 500 — accepted as within spec, see `docs/stage2-ingestion.md`); 49.4% MusicBrainz match rate |
+| 2 · Ingestion | 411 licensed tracks (target 500 — accepted as within spec, see `docs/platform/stage2-ingestion.md`); 49.4% MusicBrainz match rate |
 | 3 · Enrichment | 411/411 tracks embedded (CLAP, 512-dim) and graphed; 411 Track / 201 Artist / 77 Genre nodes, 764 `HAS_GENRE` edges |
 | 4 · Semantic API | 6 endpoints, all read-only, over Postgres/Milvus/Neo4j |
 | 5 · Recommender | 411/411 seeds processed, 4,110 rows written, zero skips, ~8.8s wall-clock |
@@ -38,7 +38,7 @@ that's what the rest of this document is for.
 ### 1. Same-artist rate is skewed by catalog size — a filter-bubble effect
 
 The `ARTIST_BOOST` (+0.15) was sized against the *dataset average* of ~2.0
-tracks/artist (`docs/stage5-recommender.md`). But that average hides a long
+tracks/artist (`usecases/8_1_batch_reactive/docs/uc81-recommender.md`). But that average hides a long
 tail: 19 artists have 5 or more tracks in the 411-track catalog (`Tryad` has
 20, `David Krystal` has 15, `Jonathan Dimmel` has 14). For seeds by those
 artists, **33.0% of top-10 recommendations are by the same artist**, versus
@@ -94,7 +94,7 @@ though the seed itself carries no tags to check against.
 Chosen to spread across catalog size, genre-tag richness, and one edge case
 (zero genre tags) — not cherry-picked for good results. Full detail in
 `reports/results_evaluation/results.json`; the previously-existing worked
-example (seed 1, in `docs/stage5-recommender.md`) is a 9th data point on top
+example (seed 1, in `usecases/8_1_batch_reactive/docs/uc81-recommender.md`) is a 9th data point on top
 of these 8.
 
 ### Seed 1 — "Wish You Were Here" by The.madpix.project
@@ -282,7 +282,7 @@ anywhere in this pipeline.** That's a direct consequence of the 8.1 scope
 and of using a small licensed seed dataset rather than a corpus with existing
 usage signals. As a result:
 
-- The ranking formula (`docs/stage5-recommender.md`) is, by its own
+- The ranking formula (`usecases/8_1_batch_reactive/docs/uc81-recommender.md`) is, by its own
   documentation, "a documented, tunable heuristic appropriate for a
   prototype at this scale... not a learned or validated ranking model."
   Nothing in this document changes that status — the spot-check and the

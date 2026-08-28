@@ -67,7 +67,7 @@ def _free_port() -> int:
     local dev/test fixture; avoids hardcoding a port that might collide
     with something else running on the dev machine (port 8000 is known to
     be occupied by something unrelated here; 8010 is also used for the
-    manual `uvicorn --port 8010` example in docs/stage4)."""
+    manual `uvicorn --port 8010` example in docs/platform/stage4-semantic-api.md)."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]

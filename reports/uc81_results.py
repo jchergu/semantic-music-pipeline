@@ -1,11 +1,12 @@
 """
-Stage 5 results: score distribution across the full 411-seed batch, plus
-one fully-detailed worked example showing the ranking formula's boosts in
-action (raw similarity vs. genre-sibling vs. same-artist contributions).
+8.1 use-case stage 5 results: score distribution across the full 411-seed
+batch, plus one fully-detailed worked example showing the ranking formula's
+boosts in action (raw similarity vs. genre-sibling vs. same-artist
+contributions).
 
 Writes:
-  - reports/stage5/score_distribution.png
-  - reports/stage5/results.json  (distribution stats + worked example, for
+  - reports/uc81/score_distribution.png
+  - reports/uc81/results.json  (distribution stats + worked example, for
     the results report)
 
 Requires: docker compose stack up, and platform/semantic_api/main.py already
@@ -29,7 +30,7 @@ sys.path.insert(0, str(ROOT / "usecases" / "8_1_batch_reactive"))
 
 from recommender import context_builder, ranking  # noqa: E402
 
-OUT_DIR = ROOT / "reports" / "stage5"
+OUT_DIR = ROOT / "reports" / "uc81"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 PALETTE_LIGHT_BLUE = "#2a78d6"

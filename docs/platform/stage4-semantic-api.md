@@ -40,7 +40,7 @@ A FastAPI `lifespan` context (`platform/semantic_api/dependencies.py: connect_al
   request)
 - one Milvus `connections.connect(alias="api")` + a loaded `Collection`
   handle, reused across requests. Uses a dedicated alias rather than
-  pymilvus's default `"default"` — see `usecases/8_1_batch_reactive/docs/stage6-e2e.md` for why (a
+  pymilvus's default `"default"` — see `usecases/8_1_batch_reactive/docs/uc81-e2e.md` for why (a
   cross-test-file bug found while building stage 6, fixed here).
 - one `neo4j.GraphDatabase.driver`, with a fresh `session()` per request
   (the driver-level connection pooling happens underneath, per the neo4j

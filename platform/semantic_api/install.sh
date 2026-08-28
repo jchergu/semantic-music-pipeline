@@ -5,7 +5,7 @@
 # and a newer environs than it declares (its <=9.5.0 pin resolves to an
 # environs version that ships with a marshmallow version incompatible with
 # the marshmallow actually resolved here) — same interaction hit in
-# enrichment/install.sh. Installing pymilvus first with setuptools<81
+# platform/enrichment/install.sh. Installing pymilvus first with setuptools<81
 # pinned, then upgrading environs afterward, sidesteps it.
 set -e
 
