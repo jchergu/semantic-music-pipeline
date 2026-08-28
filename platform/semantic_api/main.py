@@ -7,7 +7,8 @@ Recommender Engine (stage 5) and, eventually, sibling 8.2/8.3 consumers
 (Similarity Search, Auto-tagging, Playlist Generation) — this module has no
 knowledge of any of those, it just exposes the shared reads they'll all need.
 
-Run: uvicorn api.main:app --reload   (from the repo root, after `bash api/install.sh`)
+Run: uvicorn semantic_api.main:app --app-dir platform --reload
+     (from the repo root, after `bash platform/semantic_api/install.sh`)
 """
 from contextlib import asynccontextmanager
 from typing import Optional

@@ -51,7 +51,7 @@ connection setup directly.
 
 ## Verification
 
-Ran the server locally (`uvicorn semantic_api.main:app --port 8010`) and hit every
+Ran the server locally (`uvicorn semantic_api.main:app --app-dir platform --port 8010`) and hit every
 endpoint by hand against the live 411-track dataset before writing
 automated tests:
 
@@ -98,12 +98,12 @@ cosmetic; imports and all tests pass.
 ## Reproducing / extending
 
 ```bash
-cd api
+cd platform/semantic_api
 python3 -m venv .venv
 source .venv/bin/activate  # or use .venv/bin/python directly
 bash install.sh
 
-cd ..
+cd ../..
 platform/semantic_api/.venv/bin/python -m uvicorn semantic_api.main:app --app-dir platform --reload --port 8010   # run the server
 
 platform/enrichment/.venv/bin/python -m pip install fastapi==0.115.0 "uvicorn[standard]==0.32.0" httpx==0.27.2

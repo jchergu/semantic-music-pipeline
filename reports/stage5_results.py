@@ -8,29 +8,26 @@ Writes:
   - reports/stage5/results.json  (distribution stats + worked example, for
     the results report)
 
-Requires: docker compose stack up, and api/main.py already running
-(default http://localhost:8010) — pass --api-base-url to override.
+Requires: docker compose stack up, and platform/semantic_api/main.py already
+running (`--app-dir platform`, default http://localhost:8010) — pass
+--api-base-url to override.
 """
 import argparse
 import json
 import os
 import sys
-from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import httpx
 import matplotlib.pyplot as plt
-import psycopg2
-from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parent.parent
+from _db import ROOT, connect
+
 sys.path.insert(0, str(ROOT / "usecases" / "8_1_batch_reactive"))
 
 from recommender import context_builder, ranking  # noqa: E402
-
-load_dotenv(ROOT / ".env")
 
 OUT_DIR = ROOT / "reports" / "stage5"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -83,13 +80,7 @@ def main() -> None:
     parser.add_argument("--api-base-url", default=os.environ.get("SEMANTIC_API_BASE_URL", "http://localhost:8010"))
     args = parser.parse_args()
 
-    conn = psycopg2.connect(
-        host="localhost",
-        port=os.environ.get("POSTGRES_PORT", "5432"),
-        dbname=os.environ["POSTGRES_DB"],
-        user=os.environ["POSTGRES_USER"],
-        password=os.environ["POSTGRES_PASSWORD"],
-    )
+    conn = connect()
     scores = fetch_score_distribution(conn)
     print(f"Pulled {len(scores)} recommendation scores.")
 
