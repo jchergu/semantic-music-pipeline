@@ -57,7 +57,7 @@ def score_recommendations(
         candidates[tid] = {
             "track_id": tid,
             "title": c["title"],
-            "artist_name": c.get("artist_name"),
+            "artist_name": c["artist_name"],
             "similarity": c["score"],
             "genre_sibling": False,
             "same_artist": False,

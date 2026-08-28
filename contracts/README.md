@@ -21,3 +21,18 @@ case assumes" stops being something one person can hold in their head.
 
 Do not add anything here speculatively. If you're looking at this file
 wondering what belongs in contracts/, the answer is: nothing yet.
+
+## semantic-api-v1.json
+
+Frozen 2026-08-28, ahead of 8.2 work starting. This is the 8.1-era
+Semantic API surface — the 6 read-only GET endpoints in
+`platform/semantic_api/main.py` as they exist today, exported via
+`app.openapi()`. 8.2 must not silently change it: a field rename,
+removal, or type change on any endpoint 8.1 depends on
+(`/tracks/{id}/similar`'s `title`/`artist_name`/`track_id`/`score`,
+`/tracks/{id}/graph`'s `artist`/`related_by_genre`, `/artists/{name}
+/tracks`'s `track_id`/`title`) breaks
+`usecases/8_1_batch_reactive/recommender/context_builder.py` and/or
+`ranking.py`. Diff a new `app.openapi()` export against this file before
+changing any existing endpoint's response shape; update this file
+deliberately, in the same change, if the break is intentional.

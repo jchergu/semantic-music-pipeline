@@ -57,7 +57,7 @@ def build_context(client: httpx.Client, seed_track_id: int, *, candidate_k: int 
     genre_siblings = graph["related_by_genre"]
 
     same_artist: list[dict] = []
-    artist = graph.get("artist")
+    artist = graph["artist"]
     if artist:
         artist_resp = client.get(f"/artists/{quote(artist, safe='')}/tracks")
         artist_resp.raise_for_status()

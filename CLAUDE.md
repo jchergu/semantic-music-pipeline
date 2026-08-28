@@ -179,11 +179,66 @@ restructuring done after the build order closed:
   with the monorepo move (wrong paths, a wrong test count) because no
   review process ever saw it. Re-tracked, corrected, and rescoped from
   "8.1 project" framing to whole-project framing in the process.
+- **2026-08-28**: a read-only recon pass (post-rename health check, ahead
+  of starting 8.2) confirmed the platform has no streaming-reactive
+  capability yet — see Platform build order (stages 7+) below.
+
+### Platform build order (stages 7+ — required before 8.2, not started)
+
+8.2 (streaming, reactive) needs platform capabilities beyond stages 1-4.
+These are platform stages, not 8.2-specific work — Kafka wiring, Flink,
+Redis, and an events schema are shared infra any streaming use case would
+need, the same way stages 1-4 are shared by every use case. The
+2026-08-28 recon above confirmed none of it exists yet: Kafka and Redis
+boot in `docker-compose.yml` but nothing in the codebase produces to,
+consumes from, or connects to either; Flink isn't in `docker-compose.yml`
+at all. This is a list of what's missing, not a design — do not build
+against it until it's turned into an actual plan and confirmed.
+
+7. Kafka topics + producer/consumer wiring (media-stream and
+   behavioral-event topics are separate topics, per the L1 architecture
+   section above — none of that exists in code today)
+8. Flink provisioning (add it to `docker-compose.yml` and stand up the
+   service — it isn't there at all right now)
+9. Redis session cache (wire up a client and a real cache path —
+   currently boots and nothing touches it)
+10. Postgres sessions/events schema (no sessions or events tables exist
+    today — only `tracks`, from `platform/ingestion/schema.sql`, and
+    8.1's own `recommendations` table)
+11. Event ingestion path (the Semantic API is 6 read-only GET endpoints
+    today, with no write path of any kind — a behavioral event has
+    nowhere to land)
 
 ## Stack (all open-source, self-hostable)
 
-PostgreSQL, Neo4j, Milvus, MinIO, Kafka, Flink, Redis, Docker Compose, CLAP,
-Chromaprint/AcousticID, Librosa, Essentia, FastAPI.
+**Provisioned and used** — running in `docker-compose.yml`, with real code
+paths reading/writing them today: PostgreSQL, Neo4j, Milvus, MinIO.
+
+**Provisioned but unused** — running in `docker-compose.yml`, boot
+healthy, but no code anywhere in the repo produces to, consumes from, or
+connects to them. Reserved for 8.2/8.3 (see Build order, platform stages
+7+, below):
+- Kafka (+ Zookeeper)
+- Redis — session cache for 8.2/8.3 use cases only, per the L3
+  architecture section above; never touched by 8.1
+
+**Not provisioned** — named in this document's architecture description
+but not present in `docker-compose.yml` at all, and with no code:
+- Flink — planned for streaming enrichment, not yet stood up
+
+Also in the stack, used by the platform build order: CLAP,
+Chromaprint/AcousticID, Librosa, FastAPI, Docker Compose. Essentia has no
+footprint anywhere in the repo (not in any requirements.txt, not
+imported) — same overstatement problem as Flink; dropped from this list
+rather than repeated here inaccurately.
+
+Docker Compose's project name is pinned to `8-1-batch-reactive` via a
+top-level `name:` key in `docker-compose.yml`, even though the repo was
+renamed to `semantic-music-pipeline`. Compose derives its volume-name
+prefix from the project name, and the existing 411-track dataset lives in
+`8-1-batch-reactive_*` volumes (created before the rename). Renaming the
+project would silently start the stack on fresh, empty volumes instead of
+the real data — not worth it for a cosmetic match, so the pin stays.
 
 ## Commands
 
