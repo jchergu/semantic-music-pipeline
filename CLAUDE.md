@@ -31,6 +31,12 @@ notes.
 - One shared Semantic API (FastAPI), reused by: Recommender Engine, Similarity
   Search, Auto-tagging, Playlist Generation. These are sibling consumers, not
   separate stacks.
+- Behavioral-event ingestion is a SEPARATE SERVICE, not part of the Semantic
+  API. The Semantic API stays read-only — that property is frozen in
+  `contracts/semantic-api-v1.json` and must not be reversed without an
+  explicit decision. The ingestion service produces to the
+  `behavioral-events` Kafka topic, separate from the `media-stream` topic
+  per the Kafka topics bullet above. **Decision A, 2026-08-30.**
 - Redis: session cache for 8.2/8.3 use cases ONLY. Never a system-of-record
   substitute for PostgreSQL.
 
@@ -64,6 +70,14 @@ notes.
 8.1 / 8.2 / 8.3 are independent modules: no shared runtime state, no shared
 code paths between them. They are independent OF EACH OTHER, not of the
 platform (L1, L2, Semantic API), which is shared by design.
+
+The Kafka consumer that reads behavioral events and maintains session
+state in Redis is PLATFORM-owned (build order stages 9-10 below), not
+8.2-owned — 8.3 is also streaming and will reuse the same consumer. This
+does not violate the independence rule above: 8.1/8.2/8.3 are independent
+of each other, not of the platform. A future session should not refuse to
+extract shared streaming components on independence grounds. **Decision
+B, 2026-08-30.**
 
 ## Dataset constraints
 
@@ -181,44 +195,64 @@ restructuring done after the build order closed:
   "8.1 project" framing to whole-project framing in the process.
 - **2026-08-28**: a read-only recon pass (post-rename health check, ahead
   of starting 8.2) confirmed the platform has no streaming-reactive
-  capability yet — see Platform build order (stages 7+) below.
+  capability yet — see Platform build order (stages 7-11) below.
 
-### Platform build order (stages 7+ — required before 8.2, not started)
+### Platform build order (stages 7-11 — required before 8.2, stage 7 done)
 
 8.2 (streaming, reactive) needs platform capabilities beyond stages 1-4.
 These are platform stages, not 8.2-specific work — Kafka wiring, Flink,
 Redis, and an events schema are shared infra any streaming use case would
 need, the same way stages 1-4 are shared by every use case. The
-2026-08-28 recon above confirmed none of it exists yet: Kafka and Redis
-boot in `docker-compose.yml` but nothing in the codebase produces to,
-consumes from, or connects to either; Flink isn't in `docker-compose.yml`
-at all. This is a list of what's missing, not a design — do not build
-against it until it's turned into an actual plan and confirmed.
+2026-08-28 recon confirmed none of it existed yet; stage 7 (Kafka topics +
+producer/consumer wiring) has since been built and verified (see below).
+Stages 8-11 are still just a list of what's missing, not a design — do
+not build against them until each is turned into an actual plan and
+confirmed.
 
-7. Kafka topics + producer/consumer wiring (media-stream and
-   behavioral-event topics are separate topics, per the L1 architecture
-   section above — none of that exists in code today)
+7. Kafka topics + producer/consumer wiring (`media-stream` and
+   `behavioral-events` topics are separate topics, per the L1
+   architecture section above — none of that exists in code today)
 8. Flink provisioning (add it to `docker-compose.yml` and stand up the
    service — it isn't there at all right now)
 9. Redis session cache (wire up a client and a real cache path —
-   currently boots and nothing touches it)
+   currently boots and nothing touches it; platform-owned per Decision B
+   above, not 8.2-owned, since 8.3 reuses the same consumer)
 10. Postgres sessions/events schema (no sessions or events tables exist
     today — only `tracks`, from `platform/ingestion/schema.sql`, and
-    8.1's own `recommendations` table)
-11. Event ingestion path (the Semantic API is 6 read-only GET endpoints
-    today, with no write path of any kind — a behavioral event has
-    nowhere to land)
+    8.1's own `recommendations` table; read by the platform-owned
+    consumer from Decision B above, not by 8.2 code directly)
+11. Event ingestion path — a separate service per Decision A above, not
+    an addition to the Semantic API's endpoint list. The Semantic API
+    stays read-only; a behavioral event has nowhere to land today
+    because that ingestion service doesn't exist yet, not because the
+    API needs a write path.
+
+**Stage 7** (Kafka topics + producer/consumer wiring) verified working as
+of 2026-08-30 — `media-stream` and `behavioral-events` topics created
+idempotently on the existing compose broker (`platform/streaming/topics.py`),
+plus a minimal synchronous producer/consumer
+(`platform/streaming/producer.py`, `platform/streaming/consumer.py`)
+proving real round-trip delivery over the live broker, not mocked. Uses
+`confluent-kafka==2.5.3` — verified to resolve a prebuilt wheel for this
+environment, so no `install.sh` was needed (unlike enrichment/semantic_api).
+See `docs/platform/stage7-kafka.md`. All 3 tests in
+`tests/test_stage7_kafka.py` pass (35/35 total across stages 2-4+7 and
+8.1's stages 5-6). No session state, Redis, ingestion service, or 8.2
+code was touched — those remain stages 8-11, not started.
 
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
-paths reading/writing them today: PostgreSQL, Neo4j, Milvus, MinIO.
+paths reading/writing them today: PostgreSQL, Neo4j, Milvus, MinIO, Kafka
+(+ Zookeeper) — as of stage 7, `platform/streaming/` creates its two
+topics and can produce/consume round-trip; this is topics + plumbing
+only, not the full streaming pipeline (no session state, no ingestion
+service — see Build order, platform stages 8-11, below).
 
-**Provisioned but unused** — running in `docker-compose.yml`, boot
+**Provisioned but unused** — running in `docker-compose.yml`, boots
 healthy, but no code anywhere in the repo produces to, consumes from, or
-connects to them. Reserved for 8.2/8.3 (see Build order, platform stages
-7+, below):
-- Kafka (+ Zookeeper)
+connects to it. Reserved for 8.2/8.3 (see Build order, platform stages
+8-11, below):
 - Redis — session cache for 8.2/8.3 use cases only, per the L3
   architecture section above; never touched by 8.1
 
@@ -250,13 +284,15 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (32 tests, platform stages 2-4 + 8.1 stages 5-6)
+Run the full test suite (35 tests, platform stages 2-4+7 + 8.1 stages 5-6)
 against the live stack — uses `platform/enrichment/.venv` because it
 already carries psycopg2/httpx/matplotlib/pytest; the extra installs pull
-in what stage 5/6's own tests need that that venv doesn't have by default:
+in what stage 5/6's and stage 7's own tests need that that venv doesn't
+have by default:
 
 ```bash
 platform/enrichment/.venv/bin/python -m pip install -r usecases/8_1_batch_reactive/recommender/requirements.txt \
+    -r platform/streaming/requirements.txt \
     fastapi==0.115.0 "uvicorn[standard]==0.32.0" httpx==0.27.2
 platform/enrichment/.venv/bin/python -m pytest -v
 ```

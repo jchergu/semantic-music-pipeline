@@ -1,0 +1,7 @@
+# confluent-kafka ships a prebuilt manylinux wheel (librdkafka bundled) for
+# Python 3.12/x86_64 — verified via `pip download confluent-kafka==2.5.3
+# --only-binary=:all:`, no compilation needed. Plain `pip install -r
+# requirements.txt` is sufficient; no install.sh needed here, unlike
+# platform/enrichment and platform/semantic_api.
+confluent-kafka==2.5.3
+python-dotenv==1.0.1

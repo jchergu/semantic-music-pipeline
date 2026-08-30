@@ -11,6 +11,12 @@ all:
   separate topics with separate schemas, per the platform's Kafka design
 - the shared recommendation response shape
 
+Behavioral-event ingestion is a separate service from the Semantic API —
+the API stays read-only (see `semantic-api-v1.json` below) — and that
+ingestion service produces to the `behavioral-events` topic. See
+CLAUDE.md's L3 architecture section (Decision A, 2026-08-30) for the
+decision.
+
 This directory is empty right now, on purpose. With a single use case
 (8.1) consuming the platform, the contract between them is implicit — it
 lives in the Semantic API's own code and 8.1's own tests, and duplicating
