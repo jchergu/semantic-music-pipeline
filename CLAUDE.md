@@ -198,6 +198,34 @@ restructuring done after the build order closed:
 - **2026-08-28**: a read-only recon pass (post-rename health check, ahead
   of starting 8.2) confirmed the platform has no streaming-reactive
   capability yet — see Platform build order (stages 7-11) below.
+- **Planned (2026-08-31)**: `eval/8_1/` — a broader, harder-nosed
+  **systems and behavior** evaluation pack, distinct from
+  `reports/results_evaluation.py`'s "are the recommendations good" framing
+  above. There is no ground truth and no real users for this dataset, so
+  it computes **no accuracy metric** (no precision@k, recall@k, NDCG) —
+  that would require relevance labels that don't exist. Read-only against
+  the existing 411-seed/4110-row `recommendations` table and the existing
+  stores (Postgres/Milvus/Neo4j); `recommend.py` is never re-run. Six
+  metrics: (1) signal contribution — which of similarity/genre-sibling/
+  same-artist explains each recommendation, reconstructed from the stores
+  since the `recommendations` table itself only persists the final score,
+  not per-signal flags; (2) catalog coverage and its Gini coefficient;
+  (3) intra-list diversity (mean pairwise CLAP cosine distance per top-10);
+  (4) latency per stage (Milvus ANN / Neo4j / ranking), measured fresh
+  against the live stack since no per-stage timing was ever recorded
+  during the original batch run — reported separately in
+  `eval/8_1/latency.json`, not folded into the deterministic
+  `eval/8_1/results.json`; (5) KG connectivity (Track/Artist/Genre degree
+  distribution, zero-genre-sibling seed count); (6) failure/edge cases
+  (seeds with fewer than 10 recommendations). Outputs:
+  `eval/8_1/results.json`, `eval/8_1/latency.json`, `eval/8_1/tables.md`,
+  `eval/8_1/figures/*.png`. Entrypoint: `python -m eval.8_1.run` (via
+  `platform/enrichment/.venv`, which already has every package this needs
+  — pymilvus/neo4j/psycopg2/matplotlib/numpy — confirmed by direct import
+  check, no new installs required). Own Milvus connection alias
+  (`"eval"`), per the Platform contracts rule below. Not yet
+  implemented as of this commit — see the follow-up status entry once it
+  lands.
 
 ### Platform build order (stages 7-11 — required before 8.2, all done)
 
