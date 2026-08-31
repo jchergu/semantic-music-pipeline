@@ -245,7 +245,7 @@ restructuring done after the build order closed:
   their seed, 1,600 (72.73%) never received `GENRE_BOOST` — see
   `eval/8_1/README.md`.
 
-### Platform build order (stages 7-11 — required before 8.2, all done)
+### Platform build order (stages 7-12 — required before 8.2, all done)
 
 8.2 (streaming, reactive) needed platform capabilities beyond stages 1-4.
 These were platform stages, not 8.2-specific work — Kafka wiring, Flink,
@@ -347,15 +347,40 @@ behavioral event and produces it onto `behavioral-events` via stage 7's
 `streaming.producer.produce()`, closing the loop stages 7-10 opened with
 manually-produced test messages. Event shape stays ad hoc
 (`session_id`/`event_type`/`track_id` plus arbitrary extra fields), not a
-frozen contract — `contracts/` stays empty until 8.2 is a second
-independent producer/consumer. See
+frozen contract — the rest of `contracts/` (Kafka topic schemas, the
+shared recommendation response shape) stays unpopulated until 8.2 is a
+second independent producer/consumer (`contracts/semantic-api-v1.json`
+itself was already frozen 2026-08-28, ahead of this stage — see
+`contracts/README.md`). See
 `docs/platform/stage11-event-ingestion.md`. All 3 tests in
 `tests/test_stage11_event_ingestion.py` pass, including an end-to-end
 test driving the full HTTP → Kafka → Redis + Postgres chain through the
 platform-owned consumer from stages 9-10 (46/46 total across stages
-2-4+7-11 and 8.1's stages 5-6). No 8.2 code was touched. **This closes
-the platform build order (stages 1-11)** — every prerequisite 8.2 needs
-now exists; 8.2 itself is a separate, not-yet-started piece of work.
+2-4+7-11 and 8.1's stages 5-6). No 8.2 code was touched. This closed the
+platform build order as it stood on 2026-08-31 — see stage 12 below,
+added the same day once Session B's `eval/8_1` work surfaced the need for
+a reproducible event stream ahead of any 8.2/8.3 measurement.
+
+**Planned (2026-08-31)**: Stage 12 — a deterministic behavioral-event
+simulator (`platform/simulator/`), explicitly requested (not a build-order
+guess): a CLI that replays scripted listening sessions against the live
+411-track catalog by POSTing to `platform/event_ingestion`, with
+`--seed`/`--speed`/`--sessions` for full reproducibility and simulated/
+wall-clock time decoupling (needed for Session E's future Flink
+event-time windows). Adds two fields to the event payload beyond
+`platform/event_ingestion/main.py`'s current `session_id`/`event_type`/
+`track_id` — `event_time` (simulated clock) and `position_ms` (needed to
+classify skip timing later: `<5000ms` = early, `>80%` duration = late).
+The schema is `extra="allow"` (ad hoc, not frozen) specifically to permit
+this; both fields are called out here explicitly rather than added
+quietly. Three canned YAML scripts against real tracks: a coherent
+same-genre session, three consecutive early skips, and a context switch
+partway through. No persistent Kafka consumer daemon exists yet
+(`session_consumer.py` only has a single-message `consume_and_cache_one()`,
+by design — see stages 9-10) — verification drives that function in a
+loop, the same pattern every existing stage 9-11 test already uses, not a
+new daemon. Not yet implemented as of this commit — see the follow-up
+status entry once it lands.
 
 ## Stack (all open-source, self-hostable)
 
