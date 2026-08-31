@@ -165,6 +165,6 @@ PostgreSQL, MinIO, Milvus, Neo4j, FastAPI, LAION-CLAP, Docker Compose.
 Besides track metadata and 8.1's own `recommendations` table, PostgreSQL
 now also holds `sessions`/`events` durability for a platform-owned
 consumer. Kafka and Redis have real (but narrow) platform-owned code
-paths too — topic plumbing and a session cache — all reserved for
-8.2/8.3, not touched by 8.1 (see Architecture). Flink is present but
-unused by anything yet.
+paths too — including a dedicated event ingestion HTTP service producing
+onto Kafka — all reserved for 8.2/8.3, not touched by 8.1 (see
+Architecture). Flink is present but unused by anything yet.

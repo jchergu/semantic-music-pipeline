@@ -197,18 +197,19 @@ restructuring done after the build order closed:
   of starting 8.2) confirmed the platform has no streaming-reactive
   capability yet — see Platform build order (stages 7-11) below.
 
-### Platform build order (stages 7-11 — required before 8.2, stages 7-10 done)
+### Platform build order (stages 7-11 — required before 8.2, all done)
 
-8.2 (streaming, reactive) needs platform capabilities beyond stages 1-4.
-These are platform stages, not 8.2-specific work — Kafka wiring, Flink,
-Redis, and an events schema are shared infra any streaming use case would
-need, the same way stages 1-4 are shared by every use case. The
-2026-08-28 recon confirmed none of it existed yet; stage 7 (Kafka topics +
-producer/consumer wiring), stage 8 (Flink provisioning), stage 9 (Redis
-session cache), and stage 10 (Postgres sessions/events schema) have since
-been built and verified (see below). Stage 11 is still just a list item,
-not a design — do not build against it until it's turned into an actual
-plan and confirmed.
+8.2 (streaming, reactive) needed platform capabilities beyond stages 1-4.
+These were platform stages, not 8.2-specific work — Kafka wiring, Flink,
+Redis, an events schema, and an ingestion path are shared infra any
+streaming use case would need, the same way stages 1-4 are shared by
+every use case. The 2026-08-28 recon confirmed none of it existed yet;
+stages 7-11 have since all been built and verified (see below). This
+closes the platform build order — every platform prerequisite 8.2 needs
+now exists. **8.2 itself remains out of scope and not started** — per
+this file's header, do not build 8.2/8.3 infra unless explicitly asked;
+completing the platform's own prerequisites is not the same thing as
+starting 8.2.
 
 7. Kafka topics + producer/consumer wiring (`media-stream` and
    `behavioral-events` topics are separate topics, per the L1
@@ -239,9 +240,9 @@ environment, so no `install.sh` was needed (unlike enrichment/semantic_api).
 See `docs/platform/stage7-kafka.md`. All 3 tests in
 `tests/test_stage7_kafka.py` pass (35/35 total across stages 2-4+7 and
 8.1's stages 5-6). No session state, Redis, ingestion service, or 8.2
-code was touched — those remain stage 11, not started (see stages 8-10
-below for Flink provisioning, the Redis session cache, and Postgres
-durability, done separately).
+code was touched at this point in the build order — see stages 8-11 below
+for Flink provisioning, the Redis session cache, Postgres durability, and
+the event ingestion service, done separately.
 
 **Stage 8** (Flink provisioning) verified working as of 2026-08-31 — a
 JobManager and TaskManager (`flink:1.19.1-scala_2.12-java11`) added to
@@ -252,9 +253,9 @@ build-order guardrail above — no Flink job was written or deployed, and
 nothing yet reads from or writes to this cluster. See
 `docs/platform/stage8-flink.md`. Both tests in `tests/test_stage8_flink.py`
 pass (37/37 total across stages 2-4+7-8 and 8.1's stages 5-6). No Redis,
-Postgres schema, ingestion service, or 8.2 code was touched — those remain
-stage 11, not started (see stages 9-10 below for Redis and Postgres, done
-separately).
+Postgres schema, ingestion service, or 8.2 code was touched at this point
+in the build order — see stages 9-11 below for Redis, Postgres, and the
+event ingestion service, done separately.
 
 **Stage 9** (Redis session cache) verified working as of 2026-08-31 — the
 Redis half of Decision B's platform-owned consumer: a session-state module
@@ -270,8 +271,8 @@ key), not a frozen contract, same stance stage 7 took with its plain
 string payloads. See `docs/platform/stage9-redis.md`. All 3 tests in
 `tests/test_stage9_redis.py` pass (40/40 total across stages 2-4+7-9 and
 8.1's stages 5-6). No Postgres schema, ingestion service, or 8.2 code was
-touched — those remain stage 11 (Postgres schema is now stage 10, done
-separately, see below).
+touched at this point in the build order — see stages 10-11 below for
+Postgres durability and the event ingestion service, done separately.
 
 **Stage 10** (Postgres sessions/events schema) verified working as of
 2026-08-31 — the Postgres durability half of Decision B's platform-owned
@@ -288,34 +289,52 @@ Postgres (durability) together. See
 `docs/platform/stage10-postgres-events.md`. All 3 tests in
 `tests/test_stage10_postgres_events.py` pass (43/43 total across stages
 2-4+7-10 and 8.1's stages 5-6). No ingestion service or 8.2 code was
-touched — that remains stage 11, not started.
+touched at this point in the build order — see stage 11 below for the
+event ingestion service, done separately.
+
+**Stage 11** (Event ingestion path) verified working as of 2026-08-31 — a
+new FastAPI service, separate from the Semantic API per Decision A
+(`platform/event_ingestion/main.py`): `POST /events` validates a
+behavioral event and produces it onto `behavioral-events` via stage 7's
+`streaming.producer.produce()`, closing the loop stages 7-10 opened with
+manually-produced test messages. Event shape stays ad hoc
+(`session_id`/`event_type`/`track_id` plus arbitrary extra fields), not a
+frozen contract — `contracts/` stays empty until 8.2 is a second
+independent producer/consumer. See
+`docs/platform/stage11-event-ingestion.md`. All 3 tests in
+`tests/test_stage11_event_ingestion.py` pass, including an end-to-end
+test driving the full HTTP → Kafka → Redis + Postgres chain through the
+platform-owned consumer from stages 9-10 (46/46 total across stages
+2-4+7-11 and 8.1's stages 5-6). No 8.2 code was touched. **This closes
+the platform build order (stages 1-11)** — every prerequisite 8.2 needs
+now exists; 8.2 itself is a separate, not-yet-started piece of work.
 
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
 paths reading/writing them today: PostgreSQL — `tracks` (stage 2) and
-8.1's own `recommendations` table, plus, as of stage 10, `sessions` and
-`events` (`platform/streaming/schema.sql`) for Decision B's platform-owned
-consumer; not yet written to by any real ingestion service — see Build
-order, platform stage 11, below. Neo4j, Milvus, MinIO. Kafka (+
-Zookeeper) — as of stage 7, `platform/streaming/` creates its two topics
-and can produce/consume round-trip; this is topics + plumbing only, not
-the full streaming pipeline (no real ingestion service — see Build order,
-platform stage 11, below). Redis — as of stage 9,
+8.1's own `recommendations` table, plus `sessions`/`events`
+(`platform/streaming/schema.sql`, stage 10) for Decision B's
+platform-owned consumer. Neo4j, Milvus, MinIO. Kafka (+ Zookeeper) — as
+of stage 7, `platform/streaming/` creates its two topics and can
+produce/consume round-trip; as of stage 11,
+`platform/event_ingestion/main.py` is a real producer onto
+`behavioral-events` over HTTP. Redis — as of stage 9,
 `platform/streaming/session_state.py` and `session_consumer.py` cache
 behavioral events per session with a sliding TTL; as of stage 10 the same
-consumer also persists durably to Postgres (see above) — Decision B's
-"Kafka consumer that reads behavioral events and maintains session state
-in Redis," spanning stages 9-10, is now complete on both stores.
+consumer also persists durably to Postgres. Decision B's "Kafka consumer
+that reads behavioral events and maintains session state in Redis,"
+spanning stages 9-10, is complete on both stores, and stage 11 gives the
+whole chain (Kafka → Redis + Postgres) its first real producer. All of
+this is still platform-owned plumbing with no 8.2/8.3 consumer yet — see
+the Build order note above.
 
 **Provisioned but unused** — running in `docker-compose.yml`, boots
 healthy, but no code anywhere in the repo produces to, consumes from, or
-connects to it. Reserved for 8.2/8.3 (see Build order, platform stage 11,
-below):
+connects to it. Reserved for 8.2/8.3, planned for streaming enrichment:
 - Flink — a JobManager + TaskManager run in `docker-compose.yml` as of
   stage 8 and are confirmed healthy/registered with each other, but no
-  code anywhere submits a job to them yet; planned for streaming
-  enrichment
+  code anywhere submits a job to them yet
 
 Also in the stack, used by the platform build order: CLAP,
 Chromaprint/AcousticID, Librosa, FastAPI, Docker Compose. Essentia has no
@@ -340,7 +359,7 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (43 tests, platform stages 2-4+7-10 + 8.1 stages
+Run the full test suite (46 tests, platform stages 2-4+7-11 + 8.1 stages
 5-6) against the live stack — uses `platform/enrichment/.venv` because it
 already carries psycopg2/httpx/matplotlib/pytest (stage 8's Flink and
 stage 10's Postgres tests need nothing beyond that venv's defaults — the
@@ -348,7 +367,10 @@ venv already has `psycopg2-binary==2.9.9`, same pin
 `platform/streaming/requirements.txt` declares); the extra installs pull
 in what stage 5/6's, stage 7's, and stage 9's own tests need that that
 venv doesn't have by default (`-r platform/streaming/requirements.txt`
-also brings in `redis==5.0.8` for stage 9):
+also brings in `redis==5.0.8` for stage 9). Stage 11's own
+`platform/event_ingestion/requirements.txt` needs nothing beyond
+fastapi/uvicorn/confluent-kafka/python-dotenv, all already covered by the
+installs below:
 
 ```bash
 platform/enrichment/.venv/bin/python -m pip install -r usecases/8_1_batch_reactive/recommender/requirements.txt \
@@ -360,6 +382,14 @@ platform/enrichment/.venv/bin/python -m pytest -v
 Run only the platform tests (no use case): `platform/enrichment/.venv/bin/python -m pytest tests/ -v`
 
 Run only 8.1's own tests: `platform/enrichment/.venv/bin/python -m pytest usecases/8_1_batch_reactive/tests/ -v`
+
+Run the stage 11 event ingestion service standalone (same
+`--app-dir platform` pattern as the stage 4 Semantic API):
+
+```bash
+platform/enrichment/.venv/bin/python -m uvicorn event_ingestion.main:app \
+    --app-dir platform --port 8020
+```
 
 Regenerate the reports (each needs the stack up; `uc81_results.py` also
 needs the Semantic API running — see Quickstart in README.md):

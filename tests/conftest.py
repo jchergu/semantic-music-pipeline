@@ -135,3 +135,57 @@ def semantic_api_server():
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait(timeout=5)
+
+
+@pytest.fixture(scope="session")
+def event_ingestion_server():
+    """Same shape as semantic_api_server, for the stage 11 event
+    ingestion service (`uvicorn event_ingestion.main:app`)."""
+    port = _free_port()
+    proc = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "event_ingestion.main:app",
+            "--app-dir",
+            str(ROOT / "platform"),
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+        ],
+        cwd=str(ROOT),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+
+    base_url = f"http://127.0.0.1:{port}"
+    try:
+        deadline = time.monotonic() + 30
+        last_error: Exception | None = None
+        ready = False
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                out = proc.stdout.read() if proc.stdout else ""
+                raise RuntimeError(f"uvicorn exited early (code {proc.returncode}):\n{out}")
+            try:
+                resp = httpx.get(f"{base_url}/health", timeout=1.0)
+                if resp.status_code == 200:
+                    ready = True
+                    break
+            except httpx.TransportError as e:
+                last_error = e
+            time.sleep(0.3)
+        if not ready:
+            raise RuntimeError(f"uvicorn did not become healthy within 30s: {last_error}")
+
+        yield base_url
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
