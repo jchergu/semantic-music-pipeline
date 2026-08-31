@@ -197,17 +197,17 @@ restructuring done after the build order closed:
   of starting 8.2) confirmed the platform has no streaming-reactive
   capability yet — see Platform build order (stages 7-11) below.
 
-### Platform build order (stages 7-11 — required before 8.2, stage 7 done)
+### Platform build order (stages 7-11 — required before 8.2, stages 7-8 done)
 
 8.2 (streaming, reactive) needs platform capabilities beyond stages 1-4.
 These are platform stages, not 8.2-specific work — Kafka wiring, Flink,
 Redis, and an events schema are shared infra any streaming use case would
 need, the same way stages 1-4 are shared by every use case. The
 2026-08-28 recon confirmed none of it existed yet; stage 7 (Kafka topics +
-producer/consumer wiring) has since been built and verified (see below).
-Stages 8-11 are still just a list of what's missing, not a design — do
-not build against them until each is turned into an actual plan and
-confirmed.
+producer/consumer wiring) and stage 8 (Flink provisioning) have since been
+built and verified (see below). Stages 9-11 are still just a list of
+what's missing, not a design — do not build against them until each is
+turned into an actual plan and confirmed.
 
 7. Kafka topics + producer/consumer wiring (`media-stream` and
    `behavioral-events` topics are separate topics, per the L1
@@ -240,6 +240,18 @@ See `docs/platform/stage7-kafka.md`. All 3 tests in
 8.1's stages 5-6). No session state, Redis, ingestion service, or 8.2
 code was touched — those remain stages 8-11, not started.
 
+**Stage 8** (Flink provisioning) verified working as of 2026-08-31 — a
+JobManager and TaskManager (`flink:1.19.1-scala_2.12-java11`) added to
+`docker-compose.yml`, both healthy/registered on the live compose network:
+the JobManager's REST API answers `/config` and the TaskManager shows up
+in `/taskmanagers` with 2 free slots. Provisioning only, per the stage 7-8
+build-order guardrail above — no Flink job was written or deployed, and
+nothing yet reads from or writes to this cluster. See
+`docs/platform/stage8-flink.md`. Both tests in `tests/test_stage8_flink.py`
+pass (37/37 total across stages 2-4+7-8 and 8.1's stages 5-6). No Redis,
+Postgres schema, ingestion service, or 8.2 code was touched — those remain
+stages 9-11, not started.
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
@@ -247,24 +259,23 @@ paths reading/writing them today: PostgreSQL, Neo4j, Milvus, MinIO, Kafka
 (+ Zookeeper) — as of stage 7, `platform/streaming/` creates its two
 topics and can produce/consume round-trip; this is topics + plumbing
 only, not the full streaming pipeline (no session state, no ingestion
-service — see Build order, platform stages 8-11, below).
+service — see Build order, platform stages 9-11, below).
 
 **Provisioned but unused** — running in `docker-compose.yml`, boots
 healthy, but no code anywhere in the repo produces to, consumes from, or
 connects to it. Reserved for 8.2/8.3 (see Build order, platform stages
-8-11, below):
+9-11, below):
 - Redis — session cache for 8.2/8.3 use cases only, per the L3
   architecture section above; never touched by 8.1
-
-**Not provisioned** — named in this document's architecture description
-but not present in `docker-compose.yml` at all, and with no code:
-- Flink — planned for streaming enrichment, not yet stood up
+- Flink — a JobManager + TaskManager run in `docker-compose.yml` as of
+  stage 8 and are confirmed healthy/registered with each other, but no
+  code anywhere submits a job to them yet; planned for streaming
+  enrichment
 
 Also in the stack, used by the platform build order: CLAP,
 Chromaprint/AcousticID, Librosa, FastAPI, Docker Compose. Essentia has no
 footprint anywhere in the repo (not in any requirements.txt, not
-imported) — same overstatement problem as Flink; dropped from this list
-rather than repeated here inaccurately.
+imported) — dropped from this list rather than repeated here inaccurately.
 
 Docker Compose's project name is pinned to `8-1-batch-reactive` via a
 top-level `name:` key in `docker-compose.yml`, even though the repo was
@@ -279,16 +290,17 @@ the real data — not worth it for a cosmetic match, so the pin stays.
 Bring the stack up/down:
 
 ```bash
-docker compose up -d   # Postgres, MinIO, Neo4j, Milvus + etcd/MinIO deps, Kafka + Zookeeper, Redis
+docker compose up -d   # Postgres, MinIO, Neo4j, Milvus + etcd/MinIO deps, Kafka + Zookeeper, Redis, Flink
 docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (35 tests, platform stages 2-4+7 + 8.1 stages 5-6)
+Run the full test suite (37 tests, platform stages 2-4+7-8 + 8.1 stages 5-6)
 against the live stack — uses `platform/enrichment/.venv` because it
-already carries psycopg2/httpx/matplotlib/pytest; the extra installs pull
-in what stage 5/6's and stage 7's own tests need that that venv doesn't
-have by default:
+already carries psycopg2/httpx/matplotlib/pytest (stage 8's Flink test
+needs nothing beyond that venv's defaults); the extra installs pull in
+what stage 5/6's and stage 7's own tests need that that venv doesn't have
+by default:
 
 ```bash
 platform/enrichment/.venv/bin/python -m pip install -r usecases/8_1_batch_reactive/recommender/requirements.txt \

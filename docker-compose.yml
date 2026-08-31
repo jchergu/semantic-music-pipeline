@@ -164,6 +164,35 @@ services:
       timeout: 5s
       retries: 10
 
+  flink-jobmanager:
+    image: flink:1.19.1-scala_2.12-java11
+    container_name: 8-1-flink-jobmanager
+    restart: unless-stopped
+    command: jobmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+    ports:
+      - "${FLINK_JOBMANAGER_WEBUI_PORT:-8081}:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/config"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  flink-taskmanager:
+    image: flink:1.19.1-scala_2.12-java11
+    container_name: 8-1-flink-taskmanager
+    restart: unless-stopped
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 2
+    depends_on:
+      flink-jobmanager:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   minio_data:
