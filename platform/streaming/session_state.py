@@ -19,6 +19,17 @@ def _session_key(session_id: str) -> str:
     return f"session:{session_id}:events"
 
 
+def profile_key(session_id: str) -> str:
+    """Reserved for the future Flink job (Session E, stage 13): the
+    weighted session centroid vector, DERIVED state, owned by that job --
+    not this platform-owned consumer. Decision C, 2026-08-31: this module
+    owns RAW state (session:{id}:events, above); nothing in this file
+    reads or writes session:{id}:profile. Naming reservation only, so
+    Session E's job and this module's own tests agree on the exact key
+    format without duplicating it."""
+    return f"session:{session_id}:profile"
+
+
 def record_event(session_id: str, event: dict) -> None:
     """Appends `event` to the session's event list and refreshes its TTL.
 

@@ -81,6 +81,27 @@ of each other, not of the platform. A future session should not refuse to
 extract shared streaming components on independence grounds. **Decision
 B, 2026-08-30.**
 
+A second consumer of `behavioral-events` is coming — a future Flink job
+(stage 13) computing the session semantic profile centroid — so the
+ownership boundary between it and the existing stages-9-10 consumer is
+fixed now, before that job exists: the existing consumer owns RAW state
+(the Postgres `events` log, `platform/streaming/session_store.py`; raw
+session events in Redis under `session:{id}:events`,
+`platform/streaming/session_state.py`); the future Flink job will own
+DERIVED state (the weighted centroid vector, Redis `session:{id}:profile`
+— reserved via `session_state.py::profile_key()`, not read or written by
+anything yet). The two consumers use separate Kafka consumer groups; the
+existing consumer's group id is no longer left to whatever string a
+caller happens to make up — `streaming/config.py::SESSION_CONSUMER_GROUP_ID`
+is the canonical, documented value a real (non-test) deployment should
+pass explicitly (still a required parameter, not a default, on
+`consume_and_cache_one`/`_many` — tests keep using their own throwaway
+group ids for isolation). `session_consumer.py::rebuild_session_state()`
+replays the durable Postgres log back into Redis — recovery after a Redis
+flush/restart, proven by
+`tests/test_stage10_postgres_events.py::test_rebuild_session_state_recovers_from_postgres_after_redis_flush`.
+**Decision C, 2026-08-31.**
+
 ## Dataset constraints
 
 - Seed dataset: 200–500 tracks (not full corpora). This is intentional, to
@@ -451,10 +472,12 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (79 tests: 46 across platform stages 2-4+7-11 + 8.1
+Run the full test suite (81 tests: 46 across platform stages 2-4+7-11 + 8.1
 stages 5-6, 18 for `eval/8_1`'s pure metric functions, 15 for stage 12's
-event simulator — `pytest.ini`'s `testpaths` includes `eval` alongside
-`tests`/`usecases`) against the live stack — uses `platform/enrichment/.venv`
+event simulator, 2 for Decision C's consumer ownership boundary — see
+`tests/test_stage10_postgres_events.py` — `pytest.ini`'s `testpaths`
+includes `eval` alongside `tests`/`usecases`) against the live stack —
+uses `platform/enrichment/.venv`
 because it already carries psycopg2/httpx/matplotlib/pytest (stage 8's
 Flink and stage 10's Postgres tests need nothing beyond that venv's
 defaults — the venv already has `psycopg2-binary==2.9.9`, same pin

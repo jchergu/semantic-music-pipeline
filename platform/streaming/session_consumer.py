@@ -15,7 +15,7 @@ from confluent_kafka import Consumer
 
 from streaming.config import BOOTSTRAP_SERVERS, TOPIC_BEHAVIORAL_EVENTS
 from streaming.session_state import record_event
-from streaming.session_store import persist_event
+from streaming.session_store import get_events, persist_event
 
 
 def consume_and_cache_one(
@@ -115,3 +115,16 @@ def consume_and_cache_many(
         return results
     finally:
         consumer.close()
+
+
+def rebuild_session_state(session_id: str, pg_conn) -> list[dict]:
+    """Recovery path for RAW state (Decision C, 2026-08-31): replays a
+    session's durable Postgres event log back into Redis, e.g. after a
+    Redis flush or restart. Additive -- existing Redis state for the
+    session, if any, is not cleared first (record_event only appends), so
+    call this only when Redis is known to be empty/stale for this session,
+    or duplicate entries will result."""
+    events = get_events(pg_conn, session_id)
+    for event in events:
+        record_event(session_id, event)
+    return events

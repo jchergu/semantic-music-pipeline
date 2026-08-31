@@ -28,6 +28,18 @@ REDIS_HOST = "localhost"
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 SESSION_TTL_SECONDS = 1800  # 30 min sliding session window
 
+# The canonical Kafka consumer group id for the platform-owned Decision B
+# consumer (session_consumer.py's consume_and_cache_one/_many). Explicit,
+# not defaulted into those functions' signatures -- group_id stays a
+# required parameter there, so a caller must deliberately choose to pass
+# this constant. Tests intentionally use their own throwaway group ids for
+# isolation instead (a fresh id per test avoids cross-test interference on
+# the shared, never-purged behavioral-events topic) -- only a real,
+# continuously-running deployment of this consumer (which doesn't exist
+# yet -- see docs/platform/stage12-event-simulator.md's "No persistent
+# consumer daemon" section) should use this one. Decision C, 2026-08-31.
+SESSION_CONSUMER_GROUP_ID = "platform-session-consumer"
+
 PG_DSN = (
     f"host=localhost port={os.environ.get('POSTGRES_PORT', '5432')} "
     f"dbname={os.environ['POSTGRES_DB']} "
