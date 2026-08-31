@@ -1,12 +1,12 @@
 """
-Kafka -> Redis session-state consumer for platform stage 9.
+Kafka -> Redis/Postgres session-state consumer for platform stages 9-10.
 
 This is the platform-owned consumer from Decision B (CLAUDE.md): it reads
-behavioral events and maintains session state in Redis. Stage 9 gives it
-its Redis half only; stage 10 later extends it to also persist to
-Postgres. The event shape here (a JSON object with a "session_id" key) is
-ad hoc, not a frozen contract -- same stance stage 7 already took with its
-plain string payloads (see contracts/README.md).
+behavioral events and maintains session state in Redis, and (stage 10)
+optionally persists them durably to Postgres. The event shape here (a
+JSON object with a "session_id" key) is ad hoc, not a frozen contract --
+same stance stage 7 already took with its plain string payloads (see
+contracts/README.md).
 """
 import json
 import time
@@ -15,10 +15,13 @@ from confluent_kafka import Consumer
 
 from streaming.config import BOOTSTRAP_SERVERS, TOPIC_BEHAVIORAL_EVENTS
 from streaming.session_state import record_event
+from streaming.session_store import persist_event
 
 
-def consume_and_cache_one(group_id: str, timeout: float = 10.0, expected_session_id: str | None = None) -> dict | None:
-    """Reads one behavioral event and caches it in Redis via record_event.
+def consume_and_cache_one(
+    group_id: str, timeout: float = 10.0, expected_session_id: str | None = None, pg_conn=None
+) -> dict | None:
+    """Reads one behavioral event, caches it in Redis, and returns it.
 
     `expected_session_id`, when given, skips any message that doesn't
     match instead of caching the first thing polled -- the topic isn't
@@ -28,6 +31,10 @@ def consume_and_cache_one(group_id: str, timeout: float = 10.0, expected_session
     fixed in stage 7, via expected_value). Non-JSON messages are skipped
     outright -- this topic also carries stage 7's own plain-string test
     payloads from earlier runs, which aren't behavioral events at all.
+
+    `pg_conn`, when given, also durably persists the event to Postgres
+    (stage 10) via session_store.persist_event -- optional so stage 9's
+    Redis-only callers are unaffected.
     """
     consumer = Consumer(
         {
@@ -55,6 +62,8 @@ def consume_and_cache_one(group_id: str, timeout: float = 10.0, expected_session
             if expected_session_id is not None and event["session_id"] != expected_session_id:
                 continue
             record_event(event["session_id"], event)
+            if pg_conn is not None:
+                persist_event(pg_conn, event["session_id"], event)
             return event
         return None
     finally:

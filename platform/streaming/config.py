@@ -27,3 +27,10 @@ REPLICATION_FACTOR = 1
 REDIS_HOST = "localhost"
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 SESSION_TTL_SECONDS = 1800  # 30 min sliding session window
+
+PG_DSN = (
+    f"host=localhost port={os.environ.get('POSTGRES_PORT', '5432')} "
+    f"dbname={os.environ['POSTGRES_DB']} "
+    f"user={os.environ['POSTGRES_USER']} "
+    f"password={os.environ['POSTGRES_PASSWORD']}"
+)

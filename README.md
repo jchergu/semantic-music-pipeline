@@ -162,7 +162,9 @@ helper) plus feeding data into `reports/results.html`:
 ## Stack
 
 PostgreSQL, MinIO, Milvus, Neo4j, FastAPI, LAION-CLAP, Docker Compose.
-Kafka and Redis now have real (but narrow) platform-owned code paths —
-topic plumbing and a session cache, respectively — reserved for 8.2/8.3,
-not touched by 8.1 (see Architecture). Flink is present but unused by
-anything yet.
+Besides track metadata and 8.1's own `recommendations` table, PostgreSQL
+now also holds `sessions`/`events` durability for a platform-owned
+consumer. Kafka and Redis have real (but narrow) platform-owned code
+paths too — topic plumbing and a session cache — all reserved for
+8.2/8.3, not touched by 8.1 (see Architecture). Flink is present but
+unused by anything yet.
