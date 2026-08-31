@@ -17,16 +17,17 @@ ingestion service produces to the `behavioral-events` topic. See
 CLAUDE.md's L3 architecture section (Decision A, 2026-08-30) for the
 decision.
 
-This directory is empty right now, on purpose. With a single use case
-(8.1) consuming the platform, the contract between them is implicit — it
-lives in the Semantic API's own code and 8.1's own tests, and duplicating
-it here would just be a second copy to keep in sync for no reader. It gets
-populated when a second independent consumer (8.2) exists and the
+This directory held nothing until 2026-08-28, when `semantic-api-v1.json`
+was frozen ahead of 8.2 work starting (see below). With a single use case
+(8.1) still the only consumer, the rest of the contract stays implicit —
+it lives in the Semantic API's own code and 8.1's own tests, and
+duplicating it here would just be a second copy to keep in sync for no
+reader. Kafka topic schemas and the shared recommendation response shape
+get added here once 8.2 is a second independent consumer of them and the
 contract between "what the platform promises" and "what a specific use
 case assumes" stops being something one person can hold in their head.
 
-Do not add anything here speculatively. If you're looking at this file
-wondering what belongs in contracts/, the answer is: nothing yet.
+Do not add anything else here speculatively.
 
 ## semantic-api-v1.json
 

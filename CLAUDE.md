@@ -56,8 +56,10 @@ notes.
 - `contracts/` holds the versioned interface artifacts shared between the
   platform and its use cases once a second independent consumer exists
   (frozen OpenAPI export, Kafka topic schemas, the recommendation response
-  shape). Empty today — see `contracts/README.md` for why, and don't
-  populate it speculatively.
+  shape). `contracts/semantic-api-v1.json` — the frozen OpenAPI export —
+  was added 2026-08-28 ahead of 8.2 work starting; see
+  `contracts/README.md` for what's in scope today and don't populate the
+  rest speculatively.
 
 ## Use case taxonomy
 
@@ -413,3 +415,8 @@ once one is actually configured.
 - This file is tracked and reviewable (see header). Keep it in sync with
   reality as part of any change that moves/renames something it
   references — don't let it drift again.
+- `thesis/` is prose (the thesis draft, split into `thesis/NN-*.md` chapter
+  files, built via `thesis/Makefile`). It is off-limits during code
+  sessions: don't touch it as part of a refactor, formatting pass, or any
+  code-focused change. Only edit it when the task is explicitly about the
+  thesis text itself.
