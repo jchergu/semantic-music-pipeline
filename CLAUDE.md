@@ -197,17 +197,18 @@ restructuring done after the build order closed:
   of starting 8.2) confirmed the platform has no streaming-reactive
   capability yet — see Platform build order (stages 7-11) below.
 
-### Platform build order (stages 7-11 — required before 8.2, stages 7-8 done)
+### Platform build order (stages 7-11 — required before 8.2, stages 7-9 done)
 
 8.2 (streaming, reactive) needs platform capabilities beyond stages 1-4.
 These are platform stages, not 8.2-specific work — Kafka wiring, Flink,
 Redis, and an events schema are shared infra any streaming use case would
 need, the same way stages 1-4 are shared by every use case. The
 2026-08-28 recon confirmed none of it existed yet; stage 7 (Kafka topics +
-producer/consumer wiring) and stage 8 (Flink provisioning) have since been
-built and verified (see below). Stages 9-11 are still just a list of
-what's missing, not a design — do not build against them until each is
-turned into an actual plan and confirmed.
+producer/consumer wiring), stage 8 (Flink provisioning), and stage 9
+(Redis session cache) have since been built and verified (see below).
+Stages 10-11 are still just a list of what's missing, not a design — do
+not build against them until each is turned into an actual plan and
+confirmed.
 
 7. Kafka topics + producer/consumer wiring (`media-stream` and
    `behavioral-events` topics are separate topics, per the L1
@@ -238,7 +239,8 @@ environment, so no `install.sh` was needed (unlike enrichment/semantic_api).
 See `docs/platform/stage7-kafka.md`. All 3 tests in
 `tests/test_stage7_kafka.py` pass (35/35 total across stages 2-4+7 and
 8.1's stages 5-6). No session state, Redis, ingestion service, or 8.2
-code was touched — those remain stages 8-11, not started.
+code was touched — those remain stages 8-11, not started (see stage 8
+below for Flink provisioning, done separately).
 
 **Stage 8** (Flink provisioning) verified working as of 2026-08-31 — a
 JobManager and TaskManager (`flink:1.19.1-scala_2.12-java11`) added to
@@ -250,7 +252,23 @@ nothing yet reads from or writes to this cluster. See
 `docs/platform/stage8-flink.md`. Both tests in `tests/test_stage8_flink.py`
 pass (37/37 total across stages 2-4+7-8 and 8.1's stages 5-6). No Redis,
 Postgres schema, ingestion service, or 8.2 code was touched — those remain
-stages 9-11, not started.
+stages 9-11, not started (see stage 9 below for Redis, done separately).
+
+**Stage 9** (Redis session cache) verified working as of 2026-08-31 — the
+Redis half of Decision B's platform-owned consumer: a session-state module
+(`platform/streaming/session_state.py`, `record_event`/`get_session_events`
+with a sliding 30-min TTL) and a Kafka → Redis consumer
+(`platform/streaming/session_consumer.py::consume_and_cache_one`) that
+reads `behavioral-events` and caches each event under its `session_id`.
+Uses `redis==5.0.8` (sync client, matches this package's plain-synchronous
+style). Decision B explicitly says this consumer spans stages 9-10 — this
+stage is Redis only; stage 10 later adds Postgres durability on top of the
+same consumer. Event shape is ad hoc (a JSON object with a `session_id`
+key), not a frozen contract, same stance stage 7 took with its plain
+string payloads. See `docs/platform/stage9-redis.md`. All 3 tests in
+`tests/test_stage9_redis.py` pass (40/40 total across stages 2-4+7-9 and
+8.1's stages 5-6). No Postgres schema, ingestion service, or 8.2 code was
+touched — those remain stages 10-11, not started.
 
 ## Stack (all open-source, self-hostable)
 
@@ -258,15 +276,17 @@ stages 9-11, not started.
 paths reading/writing them today: PostgreSQL, Neo4j, Milvus, MinIO, Kafka
 (+ Zookeeper) — as of stage 7, `platform/streaming/` creates its two
 topics and can produce/consume round-trip; this is topics + plumbing
-only, not the full streaming pipeline (no session state, no ingestion
-service — see Build order, platform stages 9-11, below).
+only, not the full streaming pipeline (no Postgres durability for session
+state, no ingestion service — see Build order, platform stages 10-11,
+below). Redis — as of stage 9, `platform/streaming/session_state.py` and
+`session_consumer.py` cache behavioral events per session with a sliding
+TTL; this is the Redis half of Decision B's platform-owned consumer only,
+not the full session pipeline (no Postgres durability yet — stage 10).
 
 **Provisioned but unused** — running in `docker-compose.yml`, boots
 healthy, but no code anywhere in the repo produces to, consumes from, or
 connects to it. Reserved for 8.2/8.3 (see Build order, platform stages
-9-11, below):
-- Redis — session cache for 8.2/8.3 use cases only, per the L3
-  architecture section above; never touched by 8.1
+10-11, below):
 - Flink — a JobManager + TaskManager run in `docker-compose.yml` as of
   stage 8 and are confirmed healthy/registered with each other, but no
   code anywhere submits a job to them yet; planned for streaming
@@ -295,12 +315,13 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (37 tests, platform stages 2-4+7-8 + 8.1 stages 5-6)
+Run the full test suite (40 tests, platform stages 2-4+7-9 + 8.1 stages 5-6)
 against the live stack — uses `platform/enrichment/.venv` because it
 already carries psycopg2/httpx/matplotlib/pytest (stage 8's Flink test
 needs nothing beyond that venv's defaults); the extra installs pull in
-what stage 5/6's and stage 7's own tests need that that venv doesn't have
-by default:
+what stage 5/6's, stage 7's, and stage 9's own tests need that that venv
+doesn't have by default (`-r platform/streaming/requirements.txt` now
+also brings in `redis==5.0.8` for stage 9):
 
 ```bash
 platform/enrichment/.venv/bin/python -m pip install -r usecases/8_1_batch_reactive/recommender/requirements.txt \

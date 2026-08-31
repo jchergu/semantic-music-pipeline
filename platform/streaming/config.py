@@ -23,3 +23,7 @@ TOPICS = [TOPIC_MEDIA_STREAM, TOPIC_BEHAVIORAL_EVENTS]
 # in docker-compose.yml) — replication factor must match.
 NUM_PARTITIONS = 1
 REPLICATION_FACTOR = 1
+
+REDIS_HOST = "localhost"
+REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
+SESSION_TTL_SECONDS = 1800  # 30 min sliding session window

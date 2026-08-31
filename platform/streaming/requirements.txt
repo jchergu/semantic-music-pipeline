@@ -5,3 +5,4 @@
 # platform/enrichment and platform/semantic_api.
 confluent-kafka==2.5.3
 python-dotenv==1.0.1
+redis==5.0.8

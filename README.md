@@ -162,5 +162,7 @@ helper) plus feeding data into `reports/results.html`:
 ## Stack
 
 PostgreSQL, MinIO, Milvus, Neo4j, FastAPI, LAION-CLAP, Docker Compose.
-Kafka, Flink, and Redis are present but unused by the platform and by 8.1
-(see Architecture) — reserved for 8.2/8.3.
+Kafka and Redis now have real (but narrow) platform-owned code paths —
+topic plumbing and a session cache, respectively — reserved for 8.2/8.3,
+not touched by 8.1 (see Architecture). Flink is present but unused by
+anything yet.
