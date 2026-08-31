@@ -165,13 +165,24 @@ services:
       retries: 10
 
   flink-jobmanager:
-    image: flink:1.19.1-scala_2.12-java11
+    build:
+      context: platform/streaming
+      dockerfile: Dockerfile.flink
     container_name: 8-1-flink-jobmanager
     restart: unless-stopped
     command: jobmanager
     environment:
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
+      # Stage 13: in-container networking overrides for
+      # platform/streaming/config.py (defaults to localhost otherwise).
+      KAFKA_HOST: kafka
+      KAFKA_BOOTSTRAP_PORT: "29092"
+      REDIS_HOST: redis
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-music_pipeline}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
     ports:
       - "${FLINK_JOBMANAGER_WEBUI_PORT:-8081}:8081"
     healthcheck:
@@ -181,7 +192,9 @@ services:
       retries: 10
 
   flink-taskmanager:
-    image: flink:1.19.1-scala_2.12-java11
+    build:
+      context: platform/streaming
+      dockerfile: Dockerfile.flink
     container_name: 8-1-flink-taskmanager
     restart: unless-stopped
     command: taskmanager
@@ -189,6 +202,13 @@ services:
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: flink-jobmanager
         taskmanager.numberOfTaskSlots: 2
+      KAFKA_HOST: kafka
+      KAFKA_BOOTSTRAP_PORT: "29092"
+      REDIS_HOST: redis
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-music_pipeline}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
     depends_on:
       flink-jobmanager:
         condition: service_healthy

@@ -20,13 +20,15 @@ def _session_key(session_id: str) -> str:
 
 
 def profile_key(session_id: str) -> str:
-    """Reserved for the future Flink job (Session E, stage 13): the
-    weighted session centroid vector, DERIVED state, owned by that job --
+    """The weighted session centroid vector, DERIVED state -- owned by the
+    stage 13 PyFlink job (platform/streaming/flink_session_profile_job.py),
     not this platform-owned consumer. Decision C, 2026-08-31: this module
     owns RAW state (session:{id}:events, above); nothing in this file
-    reads or writes session:{id}:profile. Naming reservation only, so
-    Session E's job and this module's own tests agree on the exact key
-    format without duplicating it."""
+    reads or writes session:{id}:profile itself. The Flink job's Python
+    UDF workers can't import this module directly (no platform/ on their
+    path inside the container), so it constructs the identical key string
+    inline -- this function is the canonical definition that string is
+    tested against, not a shared import."""
     return f"session:{session_id}:profile"
 
 

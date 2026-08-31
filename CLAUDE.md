@@ -2,10 +2,11 @@
 
 Master's thesis (Bologna). Kappa-style streaming pipeline, 3 layers, with a
 Recommender Engine as the Layer 3 demo for the first use case. **8.1
-(batch, reactive) is complete** — see Build order below. 8.2 is the
-logical next step but has not been started; do not build 8.2/8.3 infra
-unless explicitly asked — they are separate modules, not shared code
-paths with each other or with 8.1.
+(batch, reactive) is complete** — see Build order below. **8.2 (streaming,
+reactive) is in progress** — stage 13 (session profile centroid) is done,
+explicitly requested; do not build further 8.2/8.3 work unless explicitly
+asked — they are separate modules, not shared code paths with each other
+or with 8.1.
 
 This file is tracked in git (as of the commit that rescoped it to the
 whole project) and is in scope for code review like any other file in the
@@ -66,7 +67,7 @@ notes.
 | Use case | Mode | Type | Status |
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — build order done, results evaluated |
-| 8.2 | Streaming | Reactive | Not started |
+| 8.2 | Streaming | Reactive | In progress — stage 13 (session profile centroid) done |
 | 8.3 | Streaming | Proactive | Not started — auto-tagging reused as live classifier only, no live writes to Neo4j |
 
 8.1 / 8.2 / 8.3 are independent modules: no shared runtime state, no shared
@@ -420,6 +421,50 @@ confirmed in Postgres: 18 events landed under the same deterministic
 `sim-42-0` session_id, every one of the 9 distinct events appearing
 exactly twice (79/79 total tests across the whole repo).
 
+### 8.2 (streaming, reactive) build order (stage 13 — first stage, in progress)
+
+Unlike stages 7-12 above (platform prerequisites *for* 8.2, not 8.2
+itself — see the header of this file), stage 13 is 8.2's own first piece
+of real business logic. Hard-timeboxed to one session (Session E of the
+roadmap) with an explicit PyFlink-or-fallback decision point going in —
+**the PyFlink path succeeded**, no fallback was needed.
+
+**Stage 13** (Session profile centroid) verified working as of
+2026-08-31 — `platform/streaming/flink_session_profile_job.py`, a real
+PyFlink job on `flink:2.2.1-scala_2.12-java17` (upgraded from stage 8's
+`1.19.1`, built via a new `platform/streaming/Dockerfile.flink`):
+`KafkaSource` on `behavioral-events` → event-time watermarks (5s bounded
+out-of-orderness) → `keyBy(session_id)` →
+`SlidingEventTimeWindows(5 min, 30s slide)` → a `ProcessWindowFunction`
+computing a weighted, recency-decayed (half-life 3 events) centroid of
+session track embeddings, written to `session:{id}:profile` in Redis —
+the namespace Decision C reserved for exactly this. Weight table and
+centroid math live in `platform/streaming/session_profile.py` (pure,
+15 unit tests, `tests/test_stage13_session_profile.py`) as the tested
+reference; the Flink job's Python UDF workers duplicate the same logic
+inline rather than importing it (no `platform/` mounted into the
+container), verified to stay in sync by a key-format cross-check test.
+`platform/streaming/config.py`'s hosts became env-var-overridable
+(`KAFKA_HOST`/`REDIS_HOST`/`POSTGRES_HOST`, `localhost` default
+preserved) — the first code running *inside* the docker-compose network
+rather than against host-mapped ports.
+`platform/streaming/preload_embeddings_to_redis.py` is a one-off
+host-side script copying every track's embedding + `duration_sec` into
+Redis, since the Flink workers have neither `pymilvus` nor host DB access
+by design. See `docs/platform/stage13-flink-session-job.md` for the full
+design, the two real bugs found submitting the job (a missing `python`
+binary symlink, and Docker's `ADD <url>` silently landing the Kafka
+connector JAR as unreadable by the non-root `flink` user — neither was a
+PyFlink API problem), and both the analytical and live verification of
+the exit criterion: replaying the three-early-skips script pushes the
+session centroid to **cosine ≈ −0.98 against the high-energy region**
+(individual tracks in that region score +0.75 to +0.86), live-confirmed
+by pulling the actual vector the running job wrote to Redis, not just
+computed offline. Job submission and live verification were manual (no
+automated test drives the Flink job's own lifecycle — judged out of
+scope for the timebox); the exact commands and their real captured
+output are in the stage doc.
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
@@ -438,16 +483,13 @@ that reads behavioral events and maintains session state in Redis,"
 spanning stages 9-10, is complete on both stores, and stage 11 gives the
 whole chain (Kafka → Redis + Postgres) its first real producer. Stage 12
 (`platform/simulator/`) is the first *scripted, reproducible* producer —
-deterministic sessions instead of one-off manual test payloads. All of
-this is still platform-owned plumbing with no 8.2/8.3 consumer yet — see
-the Build order note above.
-
-**Provisioned but unused** — running in `docker-compose.yml`, boots
-healthy, but no code anywhere in the repo produces to, consumes from, or
-connects to it. Reserved for 8.2/8.3, planned for streaming enrichment:
-- Flink — a JobManager + TaskManager run in `docker-compose.yml` as of
-  stage 8 and are confirmed healthy/registered with each other, but no
-  code anywhere submits a job to them yet
+deterministic sessions instead of one-off manual test payloads. Flink —
+as of stage 13, `platform/streaming/flink_session_profile_job.py` is a
+real PyFlink job consuming `behavioral-events` and writing to Redis (the
+JobManager/TaskManager pair now runs a rebuilt `flink:2.2.1` image, up
+from stage 8's plain `1.19.1`, via `platform/streaming/Dockerfile.flink`).
+This is 8.2's own first consumer of the platform — everything above it in
+this paragraph remains platform-owned plumbing.
 
 Also in the stack, used by the platform build order: CLAP,
 Chromaprint/AcousticID, Librosa, FastAPI, Docker Compose. Essentia has no
@@ -472,12 +514,12 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (81 tests: 46 across platform stages 2-4+7-11 + 8.1
+Run the full test suite (96 tests: 46 across platform stages 2-4+7-11 + 8.1
 stages 5-6, 18 for `eval/8_1`'s pure metric functions, 15 for stage 12's
 event simulator, 2 for Decision C's consumer ownership boundary — see
-`tests/test_stage10_postgres_events.py` — `pytest.ini`'s `testpaths`
-includes `eval` alongside `tests`/`usecases`) against the live stack —
-uses `platform/enrichment/.venv`
+`tests/test_stage10_postgres_events.py` — 15 for stage 13's session
+profile centroid — `pytest.ini`'s `testpaths` includes `eval` alongside
+`tests`/`usecases`) against the live stack — uses `platform/enrichment/.venv`
 because it already carries psycopg2/httpx/matplotlib/pytest (stage 8's
 Flink and stage 10's Postgres tests need nothing beyond that venv's
 defaults — the venv already has `psycopg2-binary==2.9.9`, same pin
@@ -518,6 +560,19 @@ running):
 ```bash
 PYTHONPATH=platform platform/enrichment/.venv/bin/python -m simulator.cli \
     --seed 42 --speed 10 --sessions 3
+```
+
+Build and submit the stage 13 PyFlink session profile job (needs the
+stack up and, to actually see output, the event ingestion service +
+simulator above; see `docs/platform/stage13-flink-session-job.md` for the
+full sequence including the embeddings preload step):
+
+```bash
+docker compose build flink-jobmanager flink-taskmanager
+docker compose up -d flink-jobmanager flink-taskmanager
+PYTHONPATH=platform platform/enrichment/.venv/bin/python platform/streaming/preload_embeddings_to_redis.py
+docker cp platform/streaming/flink_session_profile_job.py 8-1-flink-jobmanager:/opt/flink/session_profile_job.py
+docker exec 8-1-flink-jobmanager flink run -d -py /opt/flink/session_profile_job.py
 ```
 
 Regenerate the reports (each needs the stack up; `uc81_results.py` also

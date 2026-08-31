@@ -1,0 +1,34 @@
+# Stage 13: Flink image with PyFlink + this stage's Python deps, so
+# Python UDF workers can run on the TaskManager (and, for consistency,
+# the JobManager uses the same image, differing only by docker-compose's
+# `command:`, same pattern the stock 1.19.1 setup from stage 8 used).
+#
+# apache-flink==2.2.1 is pinned to match the flink:2.2.1 server exactly
+# (PyFlink's wire protocol is version-sensitive) -- see
+# docs/platform/stage13-flink-session-job.md for why this stage runs
+# Flink 2.2.1 rather than the 1.19.1 stage 8 originally provisioned.
+FROM flink:2.2.1-scala_2.12-java17
+
+USER root
+
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --break-system-packages \
+    apache-flink==2.2.1 \
+    redis==5.0.8 \
+    psycopg2-binary==2.9.9 \
+    python-dotenv==1.0.1
+
+USER flink
+
+# Shaded Kafka connector, matched to the 2.2 server line (see
+# docs/platform/stage13-flink-session-job.md) -- placed directly on the
+# cluster classpath so KafkaSource is available without shipping a JAR
+# at job-submission time. --chmod is required: plain `ADD <url>` ignores
+# the active USER and lands the file as root:root mode 600, unreadable by
+# the flink user the JVM actually runs as (found by an actual submission
+# failing with a misleading "Java class not found" error -- the file was
+# never missing, just unreadable).
+ADD --chmod=644 https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kafka/5.0.0-2.2/flink-sql-connector-kafka-5.0.0-2.2.jar /opt/flink/lib/

@@ -1,9 +1,15 @@
 """
 Kafka bootstrap/topic configuration for platform stage 7.
 
-Same pattern as platform/semantic_api/dependencies.py: host is hardcoded
-to localhost (this only ever runs against the local docker-compose
-stack), only the port comes from the environment.
+Same pattern as platform/semantic_api/dependencies.py: hosts default to
+localhost (every stage 7-11 script/test runs on the host machine, against
+the local docker-compose stack over its mapped ports). Stage 13's Flink
+job is the first code that runs *inside* the docker-compose network
+instead, so each host is now an env-var override with the localhost
+default preserved -- docker-compose gives the Flink containers
+KAFKA_HOST=kafka/REDIS_HOST=redis/POSTGRES_HOST=postgres so this same
+module resolves correctly in both places without a networking-specific
+fork.
 """
 import os
 from pathlib import Path
@@ -13,7 +19,12 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT.parent / ".env")
 
-BOOTSTRAP_SERVERS = f"localhost:{os.environ.get('KAFKA_PORT', '9092')}"
+KAFKA_HOST = os.environ.get("KAFKA_HOST", "localhost")
+# KAFKA_PORT is the host-mapped listener (localhost:9092); KAFKA_BOOTSTRAP_PORT
+# lets in-cluster code (Flink) point at the internal listener (kafka:29092)
+# instead -- see docker-compose.yml's KAFKA_ADVERTISED_LISTENERS.
+KAFKA_BOOTSTRAP_PORT = os.environ.get("KAFKA_BOOTSTRAP_PORT", os.environ.get("KAFKA_PORT", "9092"))
+BOOTSTRAP_SERVERS = f"{KAFKA_HOST}:{KAFKA_BOOTSTRAP_PORT}"
 
 TOPIC_MEDIA_STREAM = "media-stream"
 TOPIC_BEHAVIORAL_EVENTS = "behavioral-events"
@@ -24,7 +35,7 @@ TOPICS = [TOPIC_MEDIA_STREAM, TOPIC_BEHAVIORAL_EVENTS]
 NUM_PARTITIONS = 1
 REPLICATION_FACTOR = 1
 
-REDIS_HOST = "localhost"
+REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 SESSION_TTL_SECONDS = 1800  # 30 min sliding session window
 
@@ -40,8 +51,9 @@ SESSION_TTL_SECONDS = 1800  # 30 min sliding session window
 # consumer daemon" section) should use this one. Decision C, 2026-08-31.
 SESSION_CONSUMER_GROUP_ID = "platform-session-consumer"
 
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
 PG_DSN = (
-    f"host=localhost port={os.environ.get('POSTGRES_PORT', '5432')} "
+    f"host={POSTGRES_HOST} port={os.environ.get('POSTGRES_PORT', '5432')} "
     f"dbname={os.environ['POSTGRES_DB']} "
     f"user={os.environ['POSTGRES_USER']} "
     f"password={os.environ['POSTGRES_PASSWORD']}"
