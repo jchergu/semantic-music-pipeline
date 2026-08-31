@@ -10,9 +10,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT.parent.parent / "platform"))
 
-from recommender import ranking  # noqa: E402
 from recommender import recommend as recommend_cli  # noqa: E402
+from scoring import ranking  # noqa: E402
 
 
 # --- unit tests: ranking.py, pure function, synthetic candidates, no I/O ---

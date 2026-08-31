@@ -51,6 +51,14 @@ SESSION_TTL_SECONDS = 1800  # 30 min sliding session window
 # consumer daemon" section) should use this one. Decision C, 2026-08-31.
 SESSION_CONSUMER_GROUP_ID = "platform-session-consumer"
 
+# Stage 14's recommendation-refresh consumer: a separate, independent
+# consumer group on the same behavioral-events topic (Kafka's normal
+# fan-out model -- multiple groups each get their own full copy of the
+# stream). It never writes session:{id}:events (that stays
+# SESSION_CONSUMER_GROUP_ID's job per Decision C); it only reads raw
+# state to decide what to refresh.
+RECS_REFRESH_GROUP_ID = "platform-recs-refresh"
+
 POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
 PG_DSN = (
     f"host={POSTGRES_HOST} port={os.environ.get('POSTGRES_PORT', '5432')} "

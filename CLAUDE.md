@@ -67,7 +67,7 @@ notes.
 | Use case | Mode | Type | Status |
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — build order done, results evaluated |
-| 8.2 | Streaming | Reactive | In progress — stage 13 (session profile centroid) done |
+| 8.2 | Streaming | Reactive | In progress — stages 13-14 done (session profile centroid, recommendation refresh) |
 | 8.3 | Streaming | Proactive | Not started — auto-tagging reused as live classifier only, no live writes to Neo4j |
 
 8.1 / 8.2 / 8.3 are independent modules: no shared runtime state, no shared
@@ -102,6 +102,22 @@ replays the durable Postgres log back into Redis — recovery after a Redis
 flush/restart, proven by
 `tests/test_stage10_postgres_events.py::test_rebuild_session_state_recovers_from_postgres_after_redis_flush`.
 **Decision C, 2026-08-31.**
+
+Stage 14 (8.2's recommendation refresh loop) needs to reuse
+`ranking.score_recommendations()` — the pure scoring function 8.1's stage
+5 built — without reimplementing it. It lived inside
+`usecases/8_1_batch_reactive/recommender/`, a use-case-owned directory;
+CLAUDE.md's independence rule is between use cases, not between a use
+case and the platform, so this is the same move Decision B already made
+for the streaming consumer. Extracted verbatim to
+`platform/scoring/ranking.py` (`git mv`, history preserved; named
+`scoring`, not `recommender`, to avoid colliding with
+`usecases/8_1_batch_reactive/recommender/`'s own top-level package name —
+stage 14 needs both directories on `sys.path` in the same process). Only
+two import sites needed fixing
+(`usecases/8_1_batch_reactive/recommender/recommend.py`,
+`usecases/8_1_batch_reactive/tests/test_uc81_recommender.py`); all 13 of
+8.1's own tests pass unchanged after the move. **Decision D, 2026-08-31.**
 
 ## Dataset constraints
 
@@ -421,7 +437,7 @@ confirmed in Postgres: 18 events landed under the same deterministic
 `sim-42-0` session_id, every one of the 9 distinct events appearing
 exactly twice (79/79 total tests across the whole repo).
 
-### 8.2 (streaming, reactive) build order (stage 13 — first stage, in progress)
+### 8.2 (streaming, reactive) build order (stages 13-14, in progress)
 
 Unlike stages 7-12 above (platform prerequisites *for* 8.2, not 8.2
 itself — see the header of this file), stage 13 is 8.2's own first piece
@@ -464,6 +480,40 @@ computed offline. Job submission and live verification were manual (no
 automated test drives the Flink job's own lifecycle — judged out of
 scope for the timebox); the exact commands and their real captured
 output are in the stage doc.
+
+**Stage 14** (Recommendation refresh loop) verified working as of
+2026-08-31 — `platform/streaming/recommendation_refresh.py`, an
+independent Kafka consumer group (`RECS_REFRESH_GROUP_ID`) on
+`behavioral-events`: on each event, a debounced (5s or 3 events,
+whichever first — `should_refresh()`) decision to refresh
+`session:{id}:recs` in Redis — 8.2's first actual recommendation output.
+Cold start (fewer than 2 raw events, or no profile yet) falls back to
+exactly 8.1's own batch path (`context_builder.build_context()` +
+`scoring.ranking.score_recommendations()`, Decision D), seeded by the
+session's first track. The warm path is genuinely new: direct Milvus
+search over the profile vector (own alias `recs-refresh` — the Semantic
+API has no search-by-vector endpoint), excluding every track already
+played in the session, re-ranked against the session's active context
+(`context_builder`'s genre-sibling/same-artist calls, reused, filtered
+again against played tracks since Neo4j doesn't know about session play
+history) — then the same `ranking.score_recommendations()`. Catalog
+exhaustion (fewer than 10 novel candidates — real on a 411-track catalog)
+is logged explicitly, not padded or hidden. See
+`docs/platform/stage14-recommendation-refresh.md` for the full design
+and a real bug found testing it: the first version of
+`process_one_event()` created a fresh Kafka `Consumer` per call, which
+(offsets are never committed, same as `session_consumer.py`) always
+rescans from "earliest" and returns the same first message again — the
+same bug class stage 12 already fixed for the raw-state consumer, except
+this time it would have broken any real repeated use, not just the test.
+Fixed with `new_consumer()` + an optional reusable `consumer` parameter.
+13 new tests in `tests/test_stage14_recommendation_refresh.py` (11 pure +
+2 live) pass: the exit criterion (recs appear after a skip, stay
+byte-identical through a debounced no-op, and the count-based debounce
+branch independently re-arms a real refresh) and a dedicated warm-path
+test (seeds a fake profile directly rather than waiting on stage 13's
+real window timing, confirms already-played tracks never reappear).
+109/109 tests pass repo-wide.
 
 ## Stack (all open-source, self-hostable)
 
@@ -514,12 +564,13 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (96 tests: 46 across platform stages 2-4+7-11 + 8.1
-stages 5-6, 18 for `eval/8_1`'s pure metric functions, 15 for stage 12's
-event simulator, 2 for Decision C's consumer ownership boundary — see
-`tests/test_stage10_postgres_events.py` — 15 for stage 13's session
-profile centroid — `pytest.ini`'s `testpaths` includes `eval` alongside
-`tests`/`usecases`) against the live stack — uses `platform/enrichment/.venv`
+Run the full test suite (109 tests: 46 across platform stages 2-4+7-11 +
+8.1 stages 5-6, 18 for `eval/8_1`'s pure metric functions, 15 for stage
+12's event simulator, 2 for Decision C's consumer ownership boundary —
+see `tests/test_stage10_postgres_events.py` — 15 for stage 13's session
+profile centroid, 13 for stage 14's recommendation refresh loop —
+`pytest.ini`'s `testpaths` includes `eval` alongside `tests`/`usecases`)
+against the live stack — uses `platform/enrichment/.venv`
 because it already carries psycopg2/httpx/matplotlib/pytest (stage 8's
 Flink and stage 10's Postgres tests need nothing beyond that venv's
 defaults — the venv already has `psycopg2-binary==2.9.9`, same pin

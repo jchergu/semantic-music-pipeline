@@ -28,8 +28,10 @@ from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT.parent.parent / "platform"))
 
-from recommender import context_builder, ranking, trigger_handler  # noqa: E402
+from recommender import context_builder, trigger_handler  # noqa: E402
+from scoring import ranking  # noqa: E402
 
 load_dotenv(ROOT.parent.parent / ".env")
 

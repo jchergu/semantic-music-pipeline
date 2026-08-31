@@ -32,6 +32,18 @@ def profile_key(session_id: str) -> str:
     return f"session:{session_id}:profile"
 
 
+def recs_key(session_id: str) -> str:
+    """The session's current top-10 recommendations (JSON list), DERIVED
+    state written by stage 14's recommendation_refresh.py, read by the
+    stage 15 API endpoint the roadmap describes next. Kept here for the
+    same reason as profile_key() -- one canonical definition, even though
+    (unlike profile_key) the writer runs in the same process and could
+    import it directly; keeping both key-name definitions in one place
+    avoids a reader needing to know which module actually owns the
+    string."""
+    return f"session:{session_id}:recs"
+
+
 def record_event(session_id: str, event: dict) -> None:
     """Appends `event` to the session's event list and refreshes its TTL.
 
