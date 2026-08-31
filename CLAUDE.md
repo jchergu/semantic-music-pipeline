@@ -198,7 +198,7 @@ restructuring done after the build order closed:
 - **2026-08-28**: a read-only recon pass (post-rename health check, ahead
   of starting 8.2) confirmed the platform has no streaming-reactive
   capability yet — see Platform build order (stages 7-11) below.
-- **Planned (2026-08-31)**: `eval/8_1/` — a broader, harder-nosed
+- **2026-08-31**: `eval/8_1/` — a broader, harder-nosed
   **systems and behavior** evaluation pack, distinct from
   `reports/results_evaluation.py`'s "are the recommendations good" framing
   above. There is no ground truth and no real users for this dataset, so
@@ -223,9 +223,27 @@ restructuring done after the build order closed:
   `platform/enrichment/.venv`, which already has every package this needs
   — pymilvus/neo4j/psycopg2/matplotlib/numpy — confirmed by direct import
   check, no new installs required). Own Milvus connection alias
-  (`"eval"`), per the Platform contracts rule below. Not yet
-  implemented as of this commit — see the follow-up status entry once it
-  lands.
+  (`"eval"`), per the Platform contracts rule below. Verified working —
+  18 new unit tests (all pure functions, no live services) pass, plus the
+  live run against the full 411-seed/4110-row dataset (64/64 total tests
+  now, `pytest.ini`'s `testpaths` extended to include `eval`).
+  `results.json` confirmed byte-identical across two consecutive runs.
+  Real numbers: 97.08% catalog coverage (Gini 0.3942), mean intra-list
+  diversity 0.2562, zero seeds with fewer than 10 recommendations, 59
+  seeds with zero genre siblings. One genuine finding surfaced building
+  this, not just a metric readout: reconstructing "genre_sibling" per row
+  first via the complete `tracks.genre_tags` overlap produced a ~39%
+  self-inconsistency rate against the stored `score` — traced to
+  `/tracks/{id}/graph`'s `related_by_genre` being capped at 10 candidates
+  with **no `ORDER BY`** (`platform/semantic_api/main.py`), so large
+  genres (mean ~9.9 tracks/genre, but skewed — median is only 3) lose most
+  of their true siblings to an arbitrary cut, not a principled one.
+  Reconstructing the exact capped candidate set instead
+  (`kg_connectivity.capped_genre_sibling_ids`, same Cypher, batched)
+  brought inconsistency to exactly 0/4110 and turned the finding into a
+  quantified one: of 2,200 rows that genuinely share a genre tag with
+  their seed, 1,600 (72.73%) never received `GENRE_BOOST` — see
+  `eval/8_1/README.md`.
 
 ### Platform build order (stages 7-11 — required before 8.2, all done)
 
@@ -389,18 +407,21 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (46 tests, platform stages 2-4+7-11 + 8.1 stages
-5-6) against the live stack — uses `platform/enrichment/.venv` because it
-already carries psycopg2/httpx/matplotlib/pytest (stage 8's Flink and
-stage 10's Postgres tests need nothing beyond that venv's defaults — the
-venv already has `psycopg2-binary==2.9.9`, same pin
-`platform/streaming/requirements.txt` declares); the extra installs pull
-in what stage 5/6's, stage 7's, and stage 9's own tests need that that
-venv doesn't have by default (`-r platform/streaming/requirements.txt`
-also brings in `redis==5.0.8` for stage 9). Stage 11's own
-`platform/event_ingestion/requirements.txt` needs nothing beyond
-fastapi/uvicorn/confluent-kafka/python-dotenv, all already covered by the
-installs below:
+Run the full test suite (64 tests: 46 across platform stages 2-4+7-11 + 8.1
+stages 5-6, plus 18 for `eval/8_1`'s pure metric functions — `pytest.ini`'s
+`testpaths` includes `eval` alongside `tests`/`usecases`) against the live
+stack — uses `platform/enrichment/.venv` because it already carries
+psycopg2/httpx/matplotlib/pytest (stage 8's Flink and stage 10's Postgres
+tests need nothing beyond that venv's defaults — the venv already has
+`psycopg2-binary==2.9.9`, same pin `platform/streaming/requirements.txt`
+declares); the extra installs pull in what stage 5/6's, stage 7's, and
+stage 9's own tests need that that venv doesn't have by default
+(`-r platform/streaming/requirements.txt` also brings in `redis==5.0.8` for
+stage 9). Stage 11's own `platform/event_ingestion/requirements.txt` needs
+nothing beyond fastapi/uvicorn/confluent-kafka/python-dotenv, all already
+covered by the installs below. `eval/8_1` needs nothing beyond this venv's
+defaults either — pymilvus/neo4j/matplotlib/numpy are already present,
+confirmed by direct import check (see CLAUDE.md's `eval/` section):
 
 ```bash
 platform/enrichment/.venv/bin/python -m pip install -r usecases/8_1_batch_reactive/recommender/requirements.txt \
@@ -429,6 +450,13 @@ platform/enrichment/.venv/bin/python reports/stage2_metrics.py
 platform/enrichment/.venv/bin/python reports/stage3_embedding_projection.py
 platform/enrichment/.venv/bin/python reports/uc81_results.py
 platform/enrichment/.venv/bin/python reports/results_evaluation.py
+```
+
+Regenerate `eval/8_1`'s evaluation pack (needs the stack up; reads
+Postgres/Milvus/Neo4j directly, no Semantic API needed):
+
+```bash
+platform/enrichment/.venv/bin/python -m eval.8_1.run
 ```
 
 No lint command exists in this repo yet — don't invent one; add it here

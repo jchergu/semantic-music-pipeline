@@ -1,0 +1,26 @@
+{
+  "note": "Measured fresh against the current environment. The original stage-5 batch run's ~8.8s/411-seed wall-clock (CLAUDE.md) was never broken down by stage, so this is not a decomposition of that historical figure.",
+  "seeds_measured": 411,
+  "summary": {
+    "milvus_ms": {
+      "mean": 2.532,
+      "p50": 2.299,
+      "p95": 2.847
+    },
+    "neo4j_ms": {
+      "mean": 1.947,
+      "p50": 1.741,
+      "p95": 3.112
+    },
+    "ranking_ms": {
+      "mean": 0.131,
+      "p50": 0.134,
+      "p95": 0.248
+    },
+    "total_ms": {
+      "mean": 4.61,
+      "p50": 4.232,
+      "p95": 6.052
+    }
+  }
+}
