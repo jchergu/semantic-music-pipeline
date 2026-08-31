@@ -1,10 +1,17 @@
 """
-Stage 5 (8.1): ranking.
+Shared ranking primitive, originally built for stage 5 (8.1) and moved
+here for stage 14 (8.2's recommendation refresh loop) to reuse without
+reimplementing scoring — Decision D, 2026-08-31, same footing as Decision
+B's extraction of the streaming consumer: the independence rule between
+use cases (CLAUDE.md) was never independence from the platform.
 
 Pure function, no I/O, independently unit-testable against synthetic
-candidate dicts. Merges the three raw candidate sources produced by
-context_builder.py for one seed track into a single deduplicated,
-scored, descending-sorted recommendation list.
+candidate dicts. Merges three raw candidate sources -- for 8.1
+(`usecases/8_1_batch_reactive/recommender/context_builder.py`), a single
+seed track's similarity/genre-sibling/same-artist candidates; for stage
+14, a session profile vector's Milvus-searched candidates plus the active
+session context's genre-sibling/same-artist candidates -- into a single
+deduplicated, scored, descending-sorted recommendation list.
 
 Scoring: additive weighted sum.
 
