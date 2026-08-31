@@ -4,7 +4,7 @@
 
 ## 6.1 Use Case 8.2 — Streaming, Reactive
 
-[To be completed.] Explicit user query within a live session, over WebSocket. Redis as session cache, fed via Flink's sink-then-serve pattern, decoupled from PostgreSQL as system of record. Session write-back on explicit end_session or Redis TTL expiry.
+[To be completed.] Explicit user query within a live session, over WebSocket. Redis as session cache, fed by the platform-owned Kafka consumer (Decision B) that writes each event to both Redis and PostgreSQL, the system of record, on the same poll.
 
 ## 6.2 Use Case 8.3 — Streaming, Proactive
 

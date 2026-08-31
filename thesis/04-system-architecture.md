@@ -39,7 +39,7 @@ Every technology in the stack is open-source and self-hostable, and the entire p
 
   Orchestration           Apache Airflow          Batch pipeline DAG scheduling
 
-  Session cache           Redis                   Session state for streaming use cases (8.2/8.3), fed via Flink sink-then-serve
+  Session cache           Redis                   Session state for streaming use cases (8.2/8.3), fed by a platform-owned Kafka consumer, not Flink (Decision B)
 
   Application API         FastAPI                 L3 Semantic API and application services
   --------------------------------------------------------------------------------------------------------------------------------
@@ -60,4 +60,4 @@ The Recommender Engine — the demo application used throughout this thesis — 
   8.3               Streaming, proactive   System-inferred, no explicit query, from a live-played track   WebSocket
   -------------------------------------------------------------------------------------------------------------------------
 
-For 8.2 and 8.3, Redis serves as a session cache — distinct from PostgreSQL's role as the system of record — fed via Flink's sink-then-serve pattern; session write-back to PostgreSQL is triggered either by an explicit end_session message or by Redis TTL expiry, deliberately decoupled from WebSocket disconnect events (a disconnect is not necessarily a session end). For 8.3, Auto-tagging is reused as a classifier-only building block inside the Semantic API, with no live persistence to Neo4j during the streaming session. Use case 8.3's implementation simulates a live audio stream via a Creative-Commons clip served through the Freesound API, rather than live hardware capture.
+For 8.2 and 8.3, Redis serves as a session cache — distinct from PostgreSQL's role as the system of record — fed by the platform-owned Kafka consumer that reads the behavioral-events topic and, on the same poll, writes each event to both Redis (under a sliding 30-minute TTL) and PostgreSQL directly, rather than through a separate stream-processing job (Decision B). For 8.3, Auto-tagging is reused as a classifier-only building block inside the Semantic API, with no live persistence to Neo4j during the streaming session. Use case 8.3's implementation simulates a live audio stream via a Creative-Commons clip served through the Freesound API, rather than live hardware capture.
