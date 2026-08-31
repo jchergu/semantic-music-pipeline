@@ -361,26 +361,43 @@ platform build order as it stood on 2026-08-31 — see stage 12 below,
 added the same day once Session B's `eval/8_1` work surfaced the need for
 a reproducible event stream ahead of any 8.2/8.3 measurement.
 
-**Planned (2026-08-31)**: Stage 12 — a deterministic behavioral-event
-simulator (`platform/simulator/`), explicitly requested (not a build-order
-guess): a CLI that replays scripted listening sessions against the live
-411-track catalog by POSTing to `platform/event_ingestion`, with
-`--seed`/`--speed`/`--sessions` for full reproducibility and simulated/
-wall-clock time decoupling (needed for Session E's future Flink
-event-time windows). Adds two fields to the event payload beyond
-`platform/event_ingestion/main.py`'s current `session_id`/`event_type`/
-`track_id` — `event_time` (simulated clock) and `position_ms` (needed to
-classify skip timing later: `<5000ms` = early, `>80%` duration = late).
-The schema is `extra="allow"` (ad hoc, not frozen) specifically to permit
-this; both fields are called out here explicitly rather than added
-quietly. Three canned YAML scripts against real tracks: a coherent
-same-genre session, three consecutive early skips, and a context switch
-partway through. No persistent Kafka consumer daemon exists yet
-(`session_consumer.py` only has a single-message `consume_and_cache_one()`,
-by design — see stages 9-10) — verification drives that function in a
-loop, the same pattern every existing stage 9-11 test already uses, not a
-new daemon. Not yet implemented as of this commit — see the follow-up
-status entry once it lands.
+**Stage 12** (Event simulator) verified working as of 2026-08-31 — a
+deterministic behavioral-event simulator (`platform/simulator/`),
+explicitly requested (not a build-order guess): a CLI that replays
+scripted listening sessions against the live 411-track catalog by POSTing
+to `platform/event_ingestion`, with `--seed`/`--speed`/`--sessions` for
+full reproducibility and simulated/wall-clock time decoupling (needed for
+Session E's future Flink event-time windows). Adds two fields to the
+event payload beyond `platform/event_ingestion/main.py`'s current
+`session_id`/`event_type`/`track_id` — `event_time` (simulated clock,
+anchored to a fixed reference instant, not wall-clock `now()`) and
+`position_ms` (needed to classify skip timing later: `<5000ms` = early,
+`>80%` duration = late). The schema is `extra="allow"` (ad hoc, not
+frozen) specifically to permit this; both fields are called out here
+explicitly rather than added quietly. Three canned YAML scripts against
+real tracks: a coherent same-genre session (rock, ids 2/3/14/15), three
+consecutive early skips (dance, ids 1/4/7 then 12), and a context switch
+partway through (chillout ids 83/97 then hiphop ids 73/89). See
+`docs/platform/stage12-event-simulator.md` and
+`platform/simulator/README.md`.
+
+Verifying the exit criterion surfaced two real bugs, not assumed away:
+`session_consumer.consume_and_cache_one()` can't drain more than one event
+per session (it never commits Kafka offsets, so a repeated call just
+re-reads the same "earliest" match again — no existing stage 9-11 test had
+ever needed more than one event per test, so this never surfaced before);
+fixed by adding `consume_and_cache_many()` alongside it (existing function
+untouched). And `event_time` was originally wall-clock `datetime.now()`-
+anchored, which can't be byte-identical across separate invocations —
+fixed by anchoring to a fixed reference instant instead. Still no
+persistent Kafka consumer daemon (out of this stage's scope, arguably
+stage 9-10's own gap) — verification drives `consume_and_cache_many`
+directly. 15 new tests in `tests/test_stage12_event_simulator.py` (13
+pure + 2 live against the real stack) pass, plus a manual run of the
+literal exit-criterion invocation (`--seed 42 --speed 10`, run twice)
+confirmed in Postgres: 18 events landed under the same deterministic
+`sim-42-0` session_id, every one of the 9 distinct events appearing
+exactly twice (79/79 total tests across the whole repo).
 
 ## Stack (all open-source, self-hostable)
 
@@ -398,7 +415,9 @@ behavioral events per session with a sliding TTL; as of stage 10 the same
 consumer also persists durably to Postgres. Decision B's "Kafka consumer
 that reads behavioral events and maintains session state in Redis,"
 spanning stages 9-10, is complete on both stores, and stage 11 gives the
-whole chain (Kafka → Redis + Postgres) its first real producer. All of
+whole chain (Kafka → Redis + Postgres) its first real producer. Stage 12
+(`platform/simulator/`) is the first *scripted, reproducible* producer —
+deterministic sessions instead of one-off manual test payloads. All of
 this is still platform-owned plumbing with no 8.2/8.3 consumer yet — see
 the Build order note above.
 
@@ -432,21 +451,24 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (64 tests: 46 across platform stages 2-4+7-11 + 8.1
-stages 5-6, plus 18 for `eval/8_1`'s pure metric functions — `pytest.ini`'s
-`testpaths` includes `eval` alongside `tests`/`usecases`) against the live
-stack — uses `platform/enrichment/.venv` because it already carries
-psycopg2/httpx/matplotlib/pytest (stage 8's Flink and stage 10's Postgres
-tests need nothing beyond that venv's defaults — the venv already has
-`psycopg2-binary==2.9.9`, same pin `platform/streaming/requirements.txt`
-declares); the extra installs pull in what stage 5/6's, stage 7's, and
-stage 9's own tests need that that venv doesn't have by default
-(`-r platform/streaming/requirements.txt` also brings in `redis==5.0.8` for
-stage 9). Stage 11's own `platform/event_ingestion/requirements.txt` needs
-nothing beyond fastapi/uvicorn/confluent-kafka/python-dotenv, all already
-covered by the installs below. `eval/8_1` needs nothing beyond this venv's
-defaults either — pymilvus/neo4j/matplotlib/numpy are already present,
-confirmed by direct import check (see CLAUDE.md's `eval/` section):
+Run the full test suite (79 tests: 46 across platform stages 2-4+7-11 + 8.1
+stages 5-6, 18 for `eval/8_1`'s pure metric functions, 15 for stage 12's
+event simulator — `pytest.ini`'s `testpaths` includes `eval` alongside
+`tests`/`usecases`) against the live stack — uses `platform/enrichment/.venv`
+because it already carries psycopg2/httpx/matplotlib/pytest (stage 8's
+Flink and stage 10's Postgres tests need nothing beyond that venv's
+defaults — the venv already has `psycopg2-binary==2.9.9`, same pin
+`platform/streaming/requirements.txt` declares); the extra installs pull
+in what stage 5/6's, stage 7's, and stage 9's own tests need that that
+venv doesn't have by default (`-r platform/streaming/requirements.txt`
+also brings in `redis==5.0.8` for stage 9). Stage 11's own
+`platform/event_ingestion/requirements.txt` needs nothing beyond
+fastapi/uvicorn/confluent-kafka/python-dotenv, all already covered by the
+installs below. `eval/8_1` needs nothing beyond this venv's defaults
+either — pymilvus/neo4j/matplotlib/numpy are already present, confirmed by
+direct import check (see CLAUDE.md's `eval/` section). Stage 12's
+`platform/simulator/requirements.txt` needs nothing beyond this venv's
+defaults either — pyyaml/httpx confirmed present:
 
 ```bash
 platform/enrichment/.venv/bin/python -m pip install -r usecases/8_1_batch_reactive/recommender/requirements.txt \
@@ -465,6 +487,14 @@ Run the stage 11 event ingestion service standalone (same
 ```bash
 platform/enrichment/.venv/bin/python -m uvicorn event_ingestion.main:app \
     --app-dir platform --port 8020
+```
+
+Run the stage 12 event simulator (needs the event ingestion service above
+running):
+
+```bash
+PYTHONPATH=platform platform/enrichment/.venv/bin/python -m simulator.cli \
+    --seed 42 --speed 10 --sessions 3
 ```
 
 Regenerate the reports (each needs the stack up; `uc81_results.py` also

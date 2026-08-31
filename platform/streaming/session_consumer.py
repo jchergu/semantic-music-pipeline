@@ -68,3 +68,50 @@ def consume_and_cache_one(
         return None
     finally:
         consumer.close()
+
+
+def consume_and_cache_many(
+    group_id: str, count: int, timeout: float = 10.0, expected_session_id: str | None = None, pg_conn=None
+) -> list[dict]:
+    """Reads up to `count` distinct matching events, caching each into
+    Redis (and optionally Postgres), same filtering/skip rules as
+    consume_and_cache_one(). Added for stage 12: consume_and_cache_one()
+    never commits offsets (see its docstring -- correct for exactly one
+    message per call), so a second call, even with a fresh group_id, just
+    re-reads the same "earliest" matching message again rather than
+    advancing -- fine for every existing single-event test, but stage 12's
+    simulator needs to drain a whole multi-event session. This uses one
+    Consumer for the whole batch instead of recreating one per message."""
+    consumer = Consumer(
+        {
+            "bootstrap.servers": BOOTSTRAP_SERVERS,
+            "group.id": group_id,
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+        }
+    )
+    consumer.subscribe([TOPIC_BEHAVIORAL_EVENTS])
+    results: list[dict] = []
+    try:
+        deadline = time.monotonic() + timeout
+        while len(results) < count and time.monotonic() < deadline:
+            msg = consumer.poll(0.5)
+            if msg is None:
+                continue
+            if msg.error():
+                continue
+            try:
+                event = json.loads(msg.value().decode("utf-8"))
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(event, dict) or "session_id" not in event:
+                continue
+            if expected_session_id is not None and event["session_id"] != expected_session_id:
+                continue
+            record_event(event["session_id"], event)
+            if pg_conn is not None:
+                persist_event(pg_conn, event["session_id"], event)
+            results.append(event)
+        return results
+    finally:
+        consumer.close()

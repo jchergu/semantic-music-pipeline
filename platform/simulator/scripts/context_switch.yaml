@@ -1,0 +1,20 @@
+name: context_switch
+intent: "starts in chillout, switches to hiphop partway through the session"
+tracks:
+  - track_id: 83   # "Nebulous Notions" -- Revolution Void (chillout)
+    events:
+      - {type: play, position_ms: 0}
+      - {type: complete, position_pct: 0.95}
+  - track_id: 97   # "Deep blue (2005)" -- Antony Raijekov (chillout)
+    events:
+      - {type: play, position_ms: 0}
+      - {type: complete, position_pct: 0.95}
+  - track_id: 73   # "Give U My Name" -- Jyant (hiphop)
+    events:
+      - {type: play, position_ms: 0}
+      - {type: complete, position_pct: 0.95}
+  - track_id: 89   # "This Ain't Love" -- Jyant (hiphop)
+    events:
+      - {type: play, position_ms: 0}
+      - {type: like, position_pct: 0.3}
+      - {type: complete, position_pct: 0.95}

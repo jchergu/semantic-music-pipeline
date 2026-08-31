@@ -1,0 +1,19 @@
+name: three_early_skips
+intent: "rejects the first three tracks within 5 seconds each, then engages with a fourth"
+tracks:
+  - track_id: 1   # "Wish You Were Here" -- The.madpix.project
+    events:
+      - {type: play, position_ms: 0}
+      - {type: skip, position_ms: 2500}
+  - track_id: 4   # "In Tune (J. Glaze Remix)" -- Kellee Maize
+    events:
+      - {type: play, position_ms: 0}
+      - {type: skip, position_ms: 3200}
+  - track_id: 7   # "Energy" -- Pokki DJ
+    events:
+      - {type: play, position_ms: 0}
+      - {type: skip, position_ms: 1800}
+  - track_id: 12  # "Moments" -- The.madpix.project
+    events:
+      - {type: play, position_ms: 0}
+      - {type: complete, position_pct: 0.97}

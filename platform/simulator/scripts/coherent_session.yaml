@@ -1,0 +1,20 @@
+name: coherent_session
+intent: "stays within one genre (rock) for the whole session, engaged throughout"
+tracks:
+  - track_id: 2   # "Love Will Come Back Again" -- Chaz Robinson
+    events:
+      - {type: play, position_ms: 0}
+      - {type: complete, position_pct: 0.97}
+  - track_id: 3   # "What Is Love" -- Melanie Ungar
+    events:
+      - {type: play, position_ms: 0}
+      - {type: complete, position_pct: 0.97}
+  - track_id: 14  # "Gates" -- Bellevue
+    events:
+      - {type: play, position_ms: 0}
+      - {type: like, position_pct: 0.5}
+      - {type: complete, position_pct: 0.97}
+  - track_id: 15  # "Billy Comes Home" -- Heifervescent
+    events:
+      - {type: play, position_ms: 0}
+      - {type: complete, position_pct: 0.97}
