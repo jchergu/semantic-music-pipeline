@@ -2,6 +2,25 @@
 Stage 15A follow-up: diff the frozen 4110-row `recommendations` table
 against eval/8_1/regenerate_recommendations.py's output.
 
+NOTE on the 15-row residual (11 seeds classified "identical" that still
+show row_diffs > 0): this is NOT float32/float64 precision noise (the
+Stage 15A.2 `score::float8` fix left this file's output byte-identical --
+SCORE_TOLERANCE=1e-4 already swamps that ~1e-7-scale artifact by three
+orders of magnitude, so it could never have caused these) and NOT Milvus
+ANN non-determinism (ruled out by eval/8_1/noise_floor.json's exact 0.0
+across 5 real runs). Verified instead: every one of the 15 rows differs
+by EXACTLY +-0.05 (GENRE_BOOST) -- these are candidates whose genre-sibling
+status flipped between the pre-Stage-15A and post-Stage-15A query, but
+the +-0.05 wasn't enough to change their rank, so "identical" (a
+track_id-based classification) correctly reports no reordering while the
+row's actual score composition genuinely changed. Confirmed by direct
+inspection, e.g. seed=9/track=3: frozen score 0.817909 (similarity only)
+vs regenerated 0.867909 (similarity + GENRE_BOOST), same rank (1) in
+both. This means 277/411 "affected" (this file's own headline number) is
+a real, track_id-based count -- not an undercount bug -- but 11 more
+seeds also had a real, smaller-magnitude effect this classification was
+never designed to catch.
+
 Usage:
     platform/enrichment/.venv/bin/python -m eval.8_1.diff_recommendations
 
@@ -96,6 +115,10 @@ def diff(frozen: dict[int, list[dict]], regenerated: dict[int, list[dict]]) -> d
             "new_track_ids": new_ids_ranked,
         }
 
+    identical_with_row_diffs = sorted(
+        sid for sid, v in per_seed.items() if v["classification"] == "identical" and v["row_diffs"] > 0
+    )
+
     return {
         "total_seeds": len(seed_ids),
         "total_rows_compared": sum(len(v) for v in frozen.values()),
@@ -103,6 +126,15 @@ def diff(frozen: dict[int, list[dict]], regenerated: dict[int, list[dict]]) -> d
         "classification_counts": classification_counts,
         "affected_seed_ids": sorted(
             sid for sid, v in per_seed.items() if v["classification"] != "identical"
+        ),
+        "identical_but_row_diffs_seed_ids": identical_with_row_diffs,
+        "identical_but_row_diffs_note": (
+            "Seeds with unchanged track_id order/membership but row_diffs > 0 -- "
+            "verified (see module docstring) to be exactly +-GENRE_BOOST (0.05) on "
+            "one candidate whose genre-sibling status flipped between the pre- and "
+            "post-Stage-15A query without changing its rank. Not float precision "
+            "noise, not ANN non-determinism -- a real, smaller-magnitude effect the "
+            "track_id-based classification above doesn't count as 'affected'."
         ),
         "per_seed": per_seed,
     }
@@ -127,6 +159,7 @@ def main() -> None:
     print(f"Differing (seed, rank) rows: {result['differing_rows']} / {result['total_rows_compared']}")
     print(f"Seed classification: {result['classification_counts']}")
     print(f"Affected seeds: {len(result['affected_seed_ids'])} / {result['total_seeds']}")
+    print(f"Identical-order seeds with a real GENRE_BOOST-magnitude score diff: {len(result['identical_but_row_diffs_seed_ids'])}")
     print(f"Wrote {OUT_PATH}")
 
 

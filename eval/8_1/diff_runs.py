@@ -2,9 +2,9 @@
 Stage 15A.2: ANN noise floor + reconstruction-path validation.
 
 Two questions this answers:
-  1. How much does Milvus ANN's approximate search alone move recommendation
-     set membership/order/scores, run to run, under a PROVABLY IDENTICAL
-     code path (the same recommend.py, invoked N times)? -- the noise floor.
+  1. How much does Milvus vector search alone move recommendation set
+     membership/order/scores, run to run, under a PROVABLY IDENTICAL code
+     path (the same recommend.py, invoked N times)? -- the noise floor.
   2. Does eval/8_1/regenerate_recommendations.py's reconstruction path (which
      calls build_context()/score_recommendations() directly, not through
      recommend.py) agree with the real recommender within that noise floor,
@@ -15,9 +15,29 @@ first, then tests (2) against it -- and the PASS/FAIL rule is fixed in
 verdict() below, before any Task 2 number exists, so it can't be tuned
 after the fact.
 
+RESULT (2026-09-01, this dataset): the noise floor came back at EXACTLY
+0.0 across all 10 pairs / 41,100 matched pairs -- zero drift, zero
+membership/order changes. The Milvus collection's index is IVF_FLAT
+(nlist=128, queried at nprobe=16 -- see platform/semantic_api/main.py),
+not FLAT/exhaustive -- it IS an approximate index in the sense that a
+true nearest neighbor could be missed if it falls in an unprobed
+cluster. But cluster assignment is fixed at index-build time, and this
+session never rebuilt the index between runs, so repeated queries
+against the same static index returned bit-identical results. Do not
+generalize "Milvus is deterministic" from this -- what was measured is
+"a static IVF_FLAT index over an unchanging 411-vector collection,
+queried repeatedly, was deterministic here." A larger or dynamically
+updated collection, index rebuilds, or concurrent writes could all
+reintroduce real non-determinism; recall (whether IVF_FLAT finds the
+TRUE top-k at all) was also not measured here, only run-to-run
+repeatability of whatever it does find.
+
 Also produces the ANN instability number 8.2's determinism metric will need
 (N>=5 repeated runs, pairwise membership-instability rate) -- one
-measurement, reused later.
+measurement, reused later. Given the 0.0 result above, that number is
+currently a floor of "not observed in N=5 at this scale," not a proven
+upper bound -- 8.2's own candidate pool and concurrency profile may
+differ enough to matter.
 
 Usage:
     platform/enrichment/.venv/bin/python -m eval.8_1.diff_runs \\

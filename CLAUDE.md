@@ -573,11 +573,36 @@ non-deterministic."
 anything, then ran the real `recommend.py` five times end-to-end under
 fresh `run_id`s. All 10 pairwise comparisons (`eval/8_1/diff_runs.py`)
 came back at **exactly zero** — zero membership/order changes, zero
-score drift across 41,100 matched track-id pairs. Milvus ANN turned out
-to be fully deterministic for this 411-track collection; the noise floor
-is 0.0, not the nonzero number expected going in. New run_ids deleted
-after diffing (row-count-verified before and after) — the frozen
-`run_id 3a7ffa23-...` was never touched.
+score drift across 41,100 matched track-id pairs; the noise floor is
+0.0, not the nonzero number expected going in. New run_ids deleted after
+diffing (row-count-verified before and after) — the frozen
+`run_id 3a7ffa23-...` was never touched. The Milvus collection's index
+is **IVF_FLAT** (nlist=128, queried at nprobe=16 —
+`platform/semantic_api/main.py`), not FLAT/exhaustive: it's genuinely an
+approximate index (a true nearest neighbor can be missed if it falls in
+an unprobed cluster), so "0.0" is *run-to-run repeatability against a
+static, unrebuilt index*, not a claim that Milvus search is
+unconditionally deterministic or that IVF_FLAT achieves exact recall —
+neither was tested. See `eval/8_1/noise_floor.json`'s
+`milvus_index_info`/`milvus_index_note` fields.
+
+This result also retroactively corrects an explanation from the
+regeneration diff two sessions ago (`eval/8_1/regeneration_diff.json`,
+Stage 15A.1): 11 seeds classified `identical` still showed a small score
+delta, at the time attributed to "Milvus ANN's approximate-search
+non-determinism." That attribution never made it into this file, only
+into chat, but it was wrong regardless — the 0.0 noise floor rules it
+out. The `score::float8` fix below was also tested against it and made
+zero difference (SCORE_TOLERANCE=1e-4 already swamps that ~1e-7-scale
+artifact by three orders of magnitude, so it was never a candidate
+cause). The real cause, found by direct inspection: every one of the 15
+rows differs by exactly ±0.05 (`GENRE_BOOST`) — candidates whose
+genre-sibling status flipped between the pre- and post-Stage-15A query
+without changing rank. A real, if small, additional effect of the
+ordering fix that the track_id-based classification (277/411 "affected"
+seeds) was never designed to count. See
+`eval/8_1/diff_recommendations.py`'s module docstring and
+`regeneration_diff.json`'s `identical_but_row_diffs_note`.
 
 **Path validation**: diffing one real run against
 `regenerate_recommendations.py`'s output under a pre-registered rule

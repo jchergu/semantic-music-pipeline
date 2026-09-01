@@ -2,6 +2,16 @@
   "max_membership_changed_seed_count": 0,
   "max_order_only_seed_count": 0,
   "max_score_delta": 0.0,
+  "milvus_index_info": {
+    "embedding": {
+      "index_type": "IVF_FLAT",
+      "metric_type": "COSINE",
+      "params": {
+        "nlist": 128
+      }
+    }
+  },
+  "milvus_index_note": "IVF_FLAT is an approximate index (a true nearest neighbor could be missed if it falls in an unprobed cluster -- nprobe=16 of nlist=128, see platform/semantic_api/main.py), not exhaustive/FLAT search. Cluster assignment is fixed at index-build time; this measurement never rebuilt the index between the 5 runs, so the 0.0 noise floor reflects run-to-run repeatability against a STATIC index, not a claim that Milvus search is unconditionally deterministic. Recall relative to true exhaustive search was not measured.",
   "pair_count": 10,
   "pairs": {
     "1c7cbcf7-f4a9-4194-98c2-48c6438c3cb8__6e25b440-8f1a-4023-9592-ded717f525ab": {

@@ -284,6 +284,20 @@
     "order_only": 60
   },
   "differing_rows": 1741,
+  "identical_but_row_diffs_note": "Seeds with unchanged track_id order/membership but row_diffs > 0 -- verified (see module docstring) to be exactly +-GENRE_BOOST (0.05) on one candidate whose genre-sibling status flipped between the pre- and post-Stage-15A query without changing its rank. Not float precision noise, not ANN non-determinism -- a real, smaller-magnitude effect the track_id-based classification above doesn't count as 'affected'.",
+  "identical_but_row_diffs_seed_ids": [
+    9,
+    11,
+    26,
+    40,
+    116,
+    154,
+    247,
+    250,
+    358,
+    407,
+    426
+  ],
   "per_seed": {
     "1": {
       "classification": "membership_changed",
