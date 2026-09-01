@@ -27,12 +27,14 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 USECASE_RECOMMENDER = ROOT.parent.parent / "usecases" / "8_1_batch_reactive"
 sys.path.insert(0, str(USECASE_RECOMMENDER))
+PLATFORM = ROOT.parent.parent / "platform"
+sys.path.insert(0, str(PLATFORM))
 
 import kg_connectivity  # noqa: E402
 import latency as latency_module  # noqa: E402
 import metrics  # noqa: E402
 import store_access  # noqa: E402
-from recommender import ranking  # noqa: E402
+from scoring import ranking  # noqa: E402
 
 OUT_DIR = ROOT
 FIGURES_DIR = ROOT / "figures"
@@ -64,11 +66,13 @@ def group_by_seed(rows: list[dict]) -> dict:
     return grouped
 
 
-def write_figures(coverage: dict, diversity: dict, latency_summary: dict) -> None:
+def write_figures(coverage: dict, diversity: dict, latency_summary: dict | None, figures_dir: Path) -> None:
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
+    figures_dir.mkdir(parents=True, exist_ok=True)
 
     # Coverage long tail
     counts = sorted((int(v) for v in coverage["appearance_counts_by_track_id"].values()), reverse=True)
@@ -78,7 +82,7 @@ def write_figures(coverage: dict, diversity: dict, latency_summary: dict) -> Non
     ax.set_ylabel("Times recommended (top-10 appearances)")
     ax.set_title("Catalog coverage long tail")
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "coverage_long_tail.png", dpi=150)
+    fig.savefig(figures_dir / "coverage_long_tail.png", dpi=150)
     plt.close(fig)
 
     # Diversity histogram
@@ -89,29 +93,30 @@ def write_figures(coverage: dict, diversity: dict, latency_summary: dict) -> Non
     ax.set_ylabel("Number of seeds")
     ax.set_title("Intra-list diversity distribution")
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "diversity_histogram.png", dpi=150)
+    fig.savefig(figures_dir / "diversity_histogram.png", dpi=150)
     plt.close(fig)
 
-    # Latency breakdown
-    stages = ["milvus_ms", "neo4j_ms", "ranking_ms"]
-    p50s = [latency_summary[s]["p50"] for s in stages]
-    p95s = [latency_summary[s]["p95"] for s in stages]
-    x = range(len(stages))
-    fig, ax = plt.subplots(figsize=(6, 4))
-    width = 0.35
-    ax.bar([i - width / 2 for i in x], p50s, width, label="p50")
-    ax.bar([i + width / 2 for i in x], p95s, width, label="p95")
-    ax.set_xticks(list(x))
-    ax.set_xticklabels(["Milvus ANN", "Neo4j", "Ranking"])
-    ax.set_ylabel("Latency (ms)")
-    ax.set_title("Per-stage latency breakdown")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "latency_breakdown.png", dpi=150)
-    plt.close(fig)
+    # Latency breakdown -- only if latency was measured for this pass
+    if latency_summary is not None:
+        stages = ["milvus_ms", "neo4j_ms", "ranking_ms"]
+        p50s = [latency_summary[s]["p50"] for s in stages]
+        p95s = [latency_summary[s]["p95"] for s in stages]
+        x = range(len(stages))
+        fig, ax = plt.subplots(figsize=(6, 4))
+        width = 0.35
+        ax.bar([i - width / 2 for i in x], p50s, width, label="p50")
+        ax.bar([i + width / 2 for i in x], p95s, width, label="p95")
+        ax.set_xticks(list(x))
+        ax.set_xticklabels(["Milvus ANN", "Neo4j", "Ranking"])
+        ax.set_ylabel("Latency (ms)")
+        ax.set_title("Per-stage latency breakdown")
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(figures_dir / "latency_breakdown.png", dpi=150)
+        plt.close(fig)
 
 
-def write_tables_md(results: dict, latency_summary: dict) -> None:
+def write_tables_md(results: dict, latency_summary: dict | None, out_dir: Path, out_prefix: str = "") -> None:
     sig = results["signal_contribution"]
     cov = results["catalog_coverage"]
     div = results["intra_list_diversity"]
@@ -138,7 +143,9 @@ def write_tables_md(results: dict, latency_summary: dict) -> None:
         f"Genre-boost coverage gap: of {gap['genre_tag_overlap_rows']} rows that genuinely share a genre "
         f"tag with their seed, {gap['missed_by_cap_count']} ({gap['missed_by_cap_pct_of_tag_overlap']}%) "
         "never received GENRE_BOOST because the Semantic API's related_by_genre response is capped at "
-        "10 candidates with no ordering -- a confirmed pipeline behavior, not a reconstruction artifact.",
+        "10 candidates (ordered by shared-genre-count descending as of Stage 15A) -- a confirmed, "
+        "still-unaddressed pipeline limitation (the cap itself, not the ordering), not a reconstruction "
+        "artifact.",
         "",
     ]
 
@@ -159,16 +166,26 @@ def write_tables_md(results: dict, latency_summary: dict) -> None:
         "",
     ]
 
-    lines += [
-        "## Latency (measured fresh against the current environment; not the original batch run's historical timing)",
-        "",
-        "| Stage | p50 (ms) | p95 (ms) | mean (ms) |",
-        "|---|---|---|---|",
-    ]
-    for stage_key, label in [("milvus_ms", "Milvus ANN"), ("neo4j_ms", "Neo4j"), ("ranking_ms", "Ranking"), ("total_ms", "Total")]:
-        s = latency_summary[stage_key]
-        lines.append(f"| {label} | {s['p50']} | {s['p95']} | {s['mean']} |")
-    lines.append("")
+    if latency_summary is not None:
+        lines += [
+            "## Latency (measured fresh against the current environment; not the original batch run's historical timing)",
+            "",
+            "| Stage | p50 (ms) | p95 (ms) | mean (ms) |",
+            "|---|---|---|---|",
+        ]
+        for stage_key, label in [("milvus_ms", "Milvus ANN"), ("neo4j_ms", "Neo4j"), ("ranking_ms", "Ranking"), ("total_ms", "Total")]:
+            s = latency_summary[stage_key]
+            lines.append(f"| {label} | {s['p50']} | {s['p95']} | {s['mean']} |")
+        lines.append("")
+    else:
+        lines += [
+            "## Latency",
+            "",
+            "Not measured for this pass -- the ranking pipeline's per-stage "
+            "latency doesn't depend on which recommendations table is being "
+            "evaluated; see the frozen table's tables.md for a fresh reading.",
+            "",
+        ]
 
     lines += [
         "## KG connectivity",
@@ -188,50 +205,67 @@ def write_tables_md(results: dict, latency_summary: dict) -> None:
         "",
     ]
 
-    (OUT_DIR / "tables.md").write_text("\n".join(lines))
+    (out_dir / f"{out_prefix}tables.md").write_text("\n".join(lines))
 
 
-def main() -> None:
-    conn = store_access.connect_postgres()
-    collection = store_access.connect_milvus()
-    neo4j_driver = store_access.connect_neo4j()
-
-    try:
-        rows = fetch_recommendations(conn)
-        track_meta = fetch_track_meta(conn)
+def run_pipeline(
+    conn,
+    collection,
+    neo4j_driver,
+    rows: list[dict],
+    *,
+    all_track_ids: list[int] | None = None,
+    out_dir: Path = OUT_DIR,
+    figures_dir: Path | None = None,
+    out_prefix: str = "",
+    measure_latency: bool = True,
+) -> dict:
+    """Shared evaluation pipeline: given a set of recommendation rows
+    (frozen Postgres table, a regenerated table, or a small subset), computes
+    all eval/8_1 metrics and writes results.json/tables.md/figures under
+    out_dir (namespaced by out_prefix so multiple passes can coexist).
+    Returns the results dict. Reused by main() (frozen table), by
+    run_regenerated.py (the regenerated table), and by the Stage 15A
+    follow-up smoke test (a tiny live subset, written to a tmp dir)."""
+    track_meta = fetch_track_meta(conn)
+    if all_track_ids is None:
         all_track_ids = sorted(track_meta.keys())
-        embeddings = fetch_embeddings(collection)
-        rows_by_seed = group_by_seed(rows)
+    embeddings = fetch_embeddings(collection)
+    rows_by_seed = group_by_seed(rows)
+    figures_dir = figures_dir if figures_dir is not None else out_dir / "figures"
 
-        print(f"Loaded {len(rows)} recommendation rows for {len(rows_by_seed)} seeds, {len(all_track_ids)} tracks.")
+    print(f"Evaluating {len(rows)} recommendation rows for {len(rows_by_seed)} seeds, {len(all_track_ids)} tracks.")
 
-        with neo4j_driver.session() as session:
-            capped_genre_siblings = kg_connectivity.capped_genre_sibling_ids(session, all_track_ids)
-            kg_summary = kg_connectivity.summarize(session, all_track_ids)
+    with neo4j_driver.session() as session:
+        capped_genre_siblings = kg_connectivity.capped_genre_sibling_ids(session, all_track_ids)
+        kg_summary = kg_connectivity.summarize(session, all_track_ids)
 
-        enriched = metrics.reconstruct_signals(rows, track_meta, embeddings, capped_genre_siblings)
-        signal_contribution = metrics.signal_contribution_summary(enriched)
-        catalog_coverage = metrics.catalog_coverage(rows, all_track_ids)
-        intra_list_diversity = metrics.intra_list_diversity(rows_by_seed, embeddings)
-        failure_edge_cases = metrics.failure_edge_cases(rows_by_seed, expected_top_k=10)
+    enriched = metrics.reconstruct_signals(rows, track_meta, embeddings, capped_genre_siblings)
+    signal_contribution = metrics.signal_contribution_summary(enriched)
+    catalog_coverage = metrics.catalog_coverage(rows, all_track_ids)
+    intra_list_diversity = metrics.intra_list_diversity(rows_by_seed, embeddings)
+    failure_edge_cases = metrics.failure_edge_cases(rows_by_seed, expected_top_k=10)
 
-        results = {
-            "signal_contribution": signal_contribution,
-            "catalog_coverage": catalog_coverage,
-            "intra_list_diversity": intra_list_diversity,
-            "kg_connectivity": kg_summary,
-            "failure_edge_cases": failure_edge_cases,
-        }
-        (OUT_DIR / "results.json").write_text(json.dumps(results, indent=2, sort_keys=True))
-        print(f"Wrote {OUT_DIR / 'results.json'}")
+    results = {
+        "signal_contribution": signal_contribution,
+        "catalog_coverage": catalog_coverage,
+        "intra_list_diversity": intra_list_diversity,
+        "kg_connectivity": kg_summary,
+        "failure_edge_cases": failure_edge_cases,
+    }
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / f"{out_prefix}results.json").write_text(json.dumps(results, indent=2, sort_keys=True))
+    print(f"Wrote {out_dir / f'{out_prefix}results.json'}")
 
+    latency_summary = None
+    if measure_latency:
         print("Measuring latency (fresh, per-stage) across all seeds...")
         per_seed_timings = []
         with neo4j_driver.session() as session:
             for seed_id in all_track_ids:
                 per_seed_timings.append(latency_module.time_one_seed(collection, session, ranking.score_recommendations, seed_id))
         latency_summary = latency_module.summarize(per_seed_timings)
-        (OUT_DIR / "latency.json").write_text(
+        (out_dir / f"{out_prefix}latency.json").write_text(
             json.dumps(
                 {
                     "note": "Measured fresh against the current environment. The original stage-5 "
@@ -244,14 +278,25 @@ def main() -> None:
                 sort_keys=True,
             )
         )
-        print(f"Wrote {OUT_DIR / 'latency.json'}")
+        print(f"Wrote {out_dir / f'{out_prefix}latency.json'}")
 
-        write_tables_md(results, latency_summary)
-        print(f"Wrote {OUT_DIR / 'tables.md'}")
+    write_tables_md(results, latency_summary, out_dir=out_dir, out_prefix=out_prefix)
+    print(f"Wrote {out_dir / f'{out_prefix}tables.md'}")
 
-        write_figures(catalog_coverage, intra_list_diversity, latency_summary)
-        print(f"Wrote figures to {FIGURES_DIR}")
+    write_figures(catalog_coverage, intra_list_diversity, latency_summary, figures_dir=figures_dir)
+    print(f"Wrote figures to {figures_dir}")
 
+    return results
+
+
+def main() -> None:
+    conn = store_access.connect_postgres()
+    collection = store_access.connect_milvus()
+    neo4j_driver = store_access.connect_neo4j()
+
+    try:
+        rows = fetch_recommendations(conn)
+        run_pipeline(conn, collection, neo4j_driver, rows, out_dir=OUT_DIR, figures_dir=FIGURES_DIR)
     finally:
         conn.close()
         store_access.disconnect_milvus()

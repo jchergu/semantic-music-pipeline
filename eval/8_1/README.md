@@ -48,15 +48,20 @@ Takes under a minute — the slow part is the per-seed latency measurement
 
 `signal_contribution.genre_boost_coverage_gap` in `results.json` quantifies
 something worth calling out explicitly: the Semantic API's
-`/tracks/{id}/graph` endpoint caps `related_by_genre` at 10 candidates with
-**no ordering** (`LIMIT 10`, no `ORDER BY` — see
-`platform/semantic_api/main.py`). For genres with more than 10 member
-tracks (the distribution is skewed: mean ~9.9 tracks/genre but median only
-3), most of a seed's true genre-sibling tracks never receive `GENRE_BOOST`
-at all, purely because of which 10 happened to come back from an unordered
-Cypher query. This was confirmed empirically, not assumed — see the git
-history for the diagnostic that traced specific rows back to the exact
-Cypher the batch run actually issued.
+`/tracks/{id}/graph` endpoint caps `related_by_genre` at 10 candidates. As
+of Stage 15A (2026-09-01) those 10 are ordered by shared-genre-count
+descending — before that fix the query had `LIMIT 10` with **no
+`ORDER BY`**, so which 10 came back was arbitrary (see
+`platform/semantic_api/main.py`, and `figures/frozen_legacy/README.md` /
+`frozen_legacy_results.json` for the pre-fix numbers). The ordering fix
+changed *which* 10 siblings get selected, not *how many can fit* — for
+genres with more than 10 member tracks (the distribution is skewed: mean
+~9.9 tracks/genre but median only 3), most of a seed's true genre-sibling
+tracks still never receive `GENRE_BOOST`. This is a **confirmed, still
+unaddressed limitation** (raising the cap is a separate, larger change,
+out of scope for the ordering fix) — not a reconstruction artifact; see
+the git history for the diagnostic that traced specific rows back to the
+exact Cypher the batch run actually issued.
 
 ## How signal contribution is reconstructed
 
@@ -66,8 +71,8 @@ rank, score)` — `ranking.py`'s per-candidate `similarity`/`genre_sibling`/
 `reconstruct_signals()` rebuilds them:
 
 - `same_artist`: exact (`tracks.artist_name` match).
-- `genre_sibling`: exact — reproduces the same capped, unordered Cypher
-  query `context_builder.py` actually called at generation time
+- `genre_sibling`: exact — reproduces the same capped Cypher query
+  `context_builder.py` actually calls at generation time
   (`kg_connectivity.capped_genre_sibling_ids`), not a broader tag-overlap
   guess.
 - similarity: recovered as `score - boosts` (what `ranking.py` actually
@@ -78,3 +83,12 @@ With the exact capped genre-sibling ground truth, the reconstruction is
 100% internally consistent (`reconstruction_inconsistent_count: 0` in the
 current results.json) — the field exists to catch any future drift, not
 because it's expected to fire.
+
+## Legacy files (pre-Stage-15A results, kept for provenance)
+
+`frozen_legacy_results.json`, `frozen_legacy_tables.md`, and
+`figures/frozen_legacy/*.png` are the results pack this file's `results.json`
+superseded on 2026-09-01 (Stage 15A.2), generated against the frozen
+4,110-row table under the *original* unordered `related_by_genre` query.
+Kept only so the pre-fix numbers (e.g. max_appearances=67 vs the current
+41) remain traceable — **do not cite them as current results.**

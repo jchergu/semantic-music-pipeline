@@ -80,6 +80,45 @@ def test_track_graph_matches_postgres(client, pg_conn):
     assert set(body["genres"]) == set(genre_tags)
 
 
+def test_track_graph_related_by_genre_ordered_by_shared_genre_count(client, pg_conn):
+    """Stage 15A regression: related_by_genre used to be LIMIT 10 with no
+    ORDER BY, so on a track with >10 genre siblings the 10 returned were
+    an arbitrary cut. The fixed query orders by shared-genre-count
+    descending, track_id ascending as tiebreak -- reconstructed here from
+    Postgres genre_tags, which test_track_graph_matches_postgres already
+    established mirrors Neo4j's HAS_GENRE edges exactly."""
+    with pg_conn.cursor() as cur:
+        cur.execute("SELECT id, genre_tags FROM tracks WHERE genre_tags != '{}'")
+        genre_tags_by_id = {tid: set(tags) for tid, tags in cur.fetchall()}
+
+    def shared_count(seed_id, other_id):
+        return len(genre_tags_by_id[seed_id] & genre_tags_by_id[other_id])
+
+    seed_id = next(
+        (
+            tid
+            for tid in genre_tags_by_id
+            if sum(1 for other in genre_tags_by_id if other != tid and shared_count(tid, other) > 0) > 10
+        ),
+        None,
+    )
+    assert seed_id is not None, "expected at least one seed track with >10 genre siblings in the dataset"
+
+    resp = client.get(f"/tracks/{seed_id}/graph")
+    assert resp.status_code == 200
+    related = resp.json()["related_by_genre"]
+    assert len(related) == 10
+
+    shared_counts = [shared_count(seed_id, r["track_id"]) for r in related]
+    assert shared_counts == sorted(shared_counts, reverse=True)
+
+    expected_ids = sorted(
+        (other for other in genre_tags_by_id if other != seed_id and shared_count(seed_id, other) > 0),
+        key=lambda oid: (-shared_count(seed_id, oid), oid),
+    )[:10]
+    assert [r["track_id"] for r in related] == expected_ids
+
+
 def test_artist_tracks_lookup(client, pg_conn):
     with pg_conn.cursor() as cur:
         cur.execute("SELECT artist_name FROM tracks ORDER BY id LIMIT 1")

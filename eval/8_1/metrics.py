@@ -43,18 +43,21 @@ def reconstruct_signals(
     capped_genre_siblings: seed_track_id -> set(track_id), from
         kg_connectivity.capped_genre_sibling_ids() -- the EXACT capped
         related_by_genre candidate set context_builder.py received at
-        generation time (LIMIT 10, no ORDER BY, same Cypher as
-        platform/semantic_api/main.py's /tracks/{id}/graph). This is the
-        real ground truth for whether GENRE_BOOST was applied to a given
-        row -- confirmed empirically: for a sample of rows where the
-        broader tracks.genre_tags-overlap proxy said genre_sibling=True,
-        the stored score equalled the true CLAP cosine similarity with NO
-        boost added, and the recommended track was absent from this capped
-        list every time. Without it, reconstruction falls back to the
-        complete tracks.genre_tags overlap, which is measurably wrong for
-        genres with more than 10 tracks (median tracks/genre is 3, but the
-        mean is ~9.9 -- a few large genres skew the distribution and are
-        exactly where the cap bites).
+        generation time (LIMIT 10, ordered by shared-genre-count descending
+        as of Stage 15A, same Cypher as platform/semantic_api/main.py's
+        /tracks/{id}/graph). This is the real ground truth for whether
+        GENRE_BOOST was applied to a given row -- confirmed empirically: for
+        a sample of rows where the broader tracks.genre_tags-overlap proxy
+        said genre_sibling=True, the stored score equalled the true CLAP
+        cosine similarity with NO boost added, and the recommended track was
+        absent from this capped list every time. Without it, reconstruction
+        falls back to the complete tracks.genre_tags overlap, which is
+        measurably wrong for genres with more than 10 tracks (median
+        tracks/genre is 3, but the mean is ~9.9 -- a few large genres skew
+        the distribution and are exactly where the cap bites). The Stage 15A
+        ordering fix changed WHICH 10 siblings get selected but not the cap
+        itself -- the coverage gap this causes is still there (see
+        genre_boost_coverage_gap below), just no longer arbitrary.
 
     ranking.py's score is `similarity + boosts`, but `similarity` there is
     0.0 for any candidate that was NOT in the original candidate_k=25 Milvus
@@ -145,11 +148,14 @@ def signal_contribution_summary(enriched_rows: list[dict]) -> dict:
         "reconstruction_inconsistent_pct": _pct(inconsistent),
         "genre_boost_coverage_gap": {
             "note": (
-                "genre_sibling is the exact capped related_by_genre set (LIMIT 10, no ORDER BY) "
-                "the batch run actually applied GENRE_BOOST from; genre_tag_overlap is the complete "
-                "tracks.genre_tags overlap fact. This counts rows where the two disagree -- a real, "
-                "confirmed pipeline behavior (large genres lose most of their true siblings to the "
-                "cap), not a reconstruction error."
+                "genre_sibling is the exact capped related_by_genre set (LIMIT 10, ordered by "
+                "shared-genre-count descending as of Stage 15A) the batch run actually applied "
+                "GENRE_BOOST from; genre_tag_overlap is the complete tracks.genre_tags overlap "
+                "fact. This counts rows where the two disagree -- a real, confirmed pipeline "
+                "behavior (large genres still lose most of their true siblings to the cap itself, "
+                "independent of ordering -- the Stage 15A fix changed which 10 get selected, not "
+                "how many can fit), not a reconstruction error. Unaddressed: raising the cap is a "
+                "separate, larger change than this fix and was out of scope for it."
             ),
             "genre_tag_overlap_rows": tag_overlap_total,
             "missed_by_cap_count": missed_by_cap,

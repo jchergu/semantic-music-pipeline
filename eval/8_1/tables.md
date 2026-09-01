@@ -4,35 +4,30 @@
 
 | Combination | Rows | % |
 |---|---|---|
-| similarity_only | 3025 | 73.6 |
-| genre_only | 470 | 11.44 |
-| artist_only | 485 | 11.8 |
-| genre_and_artist | 130 | 3.16 |
+| similarity_only | 3055 | 74.33 |
+| genre_only | 440 | 10.71 |
+| artist_only | 454 | 11.05 |
+| genre_and_artist | 161 | 3.92 |
 
 In similarity pool: 100.0%.
 Reconstruction-inconsistent rows (see note in results.json): 0 / 4110 (0.0%).
 
-Genre-boost coverage gap: of 2200 rows that genuinely share a genre tag with their seed, 1600 (72.73%) never received GENRE_BOOST because the Semantic API's related_by_genre response is capped at 10 candidates with no ordering -- a confirmed pipeline behavior, not a reconstruction artifact.
+Genre-boost coverage gap: of 2184 rows that genuinely share a genre tag with their seed, 1583 (72.48%) never received GENRE_BOOST because the Semantic API's related_by_genre response is capped at 10 candidates (ordered by shared-genre-count descending as of Stage 15A) -- a confirmed, still-unaddressed pipeline limitation (the cap itself, not the ordering), not a reconstruction artifact.
 
 ## Catalog coverage
 
-- Covered: 399 / 411 tracks (97.08%)
-- Gini coefficient: 0.3942
-- Appearance range: 0–67
+- Covered: 400 / 411 tracks (97.32%)
+- Gini coefficient: 0.3898
+- Appearance range: 0–41
 
 ## Intra-list diversity
 
 - Seeds evaluated: 411 (skipped 0 with <2 recommendations)
-- Mean: 0.2562, median: 0.2342, p10: 0.144, p90: 0.3986
+- Mean: 0.2569, median: 0.2349, p10: 0.1447, p90: 0.4046
 
-## Latency (measured fresh against the current environment; not the original batch run's historical timing)
+## Latency
 
-| Stage | p50 (ms) | p95 (ms) | mean (ms) |
-|---|---|---|---|
-| Milvus ANN | 2.299 | 2.847 | 2.532 |
-| Neo4j | 1.741 | 3.112 | 1.947 |
-| Ranking | 0.134 | 0.248 | 0.131 |
-| Total | 4.232 | 6.052 | 4.61 |
+Not measured for this pass -- the ranking pipeline's per-stage latency doesn't depend on which recommendations table is being evaluated; see the frozen table's tables.md for a fresh reading.
 
 ## KG connectivity
 

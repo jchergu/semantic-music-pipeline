@@ -189,7 +189,9 @@ def get_track_graph(
         """
         MATCH (t:Track {track_id: $id})-[:HAS_GENRE]->(:Genre)<-[:HAS_GENRE]-(other:Track)
         WHERE other.track_id <> $id
-        RETURN DISTINCT other.track_id AS track_id, other.title AS title
+        WITH other, count(*) AS shared_genres
+        RETURN other.track_id AS track_id, other.title AS title
+        ORDER BY shared_genres DESC, other.track_id ASC
         LIMIT 10
         """,
         id=track_id,

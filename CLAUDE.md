@@ -515,6 +515,118 @@ test (seeds a fake profile directly rather than waiting on stage 13's
 real window timing, confirms already-played tracks never reappear).
 109/109 tests pass repo-wide.
 
+### Stage 15A (bug closure, ahead of 8.2's evaluation harness)
+
+Verified working as of 2026-09-01 — not a new build-order stage, a
+prerequisite bug-closure pass before 8.2 gets its own `eval/8_2/` harness
+(later stages), since 8.2's cold-start fallback in
+`recommendation_refresh.py` reuses `context_builder.py` +
+`platform/scoring/ranking.py` exactly as 8.1's `recommend.py` does
+(Decision D) — any latent bug in that shared path would poison 8.2's
+measurements too.
+
+Closed the `related_by_genre` finding from the 8.1 eval pack (see the
+2026-08-31 entry above): `platform/semantic_api/main.py`'s
+`/tracks/{id}/graph` Cypher had `LIMIT 10` with no `ORDER BY`, so on
+skewed/large genres the 10 siblings returned were an arbitrary cut, not
+a principled one. Fixed by ordering candidates by shared-genre-count
+descending, `track_id` ascending as a deterministic tiebreak. Fixes the
+*live* endpoint only — `eval/8_1/kg_connectivity.py::
+capped_genre_sibling_ids` deliberately keeps reproducing the *original*
+query, since it exists to reconcile against the already-generated,
+frozen 4110-row `recommendations` table (2026-08-07), not to mirror
+current API behavior; its docstring now says so explicitly. A new
+regression test, `tests/test_stage4_api.py::
+test_track_graph_related_by_genre_ordered_by_shared_genre_count`,
+confirmed to fail against the old query and pass against the fix.
+Re-running `eval/8_1` (`python -m eval.8_1.run`) after the fix produced
+a byte-identical `results.json` — confirming the fix is forward-looking
+(benefits 8.2's shared code path) and doesn't retroactively change any
+8.1 metric, so the 8.1 results write-up needs no revision. Only
+`latency.json`/`tables.md`'s live-measured per-stage timings shifted,
+expected run-to-run noise already treated separately from the
+deterministic metrics.
+
+Re-running `eval/8_1` also surfaced a second, unrelated latent bug:
+`eval/8_1/run.py` still imported `from recommender import ranking`, the
+pre-Decision-D path — Decision D's `git mv` to
+`platform/scoring/ranking.py` (2026-08-31) fixed the two import sites it
+checked (`usecases/8_1_batch_reactive/recommender/recommend.py` and its
+own test) but missed this one, so `eval/8_1/run.py` had been broken on
+`main` since that commit. Fixed by adding `platform/` to its `sys.path`
+and importing `from scoring import ranking`.
+
+### Stage 15A.2 (canonical results consolidation)
+
+Verified working as of 2026-09-01 — closes the duality Stage 15A left
+open (a stale `results.json` + a current `regenerated_results.json`,
+neither declared canonical) by first validating that
+`eval/8_1/regenerate_recommendations.py`'s reconstruction path (calls
+`context_builder.build_context()`/`ranking.score_recommendations()`
+directly) actually agrees with the real recommender
+(`usecases/8_1_batch_reactive/recommender/recommend.py`), since a naive
+diff can't tell "the paths differ" apart from "Milvus ANN is
+non-deterministic."
+
+**ANN noise floor**: backed up the frozen `recommendations` table
+(`pg_dump`, restore-tested into a throwaway database) before writing
+anything, then ran the real `recommend.py` five times end-to-end under
+fresh `run_id`s. All 10 pairwise comparisons (`eval/8_1/diff_runs.py`)
+came back at **exactly zero** — zero membership/order changes, zero
+score drift across 41,100 matched track-id pairs. Milvus ANN turned out
+to be fully deterministic for this 411-track collection; the noise floor
+is 0.0, not the nonzero number expected going in. New run_ids deleted
+after diffing (row-count-verified before and after) — the frozen
+`run_id 3a7ffa23-...` was never touched.
+
+**Path validation**: diffing one real run against
+`regenerate_recommendations.py`'s output under a pre-registered rule
+(written before this number existed: PASS iff membership-changed count
+and max score delta don't exceed the noise floor) first came back FAIL
+— max delta 5.8e-8. Investigated per the prompt's instruction rather
+than loosened the rule: traced to `float4send()` showing the *actual*
+stored bytes were bit-identical to the regenerated value's float32 cast,
+but a plain `SELECT score FROM recommendations` doesn't round-trip a
+Postgres `real` column exactly (`extra_float_digits=0`'s default 6-digit
+text output loses precision that `psycopg2` then parses back into a
+slightly-off float64). Fixed by casting `score::float8` server-side in
+both `eval/8_1/diff_runs.py` and `eval/8_1/diff_recommendations.py` — an
+exact, lossless widening, no reliance on client-side GUC settings.
+Re-ran: **bit-exact match, VERDICT: PASS.** The reconstruction script and
+the real recommender produce identical output.
+
+**Canonicalization**: with validation passing, promoted the current
+(post-Stage-15A ordering fix) pack to `eval/8_1/results.json` /
+`tables.md` / `figures/*.png`; the previous stale pack (frozen table +
+pre-fix reconstruction) renamed to `frozen_legacy_results.json` /
+`frozen_legacy_tables.md` / `figures/frozen_legacy/*.png`, each marked
+with an explicit provenance note (generated under the original
+unordered `LIMIT 10` query, retained for provenance only, not to be
+cited). Same treatment for `eval/8_1/kg_connectivity.py`: added
+`capped_genre_sibling_ids_legacy()` reproducing the original query,
+docstring-marked historical; `capped_genre_sibling_ids()` (already
+un-frozen in Stage 15A) stays the sole canonical function. Also fixed
+the "no ORDER BY" note text that Stage 15A's fix had made stale in
+`eval/8_1/metrics.py` (x2), `eval/8_1/run.py`, and `eval/8_1/README.md`
+— now describes current behavior (ordered by shared-genre-count) while
+still stating the *unaddressed* limitation explicitly (the cap of 10
+itself, not the ordering, still causes most of the genre-boost coverage
+gap — 72.73%→72.48%, barely moved by the ordering fix alone).
+`eval/8_1/run.py` refactored (Stage 15A.1) into a shared `run_pipeline()`
+is unaffected by this stage beyond the note-text fix.
+
+New tools, reusable beyond this session: `eval/8_1/diff_runs.py` (the
+noise-floor/path-validation methodology, callable against any set of
+`run_id`s and a candidate table — this is also the N≥5 repeated-run
+measurement 8.2's determinism metric will need, produced as a byproduct
+here, not extra work).
+
+Exactly one `results.json` now exists in `eval/8_1/` and it reflects
+current code. All 112 pre-existing tests plus this session's work still
+pass — no new tests were added (the smoke test from Stage 15A.1 already
+covers the `run.py` import/wiring path this session's refactor didn't
+touch further).
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
@@ -564,8 +676,9 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (109 tests: 46 across platform stages 2-4+7-11 +
-8.1 stages 5-6, 18 for `eval/8_1`'s pure metric functions, 15 for stage
+Run the full test suite (110 tests: 47 across platform stages 2-4+7-11 +
+8.1 stages 5-6 (includes Stage 15A's `related_by_genre` ordering
+regression test), 18 for `eval/8_1`'s pure metric functions, 15 for stage
 12's event simulator, 2 for Decision C's consumer ownership boundary —
 see `tests/test_stage10_postgres_events.py` — 15 for stage 13's session
 profile centroid, 13 for stage 14's recommendation refresh loop —
