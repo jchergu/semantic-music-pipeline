@@ -652,6 +652,45 @@ pass — no new tests were added (the smoke test from Stage 15A.1 already
 covers the `run.py` import/wiring path this session's refactor didn't
 touch further).
 
+### Stage 15B (simulator capability audit and late-event support)
+
+Verified working as of 2026-09-01 — the first piece of 8.2's own stage 15
+work, ahead of `eval/8_2/` (stage 15C): the headline justification for
+using Flink over a scheduled job is event-time semantics with watermarks,
+but the stage 12 simulator only ever emitted events in strict
+`event_time` order, so that machinery had never been exercised. Audited
+`platform/streaming/flink_session_profile_job.py` (read-only, unchanged
+this stage): the watermark bound is confirmed exactly
+`for_bounded_out_of_orderness(Duration.of_seconds(5))`, and the
+`SlidingEventTimeWindows(5 min, 30s slide)` has no `allowedLateness` and
+no side-output configured. Added `--jitter` to the stage 12 simulator
+(`platform/simulator/cli.py`/`events.py::apply_jitter()`) — a pure,
+seeded-`rng`-driven bounded reorder of an already-planned session's
+delivery order (event_time values themselves untouched, only position
+moves, by up to `MAX_JITTER_DELAY` = 3 positions); `--jitter 0.0`
+(default) is a byte-identical no-op. Planning
+(`build_session_events`/`apply_jitter`) moved out of the per-session
+thread into `main()`'s single-threaded section, since concurrent
+sessions racing on one seeded `rng` from separate threads would have
+broken `--seed` determinism. See
+`docs/platform/stage15b-simulator-jitter-and-late-event-audit.md`.
+
+Manually submitted the unmodified Stage 13 job and replayed
+`coherent_session.yaml` twice (same absolute event-time span, different
+session_ids) — once plain, once with `--jitter 1.0` — and diffed every
+window the job printed. Live-confirmed, not just reasoned about: the
+jittered session's opening `play` event never appeared in any of the 7
+early windows the baseline showed it in — not delayed, not
+side-outputted, silently and permanently dropped (a window later in both
+sessions' output that *does* fire for both differs in `weight_total`
+despite matching event count, and the two sessions' final windows are
+identical, confirming the dropped event never rejoins). This job is not
+modified this stage — adding `allowedLateness`/side-output handling is
+left as a decision for 15C/15D. `tests/test_stage15b_jitter.py`: 6 new
+tests (5 pure on `apply_jitter`, 1 live proving genuine Kafka
+delivery-order divergence from event_time order beyond the 5s bound).
+118/118 tests pass repo-wide.
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
@@ -701,13 +740,17 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (110 tests: 47 across platform stages 2-4+7-11 +
+Run the full test suite (116 tests: 47 across platform stages 2-4+7-11 +
 8.1 stages 5-6 (includes Stage 15A's `related_by_genre` ordering
 regression test), 18 for `eval/8_1`'s pure metric functions, 15 for stage
 12's event simulator, 2 for Decision C's consumer ownership boundary —
 see `tests/test_stage10_postgres_events.py` — 15 for stage 13's session
-profile centroid, 13 for stage 14's recommendation refresh loop —
-`pytest.ini`'s `testpaths` includes `eval` alongside `tests`/`usecases`)
+profile centroid, 13 for stage 14's recommendation refresh loop, 6 for
+stage 15B's simulator jitter/late-event audit — `pytest.ini`'s
+`testpaths` includes `eval` alongside `tests`/`usecases`; the actual
+repo-wide count measured by running the suite is 118, 2 higher than this
+enumeration sums to — a pre-existing drift from Stage 15A.2 predating
+this stage, not reconciled here)
 against the live stack — uses `platform/enrichment/.venv`
 because it already carries psycopg2/httpx/matplotlib/pytest (stage 8's
 Flink and stage 10's Postgres tests need nothing beyond that venv's

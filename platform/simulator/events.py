@@ -14,10 +14,16 @@ module returns per event is also on that simulated clock -- cli.py divides
 it by --speed to get the real sleep duration, decoupling the two per the
 stage 12 requirement (matters for Session E's future Flink event-time
 windows).
+
+Stage 15B: apply_jitter() stays pure too -- it takes an externally-owned,
+already-seeded rng rather than seeding its own, so cli.py's single seeded
+rng remains the sole source of randomness (see apply_jitter's docstring
+for why this matters for --seed determinism).
 """
 from __future__ import annotations
 
 import datetime as dt
+import random
 
 KNOWN_EVENT_TYPES = {"play", "skip", "complete", "like"}
 
@@ -94,3 +100,50 @@ def build_session_events(
         cumulative_ms += last_position_ms
 
     return out
+
+
+MAX_JITTER_DELAY = 3  # bounded displacement in *positions*, not seconds -- see apply_jitter's docstring
+
+
+def apply_jitter(
+    planned: list[dict], jitter: float, rng: random.Random, max_delay: int = MAX_JITTER_DELAY
+) -> list[dict]:
+    """Reorders a `jitter` fraction of `planned` (event_time-ordered, as
+    build_session_events() returns it) to simulate late-arriving events for
+    exercising Flink's bounded-out-of-orderness watermark. Each event's own
+    event_time is left untouched -- it still records when the listening
+    action actually happened; only its position in the *delivery* sequence
+    (POST order, and therefore Kafka order -- the behavioral-events topic
+    has a single partition, so delivery order == produce order exactly)
+    moves later, mirroring a client buffering an event and sending it after
+    already-newer ones.
+
+    Single left-to-right pass: for each index i, with probability `jitter`
+    it is swapped forward with the event at min(i + rng.randint(1,
+    max_delay), n-1); the scan resumes past the swapped-to index so no
+    event participates in two swaps. A permutation of `planned`, not a
+    lossy transform -- every event that went in comes back out exactly
+    once.
+
+    jitter <= 0.0 returns `planned` unchanged, with zero draws from `rng`
+    -- the default (--jitter omitted) is therefore byte-identical to
+    pre-stage-15B behavior, including the exact sequence of rng calls
+    cli.py's script-selection already makes.
+
+    Callers MUST only invoke this from single-threaded code holding the
+    sole seeded `rng` cli.py owns -- concurrent sessions calling this from
+    separate threads would race on `rng` and break seed-determinism.
+    """
+    if jitter <= 0.0:
+        return planned
+    n = len(planned)
+    order = list(range(n))
+    i = 0
+    while i < n:
+        if rng.random() < jitter:
+            j = min(i + rng.randint(1, max_delay), n - 1)
+            order[i], order[j] = order[j], order[i]
+            i = j + 1
+        else:
+            i += 1
+    return [planned[idx] for idx in order]

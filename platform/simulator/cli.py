@@ -58,10 +58,7 @@ def fetch_durations(track_ids: set[int]) -> dict[int, int]:
 SIMULATION_EPOCH = dt.datetime(2000, 1, 1, tzinfo=dt.timezone.utc)
 
 
-def run_session(
-    session_id: str, script: dict, durations: dict, speed: float, ingestion_url: str, start_time: dt.datetime
-) -> list[dict]:
-    planned = events.build_session_events(script, session_id, durations, start_time)
+def run_session(session_id: str, planned: list[dict], speed: float, ingestion_url: str) -> list[dict]:
     posted = []
     with httpx.Client(base_url=ingestion_url, timeout=10.0) as client:
         for item in planned:
@@ -85,6 +82,16 @@ def main(argv: list[str] | None = None) -> dict[str, list[dict]]:
         help="Path to a YAML script; every session uses it. Omit to pick (seeded) among the canned scripts per session.",
     )
     parser.add_argument("--ingestion-url", default=DEFAULT_INGESTION_URL)
+    parser.add_argument(
+        "--jitter",
+        type=float,
+        default=0.0,
+        help=(
+            "Fraction (0.0-1.0) of events delayed out of event_time order in delivery, "
+            "to exercise Flink's late-arrival/watermark handling. 0.0 (default): delivery "
+            "order == event_time order, unchanged from pre-stage-15B behavior."
+        ),
+    )
     args = parser.parse_args(argv)
 
     rng = random.Random(args.seed)
@@ -105,18 +112,27 @@ def main(argv: list[str] | None = None) -> dict[str, list[dict]]:
         print(f"Track ids not found in the live catalog: {sorted(missing)}", file=sys.stderr)
         sys.exit(1)
 
+    # All rng draws (script choice above, jitter reordering below) happen
+    # here, single-threaded, before any session thread starts -- run_session
+    # itself does no randomness, only I/O, so concurrent sessions can't race
+    # on shared rng state and --seed determinism is unaffected by thread
+    # scheduling.
+    session_plans = []
+    for i, (session_id, script) in enumerate(session_scripts):
+        start_time = SIMULATION_EPOCH + dt.timedelta(hours=i)
+        planned = events.build_session_events(script, session_id, durations, start_time)
+        planned = events.apply_jitter(planned, args.jitter, rng)
+        session_plans.append((session_id, planned))
+
     results: dict[str, list[dict]] = {}
     lock = threading.Lock()
 
-    def worker(session_id: str, script: dict, index: int) -> None:
-        start_time = SIMULATION_EPOCH + dt.timedelta(hours=index)
-        posted = run_session(session_id, script, durations, args.speed, args.ingestion_url, start_time)
+    def worker(session_id: str, planned: list[dict]) -> None:
+        posted = run_session(session_id, planned, args.speed, args.ingestion_url)
         with lock:
             results[session_id] = posted
 
-    threads = [
-        threading.Thread(target=worker, args=(sid, s, i)) for i, (sid, s) in enumerate(session_scripts)
-    ]
+    threads = [threading.Thread(target=worker, args=(sid, planned)) for sid, planned in session_plans]
     for t in threads:
         t.start()
     for t in threads:
