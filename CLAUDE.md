@@ -6,9 +6,11 @@ Recommender Engine as the Layer 3 demo for the first use case. **8.1
 reactive) is in progress** — stages 13-14 and 15A/15B/15C are done
 (session profile centroid, recommendation refresh loop, bug closure,
 simulator late-event support, and the `eval/8_2` harness with metrics
-1/2/3); **Stage 15C.2** (metrics 4/5/6/7) is next, then 15D (failure
-injection) and 15E (run the full harness, then write chapter 6's 8.2
-half). Do not build further 8.2/8.3 work unless explicitly asked — they
+1/2/3); **Stage 15C.2** (metrics 4/5/6/7) is next, then **stage 16**
+(refresh daemon + `session_api`, Decision E), then 15D (failure injection
+— deliberately after stage 16, so it can also ask what a client sees when
+a store dies mid-session) and 15E (run the full harness, then write
+chapter 6's 8.2 half). Do not build further 8.2/8.3 work unless explicitly asked — they
 are separate modules, not shared code paths with each other or with 8.1.
 
 This file is tracked in git (as of the commit that rescoped it to the
@@ -41,6 +43,28 @@ notes.
   explicit decision. The ingestion service produces to the
   `behavioral-events` Kafka topic, separate from the `media-stream` topic
   per the Kafka topics bullet above. **Decision A, 2026-08-30.**
+- Recommendation *delivery* for the streaming use cases is likewise a
+  SEPARATE SERVICE (`platform/session_api/`, stage 16), not endpoints added
+  to the Semantic API — the mirror image of Decision A, and platform-owned
+  for the same reason Decision B gives (8.3 reads session state the same
+  way). Three grounds: `contracts/semantic-api-v1.json` is frozen and
+  adding endpoints would force a contract revision that buys nothing; the
+  Semantic API has no Redis dependency today and session recommendations
+  are per-session derived state, not semantic content (see the Redis bullet
+  below); and events already flow IN through their own small service, so
+  they should flow OUT through one. Reads `session:{id}:recs` and
+  `session:{id}:profile`; it does not compute recommendations — that stays
+  `streaming/recommendation_refresh.py`'s job, run continuously by
+  `streaming/refresh_daemon.py` (the persistent-consumer gap flagged since
+  stage 12 and again in stage 15C).
+
+  **Delivery is request/response, NOT WebSocket**, despite what
+  `thesis/06-streaming-use-cases.md` §6.1 currently says — that line is to
+  be rewritten in a thesis session, not honored in code. 8.2 vs 8.3 is
+  *explicit query vs system-inferred suggestion*, not pull vs push; a
+  pushed recommendation is behaviourally proactive, so building push for
+  8.2 would blur the exact distinction the use-case taxonomy rests on.
+  Push belongs to 8.3 or future work. **Decision E, 2026-09-06.**
 - Redis: session cache for 8.2/8.3 use cases ONLY. Never a system-of-record
   substitute for PostgreSQL.
 
