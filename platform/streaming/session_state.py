@@ -15,7 +15,14 @@ from streaming.config import REDIS_HOST, REDIS_PORT, SESSION_TTL_SECONDS
 _client = redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), decode_responses=True)
 
 
-def _session_key(session_id: str) -> str:
+def events_key(session_id: str) -> str:
+    """The session's RAW behavioral event list, owned by this module and
+    its consumer (Decision C). Public alongside profile_key()/recs_key()/
+    profile_meta_key() since stage 16: platform/session_api/ reads this key
+    to tell "no such session" apart from "a session exists but nothing has
+    been recommended for it yet", and it should get the name from the same
+    canonical place every other reader does rather than rebuilding the
+    string or importing a private one."""
     return f"session:{session_id}:events"
 
 
@@ -63,11 +70,11 @@ def record_event(session_id: str, event: dict) -> None:
     The TTL is reset on every call (sliding window): a session stays alive
     in Redis for SESSION_TTL_SECONDS after its *last* event, not its first.
     """
-    key = _session_key(session_id)
+    key = events_key(session_id)
     _client.rpush(key, json.dumps(event))
     _client.expire(key, SESSION_TTL_SECONDS)
 
 
 def get_session_events(session_id: str) -> list[dict]:
-    key = _session_key(session_id)
+    key = events_key(session_id)
     return [json.loads(raw) for raw in _client.lrange(key, 0, -1)]

@@ -86,6 +86,26 @@ def determine_context(events: list[dict]) -> tuple[str | None, set[str]]:
     return anchor, played
 
 
+def as_track_id(value) -> int | None:
+    """Track ids are Postgres integer ids, but a behavioral event's
+    `track_id` is a free-form string on an `extra="allow"` schema -- the
+    ingestion service never validates it against the catalog. Anything
+    unparseable is skipped rather than crashing.
+
+    Found by stage 16: every consumer before it was scoped to one session
+    (`expected_session_id`) or to one test's own payloads, so none had ever
+    read an arbitrary event off the never-purged topic. refresh_daemon.py
+    is the first that reads EVERY session by design, and the first event it
+    met with a non-numeric track id (`"xyz789"`, left by stage 11's own
+    test) raised ValueError straight out of refresh_recommendations() and
+    killed the loop.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def merge_current_event(events: list[dict], current_event: dict | None) -> list[dict]:
     """Appends current_event if it isn't already the last element of
     events -- covers the race where this consumer processes a Kafka
@@ -158,7 +178,7 @@ def refresh_recommendations(
 
     profile_raw = redis_client.get(profile_key(session_id))
     anchor_id, played_ids = determine_context(events)
-    played_int_ids = {int(t) for t in played_ids if t}
+    played_int_ids = {tid for tid in (as_track_id(t) for t in played_ids) if tid is not None}
 
     if profile_raw is None:
         # Cold start: stage 13's Flink job hasn't produced a profile for
@@ -166,7 +186,14 @@ def refresh_recommendations(
         # couple of events to fire meaningfully). Falls back to exactly
         # 8.1's own batch path, seeded by the session's first track --
         # logged distinctly, not silently taken.
-        first_track_id = int(events[0]["track_id"])
+        first_track_id = as_track_id(events[0].get("track_id"))
+        if first_track_id is None:
+            # Nothing to seed the fallback with. Reported distinctly rather
+            # than guessing at a different event: a session whose opening
+            # track isn't in the catalog has no cold-start context at all.
+            log.warning("session=%s cold_start_unseedable track_id=%r",
+                        session_id, events[0].get("track_id"))
+            return {"action": "skip_unseedable_cold_start", "event_count": len(events)}
         ctx = context_builder.build_context(http_client, first_track_id, candidate_k=DEFAULT_CANDIDATE_K)
         ranked = ranking.score_recommendations(first_track_id, ctx.similar, ctx.genre_siblings, ctx.same_artist, top_k=DEFAULT_TOP_K)
         _write_recs(redis_client, session_id, ranked)
@@ -182,7 +209,7 @@ def refresh_recommendations(
         if tid in meta
     ]
 
-    anchor_int = int(anchor_id) if anchor_id else None
+    anchor_int = as_track_id(anchor_id)
     genre_siblings: list[dict] = []
     same_artist: list[dict] = []
     if anchor_int is not None:
@@ -277,7 +304,11 @@ def process_one_event(
                 refresh_started = time.monotonic()
                 result = refresh_recommendations(session_id, redis_client, pg_conn, milvus_collection, http_client, current_event=event)
                 refresh_compute_seconds = time.monotonic() - refresh_started
-                did_real_work = result["action"] != "skip_insufficient_data"
+                # Every "skip_*" action means the refresh declined to do
+                # anything, so none of them should spend the debounce
+                # budget or count as a refresh. Checked by prefix rather
+                # than against one name since stage 16 added a second skip.
+                did_real_work = not result["action"].startswith("skip_")
                 if did_real_work:
                     # Debounce budget is spent protecting the expensive
                     # paths (Milvus search, context_builder HTTP calls)

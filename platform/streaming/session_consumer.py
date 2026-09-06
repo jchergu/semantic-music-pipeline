@@ -70,18 +70,18 @@ def consume_and_cache_one(
         consumer.close()
 
 
-def consume_and_cache_many(
-    group_id: str, count: int, timeout: float = 10.0, expected_session_id: str | None = None, pg_conn=None
-) -> list[dict]:
-    """Reads up to `count` distinct matching events, caching each into
-    Redis (and optionally Postgres), same filtering/skip rules as
-    consume_and_cache_one(). Added for stage 12: consume_and_cache_one()
-    never commits offsets (see its docstring -- correct for exactly one
-    message per call), so a second call, even with a fresh group_id, just
-    re-reads the same "earliest" matching message again rather than
-    advancing -- fine for every existing single-event test, but stage 12's
-    simulator needs to drain a whole multi-event session. This uses one
-    Consumer for the whole batch instead of recreating one per message."""
+def new_consumer(group_id: str) -> Consumer:
+    """A subscribed Consumer for this topic, for a caller that wants to
+    reuse one across repeated calls.
+
+    Offsets are not auto-committed (the platform's setting everywhere), so
+    a *fresh* Consumer always rescans from "earliest" -- correct for the
+    bounded, throwaway-group-id callers in stages 9-12 and in tests, and
+    wrong for anything that reads repeatedly. Mirrors
+    recommendation_refresh.py::new_consumer(), added by stage 14 for the
+    same reason; stage 16's session_consumer_daemon.py is this module's
+    first repeated-read caller.
+    """
     consumer = Consumer(
         {
             "bootstrap.servers": BOOTSTRAP_SERVERS,
@@ -91,6 +91,33 @@ def consume_and_cache_many(
         }
     )
     consumer.subscribe([TOPIC_BEHAVIORAL_EVENTS])
+    return consumer
+
+
+def consume_and_cache_many(
+    group_id: str, count: int, timeout: float = 10.0, expected_session_id: str | None = None,
+    pg_conn=None, consumer: Consumer | None = None
+) -> list[dict]:
+    """Reads up to `count` distinct matching events, caching each into
+    Redis (and optionally Postgres), same filtering/skip rules as
+    consume_and_cache_one(). Added for stage 12: consume_and_cache_one()
+    never commits offsets (see its docstring -- correct for exactly one
+    message per call), so a second call, even with a fresh group_id, just
+    re-reads the same "earliest" matching message again rather than
+    advancing -- fine for every existing single-event test, but stage 12's
+    simulator needs to drain a whole multi-event session. This uses one
+    Consumer for the whole batch instead of recreating one per message.
+
+    `consumer`, when given, is reused and left open for the caller to
+    close -- a repeated caller (stage 16's session_consumer_daemon.py)
+    must pass the same one back in every time, or each call rescans from
+    "earliest" and re-delivers the events the previous call already
+    handled. Same parameter, for the same reason, as
+    recommendation_refresh.process_one_event()'s.
+    """
+    owns_consumer = consumer is None
+    if consumer is None:
+        consumer = new_consumer(group_id)
     results: list[dict] = []
     try:
         deadline = time.monotonic() + timeout
@@ -114,7 +141,8 @@ def consume_and_cache_many(
             results.append(event)
         return results
     finally:
-        consumer.close()
+        if owns_consumer:
+            consumer.close()
 
 
 def rebuild_session_state(session_id: str, pg_conn) -> list[dict]:

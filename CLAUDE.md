@@ -6,11 +6,12 @@ Recommender Engine as the Layer 3 demo for the first use case. **8.1
 reactive) is in progress** — stages 13-14 and 15A/15B/15C/15C.2 are
 done (session profile centroid, recommendation refresh loop, bug closure,
 simulator late-event support, and the `eval/8_2` harness with **all seven
-metrics** of its signed-off spec); **stage 16** (refresh daemon +
-`session_api`, Decision E) is next, then 15D (failure injection
+metrics** of its signed-off spec), and **stage 16** (both refresh daemons
++ `session_api`, Decision E) is done; **15D** (failure injection
 — deliberately after stage 16, so it can also ask what a client sees when
-a store dies mid-session) and 15E (run the full harness, then write
-chapter 6's 8.2 half). Do not build further 8.2/8.3 work unless explicitly asked — they
+a store dies mid-session; it also inherits stage 16's deferred TTL finding,
+below) is next, then 15E (run the full harness, then write chapter 6's 8.2
+half). Do not build further 8.2/8.3 work unless explicitly asked — they
 are separate modules, not shared code paths with each other or with 8.1.
 
 This file is tracked in git (as of the commit that rescoped it to the
@@ -94,7 +95,7 @@ notes.
 | Use case | Mode | Type | Status |
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — build order done, results evaluated |
-| 8.2 | Streaming | Reactive | In progress — stages 13-14 + 15A/15B/15C/15C.2 done (`eval/8_2` complete, metrics 1-7); stage 16, 15D, 15E remain |
+| 8.2 | Streaming | Reactive | In progress — stages 13-14 + 15A/15B/15C/15C.2 + 16 done (`eval/8_2` complete, metrics 1-7; daemons + `session_api` delivering); 15D, 15E remain |
 | 8.3 | Streaming | Proactive | Not started — auto-tagging reused as live classifier only, no live writes to Neo4j |
 
 8.1 / 8.2 / 8.3 are independent modules: no shared runtime state, no shared
@@ -909,6 +910,86 @@ refined post-run, with no second live run. See
 61 tests in `eval/8_2/tests/` (up from 29), all pure; 180/180 pass
 repo-wide.
 
+### Stage 16 (refresh daemons + `session_api`, Decision E)
+
+Verified working as of 2026-09-06 — 8.2's delivery path, and the closure
+of the persistent-consumer gap stage 12 first flagged. Two components:
+
+- **`platform/session_api/`** — a separate FastAPI service per Decision E,
+  read-only, request/response (never WebSocket), whose **only dependency
+  is Redis**. It computes nothing: `GET /sessions/{id}/recommendations`,
+  `/profile` and a `/sessions/{id}` status endpoint serve what the refresh
+  daemon and stage 13's Flink job already wrote. No Postgres/Milvus/Neo4j,
+  because the rows `recommendation_refresh` stores are already
+  self-contained. 404 deliberately distinguishes "unknown session" from
+  "session exists but has no recommendations yet" — to a client those are
+  completely different situations, and one 404 for both would make the
+  second look like a bug.
+- **Two daemons, not one.** Decision E names only
+  `platform/streaming/refresh_daemon.py`, but running just that produces
+  nothing: `refresh_recommendations()` returns `skip_insufficient_data`
+  below two events in `session:{id}:events`, and only the stages 9-10
+  raw-state consumer writes that key — which had no daemon either. So
+  `platform/streaming/session_consumer_daemon.py` ships alongside it
+  (separate module, separate consumer group, per Decision C's ownership
+  split), sharing only signal handling and logging via
+  `daemon_runtime.py`. **Explicitly approved as an addition to Decision
+  E's literal wording, 2026-09-06.**
+
+**These daemons commit Kafka offsets; nothing before them did.** Every
+pre-stage-16 consumer runs `enable.auto.commit: False` and never commits —
+right for a bounded, throwaway-group-id read where "start from earliest"
+is wanted. A daemon is the opposite: it runs under the canonical group id
+from `config.py` and restarts, and `behavioral-events` is never purged, so
+without commits every restart would re-push all cached events into Redis
+and duplicate rows into the Postgres log. Both daemons commit manually and
+synchronously *after* the write (at-least-once). No existing consumer's
+configuration changed — commits are per group and every older caller uses
+a throwaway id. Measured: first start on the 1,820-message topic drained
+1,780 cacheable events in 7.5s (raw) and 571 refreshes in ~11s (refresh,
+16ms per cold-start refresh), zero errors; both groups then sat at lag 0,
+and a real restart replayed **0 events**.
+
+Two real bugs, both found by running a daemon for the first time.
+`refresh_recommendations()` indexed Postgres integer track ids with a bare
+`int()`, but a behavioral event's `track_id` is a free-form string on an
+`extra="allow"` schema — every consumer before this was scoped to one
+session or one test's payloads, whereas a daemon reads *every* session, and
+the first non-numeric id it met (`"xyz789"`, left on the never-purged topic
+by stage 11's own test) raised `ValueError` and killed the loop. Fixed with
+`recommendation_refresh.as_track_id()` at all three call sites, plus a new
+`skip_unseedable_cold_start` action for a session whose opening track can't
+seed the fallback. That new action exposed a second-order bug:
+`process_one_event()` decided "real work happened" via
+`action != "skip_insufficient_data"`, so any *new* skip would have counted
+as a refresh and spent the debounce budget — now checked by `skip_` prefix.
+Separately, both daemon loops now contain per-event failures (log, count,
+commit past the message, continue) rather than exiting, since a daemon that
+dies on one poison message is not a daemon.
+
+**Deferred finding, handed to 15D**: `session:{id}:events` has a 30-minute
+sliding TTL (stage 9) but `:profile`, `:profile_meta`, `:recs` and
+`:refresh_meta` have **none** — stage 13's `redis.set` and stage 14's
+`_write_recs` set no TTL. So `session_api` can serve recommendations for a
+session whose raw state expired hours ago, and the derived keyspace grows
+without bound. Surfaced rather than patched by explicit decision
+(2026-09-06): fixing it changes stages 13 and 14, and 15D's failure
+injection is the right place to decide what a client should see when
+session state disappears underneath it. `GET /sessions/{id}` reports it as
+`raw_state_expired` with an explanatory note.
+
+`contracts/` deliberately untouched: `contracts/README.md` says the shared
+recommendation response shape lands there once a second independent
+consumer exists, and 8.3 doesn't exist yet. Revisit when 8.3 starts.
+`_session_key()` in `session_state.py` became public `events_key()` in the
+process — `session_api` needs it, and `tests/test_stage10_postgres_events.py`
+was already importing the private name.
+
+17 new tests (8 daemon, 9 API) against the live stack, plus a manual run of
+the real deployment shape — five processes under the canonical group ids,
+simulator-driven, with and without the Flink job. See
+`docs/platform/stage16-session-api.md`. 197/197 pass repo-wide.
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
@@ -935,6 +1016,15 @@ from stage 8's plain `1.19.1`, via `platform/streaming/Dockerfile.flink`).
 This is 8.2's own first consumer of the platform — everything above it in
 this paragraph remains platform-owned plumbing.
 
+As of stage 16, two persistent daemons keep that state current
+(`platform/streaming/session_consumer_daemon.py` for raw state,
+`refresh_daemon.py` for recommendations — the first Kafka consumers in this
+repo to commit offsets, since they are the first that restart), and
+`platform/session_api/` is a third FastAPI service serving
+`session:{id}:recs` and `session:{id}:profile` read-only over Redis alone
+(Decision E). Like the Semantic API and the event ingestion service, all
+three run on the host via uvicorn/python rather than in `docker-compose.yml`.
+
 Also in the stack, used by the platform build order: CLAP,
 Chromaprint/AcousticID, Librosa, FastAPI, Docker Compose. Essentia has no
 footprint anywhere in the repo (not in any requirements.txt, not
@@ -958,7 +1048,7 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (**180 tests**, measured: 47 across platform stages
+Run the full test suite (**197 tests**, measured: 47 across platform stages
 2-4+7-11 + 8.1 stages 5-6 (includes Stage 15A's `related_by_genre`
 ordering regression test), 20 for `eval/8_1` (18 pure metric functions + 2
 smoke), 15 for stage 12's event simulator, 2 for Decision C's consumer
@@ -967,9 +1057,10 @@ stage 13's session profile centroid (Stage 15C added the
 `profile_meta_key` cross-check), 13 for stage 14's recommendation refresh
 loop, 6 for stage 15B's simulator jitter/late-event audit, 61 for
 `eval/8_2` (29 from stage 15C's harness plus 32 added by Stage 15C.2 for
-metrics 4-7) — `pytest.ini`'s `testpaths` includes `eval`
-alongside `tests`/`usecases`. The enumeration sums to exactly 180 as of
-Stage 15C.2: the older 2-test drift noted here since Stage 15A.2 was the
+metrics 4-7), and 17 for stage 16's daemons and session API —
+`pytest.ini`'s `testpaths` includes `eval` alongside `tests`/`usecases`.
+The enumeration sums to exactly 197 as of stage 16 (47+20+15+2+16+13+6+61+17):
+the older 2-test drift noted here since Stage 15A.2 was the
 `eval/8_1` smoke tests going uncounted, reconciled 2026-09-06. Note that
 test files under `eval/` must be uniquely named across packages — `8_1`
 and `8_2` aren't valid Python identifiers, so same-named files silently
@@ -1008,6 +1099,31 @@ Run the stage 11 event ingestion service standalone (same
 platform/enrichment/.venv/bin/python -m uvicorn event_ingestion.main:app \
     --app-dir platform --port 8020
 ```
+
+Run the stage 16 delivery path — the two consumer daemons and the session
+API. The daemons use the canonical consumer group ids from
+`streaming/config.py` by default; the refresh daemon needs the Semantic API
+up (both refresh paths call `context_builder` over HTTP), and both need the
+event ingestion service to have something to consume. A daemon's *first*
+start on a topic it has never committed against replays the whole retained
+backlog once (measured: ~7.5s for 1,780 events on the raw side); every
+restart after that resumes from its committed offset:
+
+```bash
+platform/enrichment/.venv/bin/python -m uvicorn session_api.main:app \
+    --app-dir platform --port 8030
+PYTHONPATH=platform platform/enrichment/.venv/bin/python \
+    -m streaming.session_consumer_daemon
+PYTHONPATH=platform platform/enrichment/.venv/bin/python \
+    -m streaming.refresh_daemon --semantic-api-url http://127.0.0.1:8000
+# then, for any session the daemons have seen:
+curl -s localhost:8030/sessions/<session_id>
+curl -s localhost:8030/sessions/<session_id>/recommendations
+curl -s localhost:8030/sessions/<session_id>/profile
+```
+
+Both daemons are needed: the refresh daemon reads `session:{id}:events` to
+decide what to refresh, and only the raw-state daemon writes that key.
 
 Run the stage 12 event simulator (needs the event ingestion service above
 running):

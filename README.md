@@ -116,7 +116,20 @@ cd ../.. && platform/semantic_api/.venv/bin/python -m uvicorn semantic_api.main:
 # Stage 5 (8.1) — Recommender Engine (with the API running)
 cd usecases/8_1_batch_reactive/recommender && python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt
 cd ../../.. && usecases/8_1_batch_reactive/recommender/.venv/bin/python usecases/8_1_batch_reactive/recommender/recommend.py
+
+# Stage 16 (8.2 delivery) — event ingestion, both consumer daemons, session API.
+# Needs the Semantic API above running; the refresh daemon calls it over HTTP.
+platform/enrichment/.venv/bin/python -m uvicorn event_ingestion.main:app --app-dir platform --port 8020
+platform/enrichment/.venv/bin/python -m uvicorn session_api.main:app --app-dir platform --port 8030
+PYTHONPATH=platform platform/enrichment/.venv/bin/python -m streaming.session_consumer_daemon
+PYTHONPATH=platform platform/enrichment/.venv/bin/python -m streaming.refresh_daemon \
+    --semantic-api-url http://127.0.0.1:8010
+curl -s localhost:8030/sessions/<session_id>/recommendations
 ```
+
+**Both daemons are required** for 8.2 to produce anything: the refresh daemon
+reads `session:{id}:events` to decide what to refresh, and only the raw-state
+daemon writes that key. See `docs/platform/stage16-session-api.md`.
 
 `platform/enrichment/install.sh` and `platform/semantic_api/install.sh` exist
 (rather than a plain `pip install -r requirements.txt`) because of real

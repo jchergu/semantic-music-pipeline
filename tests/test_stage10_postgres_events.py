@@ -19,7 +19,7 @@ from streaming.session_consumer import (  # noqa: E402
     consume_and_cache_one,
     rebuild_session_state,
 )
-from streaming.session_state import _session_key, get_session_events, profile_key  # noqa: E402
+from streaming.session_state import events_key, get_session_events, profile_key  # noqa: E402
 from streaming.session_store import apply_schema, get_events, persist_event  # noqa: E402
 from streaming.topics import create_topics  # noqa: E402
 
@@ -83,15 +83,15 @@ def test_consume_and_cache_persists_to_postgres(pg_conn):
 
 def test_events_and_profile_namespaces_do_not_collide():
     session_id = _fresh_session_id()
-    events_key = _session_key(session_id)
+    events = events_key(session_id)
     profile = profile_key(session_id)
 
-    assert events_key != profile
-    assert events_key.endswith(":events")
+    assert events != profile
+    assert events.endswith(":events")
     assert profile.endswith(":profile")
     # same session_id prefix, genuinely different keys -- not just different
     # suffixes on an otherwise-colliding string
-    assert events_key.rsplit(":", 1)[0] == profile.rsplit(":", 1)[0]
+    assert events.rsplit(":", 1)[0] == profile.rsplit(":", 1)[0]
 
 
 def test_rebuild_session_state_recovers_from_postgres_after_redis_flush(pg_conn):
@@ -117,7 +117,7 @@ def test_rebuild_session_state_recovers_from_postgres_after_redis_flush(pg_conn)
 
     # flush Redis mid-session
     redis_client = redis_lib.Redis(host=REDIS_HOST, port=int(REDIS_PORT), decode_responses=True)
-    redis_client.delete(_session_key(session_id))
+    redis_client.delete(events_key(session_id))
     assert get_session_events(session_id) == []
 
     rebuilt = rebuild_session_state(session_id, pg_conn)
