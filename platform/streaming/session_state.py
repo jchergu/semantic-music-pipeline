@@ -32,6 +32,19 @@ def profile_key(session_id: str) -> str:
     return f"session:{session_id}:profile"
 
 
+def profile_meta_key(session_id: str) -> str:
+    """Sibling of profile_key(): the wall-clock provenance of the vector that
+    profile_key() holds (hash fields: computed_at, n_events), written by the
+    same stage 13 Flink job. Deliberately a SEPARATE key rather than extra
+    fields inside session:{id}:profile -- recommendation_refresh.py
+    json.loads()es that value and assumes a flat list of floats, so anything
+    added there would break the warm path's parse. Added for stage 15C
+    (eval/8_2 metric 2, H2: profile compute lag); same
+    canonical-definition-here, duplicated-string-in-the-job arrangement as
+    profile_key()."""
+    return f"session:{session_id}:profile_meta"
+
+
 def recs_key(session_id: str) -> str:
     """The session's current top-10 recommendations (JSON list), DERIVED
     state written by stage 14's recommendation_refresh.py, read by the

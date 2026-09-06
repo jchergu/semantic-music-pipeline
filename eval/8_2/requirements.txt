@@ -1,0 +1,10 @@
+# Documented for reference, matching every other component's convention --
+# platform/enrichment/.venv already has all of these (see CLAUDE.md's
+# Commands section). The harness additionally drives platform/simulator,
+# platform/streaming and platform/semantic_api in-process, so their own
+# requirements (confluent-kafka, redis, pyyaml) apply too.
+psycopg2-binary==2.9.9
+pymilvus==2.4.4
+redis==5.0.8
+httpx==0.27.2
+matplotlib==3.9.2

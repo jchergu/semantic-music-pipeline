@@ -3,10 +3,13 @@
 Master's thesis (Bologna). Kappa-style streaming pipeline, 3 layers, with a
 Recommender Engine as the Layer 3 demo for the first use case. **8.1
 (batch, reactive) is complete** — see Build order below. **8.2 (streaming,
-reactive) is in progress** — stage 13 (session profile centroid) is done,
-explicitly requested; do not build further 8.2/8.3 work unless explicitly
-asked — they are separate modules, not shared code paths with each other
-or with 8.1.
+reactive) is in progress** — stages 13-14 and 15A/15B/15C are done
+(session profile centroid, recommendation refresh loop, bug closure,
+simulator late-event support, and the `eval/8_2` harness with metrics
+1/2/3); **Stage 15C.2** (metrics 4/5/6/7) is next, then 15D (failure
+injection) and 15E (run the full harness, then write chapter 6's 8.2
+half). Do not build further 8.2/8.3 work unless explicitly asked — they
+are separate modules, not shared code paths with each other or with 8.1.
 
 This file is tracked in git (as of the commit that rescoped it to the
 whole project) and is in scope for code review like any other file in the
@@ -67,7 +70,7 @@ notes.
 | Use case | Mode | Type | Status |
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — build order done, results evaluated |
-| 8.2 | Streaming | Reactive | In progress — stages 13-14 done (session profile centroid, recommendation refresh) |
+| 8.2 | Streaming | Reactive | In progress — stages 13-14 + 15A/15B/15C done; 15C.2 (eval metrics 4-7), 15D, 15E remain |
 | 8.3 | Streaming | Proactive | Not started — auto-tagging reused as live classifier only, no live writes to Neo4j |
 
 8.1 / 8.2 / 8.3 are independent modules: no shared runtime state, no shared
@@ -437,7 +440,7 @@ confirmed in Postgres: 18 events landed under the same deterministic
 `sim-42-0` session_id, every one of the 9 distinct events appearing
 exactly twice (79/79 total tests across the whole repo).
 
-### 8.2 (streaming, reactive) build order (stages 13-14, in progress)
+### 8.2 (streaming, reactive) build order (stages 13-15, in progress)
 
 Unlike stages 7-12 above (platform prerequisites *for* 8.2, not 8.2
 itself — see the header of this file), stage 13 is 8.2's own first piece
@@ -691,6 +694,90 @@ tests (5 pure on `apply_jitter`, 1 live proving genuine Kafka
 delivery-order divergence from event_time order beyond the 5s bound).
 118/118 tests pass repo-wide.
 
+### Stage 15C (eval/8_2 harness core + metrics 1/2/3)
+
+Verified working as of 2026-09-06 — `eval/8_2/`, built to the metric spec
+signed off 2026-09-03 (`eval/8_2/METRICS.md`). Scoped by explicit decision
+to the harness plus **metrics 1 (reactivity), 2 (latency per hop) and 3
+(cold-start → warm transition)**, all three off one pivot scenario;
+metrics 4/5/6/7 (coherence, coverage, determinism, late-event) are **Stage
+15C.2** and reuse this infrastructure. `results.json` carries explicit
+`pending` markers for them rather than omitting the keys.
+
+Unlike `eval/8_1` (passive: queries the frozen 4110-row table, never
+re-runs anything), this is an **active harness** — per scenario it runs a
+paced event poster, the real stages 9-10 raw-state consumer, a refresh
+driver loop over `process_one_event()`, and a profile-meta poller
+concurrently, and starts/stops the Semantic API, the event ingestion
+service and the Flink job itself (`eval/8_2/orchestration.py`), so
+`python -m eval.8_2.run` is one command. The refresh driver loop is
+harness-owned, test-shaped code — explicitly NOT a step toward a
+persistent refresh daemon in `platform/streaming/`, which remains the
+open gap stage 12 first flagged.
+
+Two additive platform edits, both sanctioned by the spec:
+`flink_session_profile_job.py` gained one `hset` writing
+`session:{id}:profile_meta` (`computed_at`/`n_events`) — a *sibling* key,
+never fields inside `session:{id}:profile`, which
+`recommendation_refresh.py` `json.loads`es as a flat vector;
+`session_state.py::profile_meta_key()` is its canonical definition, held
+to the same cross-check test as `profile_key()`. And
+`process_one_event()` now returns `refresh_compute_seconds`, timed
+*inside* the function around the `should_refresh()` →
+`refresh_recommendations()` block, since timing it from outside would fold
+in the up-to-10s Kafka poll wait. The debounced no-op branch is untouched.
+
+Three things the spec got wrong or omitted, all corrected in `METRICS.md`
+itself rather than silently diverged from: its section 0 process list was
+missing the **Semantic API** (both refresh paths call `context_builder`
+over HTTP) and the **stages 9-10 raw-state consumer** (without it
+`session:{id}:events` stays empty and *no refresh ever fires* — stage 14's
+live test hides this by calling `record_event()` directly); and its
+"Resolved before handoff" claim that the K sweep isn't nested is false —
+`random.Random(seed).sample()` draws sequentially, so K=3 ⊂ K=5 ⊂ K=8 ⊂
+K=12. The nesting is arguably better for metric 1 (only pre-pivot length
+varies) but it means the K runs aren't independent samples, and metric 3's
+four sessions share one cold-start seed track, so its four handoff numbers
+are **one observation repeated** — reported in the data as
+`reactivity.json::pre_pivot_sets_nested` and
+`results.json::cold_warm_transition.independent_observations`.
+
+Because Flink's watermark is stream-wide rather than per key, scenarios
+run back to back need scheduled event-time anchors
+(`metrics.anchor_schedule()`): strictly increasing with a ≥5 min gap, and
+every anchor a whole multiple of 300s from a fixed epoch so
+`SlidingEventTimeWindows` boundaries fall identically across runs (300s is
+the window size and a multiple of the 30s slide). The harness also cancels
+any pre-existing job and submits a fresh one per invocation.
+
+Two real bugs found by running it. Session ids must be scoped per
+invocation (`--run-id`): `behavioral-events` is never purged and both
+consumer groups start from `earliest`, so a re-used session id made the
+sweep replay the pre-flight's 22 stale events and report 0 post-pivot
+refreshes for K=3. And reconciling the test count (expected 148, measured
+146) exposed a silent pytest collision — `eval/8_2/tests/test_metrics.py`
+and `test_run_smoke.py` resolved to the same modules as `eval/8_1`'s
+same-named files (the package dirs `8_1`/`8_2` aren't valid identifiers),
+so the suite collected eval/8_1's tests twice and none of eval/8_2's;
+fixed by the `test_82_*` prefix, and any future `eval/8_3/tests/` needs
+the same care.
+
+Results (speed 60, seed 42, warm-path precondition satisfied at every K —
+nothing excluded): **adaptation is immediate** — every K crosses the
+pre-registered Jaccard < 0.3 threshold at its *first* post-pivot refresh,
+1-2 events after the pivot, and stays at ~0 after;
+`events_to_adaptation` (4/5/7/10 for K=3/5/8/12) rises with K only because
+more pre-pivot refreshes precede the crossing. Latency: H1 ingest POST
+p50 8.4 ms, H2 profile compute lag p50 2.56 s, H3 refresh compute p50
+38.9 ms — H2 dominates by two orders of magnitude, the only hop waiting on
+a windowed job. `events_behind_each_refresh` came back p50 = p95 = max =
+3, so the debounce fired on its *count* branch essentially every time at
+this speed, not its 5s interval branch. All four sessions reached the warm
+path after one cold-start refresh, ~5.3-5.5 s in. See
+`docs/platform/stage15c-eval-8_2-harness.md` and `eval/8_2/README.md`; a
+`--from-records` flag recomputes every metric from saved raw records with
+no live run. 148/148 tests pass repo-wide.
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
@@ -740,17 +827,21 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (116 tests: 47 across platform stages 2-4+7-11 +
-8.1 stages 5-6 (includes Stage 15A's `related_by_genre` ordering
-regression test), 18 for `eval/8_1`'s pure metric functions, 15 for stage
-12's event simulator, 2 for Decision C's consumer ownership boundary —
-see `tests/test_stage10_postgres_events.py` — 15 for stage 13's session
-profile centroid, 13 for stage 14's recommendation refresh loop, 6 for
-stage 15B's simulator jitter/late-event audit — `pytest.ini`'s
-`testpaths` includes `eval` alongside `tests`/`usecases`; the actual
-repo-wide count measured by running the suite is 118, 2 higher than this
-enumeration sums to — a pre-existing drift from Stage 15A.2 predating
-this stage, not reconciled here)
+Run the full test suite (**148 tests**, measured: 47 across platform stages
+2-4+7-11 + 8.1 stages 5-6 (includes Stage 15A's `related_by_genre`
+ordering regression test), 20 for `eval/8_1` (18 pure metric functions + 2
+smoke), 15 for stage 12's event simulator, 2 for Decision C's consumer
+ownership boundary — see `tests/test_stage10_postgres_events.py` — 16 for
+stage 13's session profile centroid (Stage 15C added the
+`profile_meta_key` cross-check), 13 for stage 14's recommendation refresh
+loop, 6 for stage 15B's simulator jitter/late-event audit, 29 for stage
+15C's `eval/8_2` harness — `pytest.ini`'s `testpaths` includes `eval`
+alongside `tests`/`usecases`. The enumeration sums to exactly 148 as of
+Stage 15C: the older 2-test drift noted here since Stage 15A.2 was the
+`eval/8_1` smoke tests going uncounted, reconciled 2026-09-06. Note that
+test files under `eval/` must be uniquely named across packages — `8_1`
+and `8_2` aren't valid Python identifiers, so same-named files silently
+collide, which cost 2 tests until Stage 15C caught it)
 against the live stack — uses `platform/enrichment/.venv`
 because it already carries psycopg2/httpx/matplotlib/pytest (stage 8's
 Flink and stage 10's Postgres tests need nothing beyond that venv's
@@ -822,6 +913,18 @@ Postgres/Milvus/Neo4j directly, no Semantic API needed):
 
 ```bash
 platform/enrichment/.venv/bin/python -m eval.8_1.run
+```
+
+Run `eval/8_2`'s harness (stage 15C). Needs the stack up and the track
+embeddings preloaded into Redis; it starts the Semantic API, the event
+ingestion service, the Flink job and both consumer loops itself, and
+cancels/tears them down afterward. ~5 minutes for the default K sweep:
+
+```bash
+PYTHONPATH=platform platform/enrichment/.venv/bin/python platform/streaming/preload_embeddings_to_redis.py
+platform/enrichment/.venv/bin/python -m eval.8_2.run
+# recompute every metric from a previous run's records, no live run:
+platform/enrichment/.venv/bin/python -m eval.8_2.run --from-records eval/8_2/raw_scenario_records.json
 ```
 
 No lint command exists in this repo yet — don't invent one; add it here

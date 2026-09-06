@@ -130,3 +130,13 @@ def test_compute_centroid_decay_half_life_is_three_events():
 def test_flink_job_profile_key_format_matches_session_state():
     assert 'f"session:{key}:profile"' in FLINK_JOB_SRC
     assert session_state.profile_key("key") == "session:key:profile"
+
+
+def test_flink_job_profile_meta_key_format_matches_session_state():
+    """Stage 15C's H2 addition, held to the same cross-check as the profile
+    key above -- and it must stay a separate key, not a field merged into
+    session:{id}:profile, which recommendation_refresh.py parses as a flat
+    vector."""
+    assert 'f"session:{key}:profile_meta"' in FLINK_JOB_SRC
+    assert session_state.profile_meta_key("key") == "session:key:profile_meta"
+    assert session_state.profile_meta_key("key") != session_state.profile_key("key")

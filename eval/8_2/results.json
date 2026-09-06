@@ -1,0 +1,60 @@
+{
+  "cold_warm_transition": {
+    "cold_start_seed_track_per_session": {
+      "eval82-pivot-K12-20260906T083824": 420,
+      "eval82-pivot-K3-20260906T083824": 420,
+      "eval82-pivot-K5-20260906T083824": 420,
+      "eval82-pivot-K8-20260906T083824": 420
+    },
+    "handoff_jaccard_mean": 0.8181818181818182,
+    "independence_caveat": "4 sessions but only 1 distinct cold-start seed track(s): random.Random(seed).sample() returns prefix-nested draws for increasing K, so every K in the sweep opens on the same tracks and the handoff numbers below are effectively ONE observation repeated, not several independent ones. Do not read the mean as an average over independent runs.",
+    "independent_observations": 1,
+    "note": "The cold->warm handoff is not gated by an event count: it is a race between two independent consumer groups on the same topic (Flink's, which writes session:{id}:profile, and the refresh loop's, which reads it). Reported as a race, per METRICS.md section 4.",
+    "per_session": {
+      "eval82-pivot-K12-20260906T083824": {
+        "cold_start_refresh_count": 1,
+        "first_warm_refresh_index": 2,
+        "handoff_jaccard": 0.8181818181818182,
+        "preceded_by_cold_start": true,
+        "reached_warm_path": true,
+        "seconds_to_first_warm": 5.325180292129517
+      },
+      "eval82-pivot-K3-20260906T083824": {
+        "cold_start_refresh_count": 1,
+        "first_warm_refresh_index": 2,
+        "handoff_jaccard": 0.8181818181818182,
+        "preceded_by_cold_start": true,
+        "reached_warm_path": true,
+        "seconds_to_first_warm": 5.482961177825928
+      },
+      "eval82-pivot-K5-20260906T083824": {
+        "cold_start_refresh_count": 1,
+        "first_warm_refresh_index": 2,
+        "handoff_jaccard": 0.8181818181818182,
+        "preceded_by_cold_start": true,
+        "reached_warm_path": true,
+        "seconds_to_first_warm": 5.3287272453308105
+      },
+      "eval82-pivot-K8-20260906T083824": {
+        "cold_start_refresh_count": 1,
+        "first_warm_refresh_index": 2,
+        "handoff_jaccard": 0.8181818181818182,
+        "preceded_by_cold_start": true,
+        "reached_warm_path": true,
+        "seconds_to_first_warm": 5.349709510803223
+      }
+    },
+    "sessions_measured": 4,
+    "sessions_reaching_warm_path": 4
+  },
+  "determinism_check": {
+    "pending": "15C.2 (METRICS.md section 7)"
+  },
+  "generated_for": "8.2 (streaming, reactive)",
+  "late_event_effect": {
+    "pending": "15C.2 (METRICS.md section 8)"
+  },
+  "recomputed_from_records": "eval/8_2/raw_scenario_records.json",
+  "run_id": "20260906T083824",
+  "stage": "15C"
+}

@@ -268,7 +268,15 @@ def process_one_event(
             now = now_fn()
 
             if should_refresh(last_ts, events_since, now):
+                # Timed here, INSIDE this function, not by the caller: the
+                # consumer.poll(0.5) loop above can block for up to `timeout`
+                # waiting for a message, so timing this call from outside
+                # would report "Kafka wait + refresh compute" as if it were
+                # refresh compute. Added for eval/8_2's H3 latency hop
+                # (stage 15C); nothing else about this branch changes.
+                refresh_started = time.monotonic()
                 result = refresh_recommendations(session_id, redis_client, pg_conn, milvus_collection, http_client, current_event=event)
+                refresh_compute_seconds = time.monotonic() - refresh_started
                 did_real_work = result["action"] != "skip_insufficient_data"
                 if did_real_work:
                     # Debounce budget is spent protecting the expensive
@@ -278,7 +286,13 @@ def process_one_event(
                     # next event re-evaluates should_refresh() against the
                     # same accumulated state instead of a falsely-reset one.
                     redis_client.hset(meta_key, mapping={"last_refresh_ts": now, "events_since_refresh": 0})
-                result.update({"session_id": session_id, "refreshed": did_real_work})
+                result.update(
+                    {
+                        "session_id": session_id,
+                        "refreshed": did_real_work,
+                        "refresh_compute_seconds": refresh_compute_seconds,
+                    }
+                )
                 return result
             return {"session_id": session_id, "refreshed": False, "events_since_refresh": events_since}
         return None

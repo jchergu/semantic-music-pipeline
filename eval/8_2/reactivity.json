@@ -1,0 +1,316 @@
+{
+  "adaptation_threshold": 0.3,
+  "k_sweep": [
+    3,
+    5,
+    8,
+    12
+  ],
+  "metric": "1 -- reactivity after a hard genre pivot",
+  "nesting_note": "METRICS.md's 'Resolved before handoff' section states that each K independently reseeds sample() so the pre-pivot track sets are NOT nested. Measured here, they are: random.Random(seed).sample(pool, k) draws sequentially from the same seeded stream, so a larger k extends the smaller k's draw. This is arguably the better design for the metric (only pre-pivot LENGTH varies, the opening sequence is held fixed) but the spec's stated reason for accepting the sweep was factually wrong, and the K runs are therefore not independent samples.",
+  "per_k": [
+    {
+      "actions": [
+        "cold_start",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm"
+      ],
+      "curve": [
+        {
+          "event_index": 8,
+          "events_since_pivot": 2,
+          "jaccard": 0.17647058823529413,
+          "refresh_index": 4
+        },
+        {
+          "event_index": 11,
+          "events_since_pivot": 5,
+          "jaccard": 0.0,
+          "refresh_index": 5
+        },
+        {
+          "event_index": 14,
+          "events_since_pivot": 8,
+          "jaccard": 0.0,
+          "refresh_index": 6
+        },
+        {
+          "event_index": 17,
+          "events_since_pivot": 11,
+          "jaccard": 0.0,
+          "refresh_index": 7
+        },
+        {
+          "event_index": 20,
+          "events_since_pivot": 14,
+          "jaccard": 0.0,
+          "refresh_index": 8
+        }
+      ],
+      "events_to_adaptation": 4,
+      "excluded": false,
+      "exclusion_reasons": [],
+      "k": 3,
+      "post_pivot_refresh_count": 5,
+      "pre_pivot_refresh_count": 3,
+      "pre_pivot_set": [
+        "129",
+        "30",
+        "301",
+        "305",
+        "315",
+        "319",
+        "388",
+        "440",
+        "452",
+        "93"
+      ],
+      "session_id": "eval82-pivot-K3-20260906T083824"
+    },
+    {
+      "actions": [
+        "cold_start",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm"
+      ],
+      "curve": [
+        {
+          "event_index": 11,
+          "events_since_pivot": 1,
+          "jaccard": 0.17647058823529413,
+          "refresh_index": 5
+        },
+        {
+          "event_index": 14,
+          "events_since_pivot": 4,
+          "jaccard": 0.0,
+          "refresh_index": 6
+        },
+        {
+          "event_index": 17,
+          "events_since_pivot": 7,
+          "jaccard": 0.0,
+          "refresh_index": 7
+        },
+        {
+          "event_index": 20,
+          "events_since_pivot": 10,
+          "jaccard": 0.0,
+          "refresh_index": 8
+        },
+        {
+          "event_index": 23,
+          "events_since_pivot": 13,
+          "jaccard": 0.0,
+          "refresh_index": 9
+        }
+      ],
+      "events_to_adaptation": 5,
+      "excluded": false,
+      "exclusion_reasons": [],
+      "k": 5,
+      "post_pivot_refresh_count": 5,
+      "pre_pivot_refresh_count": 4,
+      "pre_pivot_set": [
+        "129",
+        "148",
+        "191",
+        "196",
+        "256",
+        "30",
+        "305",
+        "32",
+        "397",
+        "81"
+      ],
+      "session_id": "eval82-pivot-K5-20260906T083824"
+    },
+    {
+      "actions": [
+        "cold_start",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm"
+      ],
+      "curve": [
+        {
+          "event_index": 17,
+          "events_since_pivot": 1,
+          "jaccard": 0.05263157894736842,
+          "refresh_index": 7
+        },
+        {
+          "event_index": 20,
+          "events_since_pivot": 4,
+          "jaccard": 0.25,
+          "refresh_index": 8
+        },
+        {
+          "event_index": 23,
+          "events_since_pivot": 7,
+          "jaccard": 0.0,
+          "refresh_index": 9
+        },
+        {
+          "event_index": 26,
+          "events_since_pivot": 10,
+          "jaccard": 0.05263157894736842,
+          "refresh_index": 10
+        },
+        {
+          "event_index": 29,
+          "events_since_pivot": 13,
+          "jaccard": 0.0,
+          "refresh_index": 11
+        }
+      ],
+      "events_to_adaptation": 7,
+      "excluded": false,
+      "exclusion_reasons": [],
+      "k": 8,
+      "post_pivot_refresh_count": 5,
+      "pre_pivot_refresh_count": 6,
+      "pre_pivot_set": [
+        "115",
+        "134",
+        "157",
+        "196",
+        "226",
+        "302",
+        "306",
+        "311",
+        "348",
+        "416"
+      ],
+      "session_id": "eval82-pivot-K8-20260906T083824"
+    },
+    {
+      "actions": [
+        "cold_start",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm",
+        "warm"
+      ],
+      "curve": [
+        {
+          "event_index": 26,
+          "events_since_pivot": 2,
+          "jaccard": 0.05263157894736842,
+          "refresh_index": 10
+        },
+        {
+          "event_index": 29,
+          "events_since_pivot": 5,
+          "jaccard": 0.0,
+          "refresh_index": 11
+        },
+        {
+          "event_index": 32,
+          "events_since_pivot": 8,
+          "jaccard": 0.0,
+          "refresh_index": 12
+        },
+        {
+          "event_index": 35,
+          "events_since_pivot": 11,
+          "jaccard": 0.0,
+          "refresh_index": 13
+        },
+        {
+          "event_index": 37,
+          "events_since_pivot": 13,
+          "jaccard": 0.1111111111111111,
+          "refresh_index": 14
+        }
+      ],
+      "events_to_adaptation": 10,
+      "excluded": false,
+      "exclusion_reasons": [],
+      "k": 12,
+      "post_pivot_refresh_count": 5,
+      "pre_pivot_refresh_count": 9,
+      "pre_pivot_set": [
+        "119",
+        "149",
+        "164",
+        "320",
+        "326",
+        "452",
+        "456",
+        "465",
+        "472",
+        "474"
+      ],
+      "session_id": "eval82-pivot-K12-20260906T083824"
+    }
+  ],
+  "pre_pivot_sets_nested": true,
+  "pre_pivot_tracks_per_k": {
+    "3": [
+      420,
+      97,
+      83
+    ],
+    "5": [
+      420,
+      97,
+      83,
+      440,
+      128
+    ],
+    "8": [
+      420,
+      97,
+      83,
+      440,
+      128,
+      117,
+      397,
+      101
+    ],
+    "12": [
+      420,
+      97,
+      83,
+      440,
+      128,
+      117,
+      397,
+      101,
+      191,
+      478,
+      499,
+      196
+    ]
+  },
+  "run_id": "20260906T083824",
+  "scenario": "chillout(K) -> rock(8)"
+}

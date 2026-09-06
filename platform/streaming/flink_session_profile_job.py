@@ -31,6 +31,7 @@ Event weights:
     play                 +0.2
 """
 import json
+import time
 
 from pyflink.common import Duration, Types
 from pyflink.common.serialization import SimpleStringSchema
@@ -126,6 +127,16 @@ class SessionProfileWindow(ProcessWindowFunction):
         if weight_total > 0:
             centroid = [v / weight_total for v in weighted_sum]
             self._redis.set(f"session:{key}:profile", json.dumps(centroid))
+            # Provenance for eval/8_2's H2 latency hop (stage 15C): when this
+            # window's centroid was computed, in the harness's own wall-clock
+            # frame. A SIBLING key, never a field inside :profile above --
+            # recommendation_refresh.py json.loads()es that value as a flat
+            # vector (session_state.py::profile_meta_key() is the canonical
+            # definition of this key's name).
+            self._redis.hset(
+                f"session:{key}:profile_meta",
+                mapping={"computed_at": repr(time.time()), "n_events": n},
+            )
             yield f"{key}: {n} events in window, weight_total={weight_total:.3f}, profile written"
         else:
             yield f"{key}: {n} events in window, weight_total=0, no profile written"

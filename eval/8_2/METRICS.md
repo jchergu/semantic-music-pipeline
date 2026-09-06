@@ -1,7 +1,12 @@
 # eval/8_2 Metric Spec — SIGNED OFF
 
 Status: reviewed and signed off by the thesis author (Jacopo) on
-2026-09-03. All open items from the draft (pivot genre pairing, K-sweep
+2026-09-03. **Amended 2026-09-06** during Stage 15C's build, in three
+places, each marked inline: section 0's process list was missing two hard
+blockers (the Semantic API and the raw-state consumer); the "Resolved
+before handoff" claim that the K sweep isn't nested was wrong; and metrics
+1/2/3 are now built, with 4/5/6/7 deferred to Stage 15C.2. Amendments
+record what was found, they do not relax any definition. All open items from the draft (pivot genre pairing, K-sweep
 values, Metric 2's H3 latency instrumentation) are resolved — see
 "Resolved before handoff" below. Ready for Stage 15C's build session.
 Every definition here is something the author defends in the viva — Code
@@ -25,14 +30,37 @@ plays out. This is a different kind of code from `eval/8_1` and the
 README should say so up front, so nobody opens this package expecting
 "just queries Postgres."
 
+**Correction, found while building Stage 15C (2026-09-06)**: the list below
+had three entries and needs five. Two processes were missing, both hard
+blockers rather than omissions of detail — the spec as signed off would not
+have produced a single refresh. They are numbered 1a and 3a below, marked so
+the diff against the signed-off version stays visible.
+
 Concretely, for every scenario run the harness must have running,
 simultaneously:
 
 1. `platform/event_ingestion` (HTTP, already exists — start once per
    harness invocation, same as the stage 12/13 manual runbooks).
+
+1a. **The Semantic API** (`platform/semantic_api`). Missing from the
+   signed-off list. Both branches of `refresh_recommendations()` call
+   `context_builder.build_context(http_client, ...)`, which is pure HTTP
+   against the stage 4 API — the cold-start path and the warm path's
+   genre-sibling/same-artist re-rank both go through it.
 2. The unmodified Stage 13 Flink job, submitted once per harness
    invocation (same submission sequence as `stage13-flink-session-job.md`
    / the Stage 15B manual verification).
+3a. **The stages 9-10 raw-state consumer**
+   (`session_consumer.consume_and_cache_many()`). Missing from the
+   signed-off list, and the more serious of the two omissions:
+   `refresh_recommendations()` reads `get_session_events()` and returns
+   `skip_insufficient_data` below `MIN_RAW_EVENTS_FOR_WARM_PATH` (2), so
+   with nothing populating `session:{id}:events` **no refresh ever fires at
+   all**. Stage 14's own live test papers over this by calling
+   `record_event()` directly rather than running the consumer; the harness
+   runs the real consumer in a thread, which is also what a real deployment
+   would do.
+
 3. **A local driver loop over `recommendation_refresh.process_one_event()`**
    — this does not run as a persistent daemon anywhere in the platform
    today (stage 14's own tests drive it the same way: create one
@@ -304,13 +332,27 @@ cross-referencing `eval/8_1`-style — actually cross-referencing Stage
 - **Pivot genre pairing** (`chillout`→`rock`): checked against the live
   catalog's genre counts and the roadmap's "chill → high-energy" framing
   — no issue, kept as-is.
-- **K-sweep values** `[3, 5, 8, 12]`: kept as-is. Each K independently
+- **K-sweep values** `[3, 5, 8, 12]`: kept as-is. ~~Each K independently
   reseeds `sample()`, so pre-pivot track sets aren't nested across K
-  values (K=5's tracks aren't K=3's plus two more) — reviewed and judged
-  not to matter for what the metric measures (adaptation speed after a
-  pivot of length K, each K run standing alone). Still reconsider if the
-  warm-path precondition ends up excluding more of these than expected
-  once actually run.
+  values (K=5's tracks aren't K=3's plus two more)~~ — **this was wrong,
+  corrected 2026-09-06 during Stage 15C's build.** Measured against the
+  live catalog, the sets *are* nested: K=3 ⊂ K=5 ⊂ K=8 ⊂ K=12 (all four
+  open on tracks 420, 97, 83), because `random.Random(seed).sample(pool,
+  k)` draws sequentially from one seeded stream, so a larger `k` extends
+  the smaller `k`'s draw rather than replacing it. The values still stand
+  — nesting is arguably the *better* design here, since only pre-pivot
+  length varies while the opening sequence is held fixed — but the stated
+  reason for accepting them was factually wrong, and the consequence is
+  real: the K runs are **not independent samples**, and metric 3's
+  per-session handoff numbers (which all share one cold-start seed track)
+  are one observation repeated, not four. `reactivity.json` reports
+  `pre_pivot_sets_nested` and `results.json` reports
+  `cold_warm_transition.independent_observations` so this is visible in the
+  data, not only here.
+
+  The warm-path precondition, the other thing this entry said to
+  reconsider after a real run, excluded nothing: it was satisfied at every
+  K.
 - **Metric 2 H3 instrumentation**: the original draft claimed H3 needed
   no edit to `recommendation_refresh.py`. Wrong — see §3's H3 bullet,
   now corrected to specify the `refresh_compute_seconds` additive edit.

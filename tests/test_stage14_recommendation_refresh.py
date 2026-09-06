@@ -200,6 +200,10 @@ def test_recs_visibly_change_after_a_skip_and_stay_stable_on_a_debounced_noop(
     result_2 = process_one_event(group_id, redis_client, live_pg_conn, live_milvus_collection, live_http_client, expected_session_id=session_id, consumer=consumer)
     assert result_2["refreshed"] is True
     assert result_2["action"] == "cold_start"
+    # Stage 15C (eval/8_2 metric 2, H3): a real refresh reports how long the
+    # refresh itself took, timed inside process_one_event() so the up-to-10s
+    # Kafka poll wait isn't folded into it.
+    assert result_2["refresh_compute_seconds"] > 0
     recs_after_skip = json.loads(redis_client.get(recs_key(session_id)))
     assert len(recs_after_skip) > 0
 
@@ -208,6 +212,9 @@ def test_recs_visibly_change_after_a_skip_and_stay_stable_on_a_debounced_noop(
     _post_and_record(all_events[2])
     result_3 = process_one_event(group_id, redis_client, live_pg_conn, live_milvus_collection, live_http_client, expected_session_id=session_id, consumer=consumer)
     assert result_3["refreshed"] is False
+    # No refresh ran, so there is no compute time to report -- the debounced
+    # branch stays exactly as it was before stage 15C's H3 addition.
+    assert "refresh_compute_seconds" not in result_3
     recs_after_noop = json.loads(redis_client.get(recs_key(session_id)))
     assert recs_after_noop == recs_after_skip
 
