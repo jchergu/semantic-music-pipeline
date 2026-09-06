@@ -1,0 +1,241 @@
+{
+  "catalog_size": 411,
+  "metric": "5 -- catalog coverage and attractor collapse",
+  "per_scenario": [
+    {
+      "catalog_size": 411,
+      "coverage_fraction": 0.40875912408759124,
+      "curve": [
+        {
+          "cumulative_unique": 10,
+          "new_this_refresh": 10,
+          "refresh_index": 1
+        },
+        {
+          "cumulative_unique": 10,
+          "new_this_refresh": 0,
+          "refresh_index": 2
+        },
+        {
+          "cumulative_unique": 11,
+          "new_this_refresh": 1,
+          "refresh_index": 3
+        },
+        {
+          "cumulative_unique": 20,
+          "new_this_refresh": 9,
+          "refresh_index": 4
+        },
+        {
+          "cumulative_unique": 25,
+          "new_this_refresh": 5,
+          "refresh_index": 5
+        },
+        {
+          "cumulative_unique": 30,
+          "new_this_refresh": 5,
+          "refresh_index": 6
+        },
+        {
+          "cumulative_unique": 31,
+          "new_this_refresh": 1,
+          "refresh_index": 7
+        },
+        {
+          "cumulative_unique": 41,
+          "new_this_refresh": 10,
+          "refresh_index": 8
+        },
+        {
+          "cumulative_unique": 44,
+          "new_this_refresh": 3,
+          "refresh_index": 9
+        },
+        {
+          "cumulative_unique": 49,
+          "new_this_refresh": 5,
+          "refresh_index": 10
+        },
+        {
+          "cumulative_unique": 59,
+          "new_this_refresh": 10,
+          "refresh_index": 11
+        },
+        {
+          "cumulative_unique": 62,
+          "new_this_refresh": 3,
+          "refresh_index": 12
+        },
+        {
+          "cumulative_unique": 72,
+          "new_this_refresh": 10,
+          "refresh_index": 13
+        },
+        {
+          "cumulative_unique": 82,
+          "new_this_refresh": 10,
+          "refresh_index": 14
+        },
+        {
+          "cumulative_unique": 87,
+          "new_this_refresh": 5,
+          "refresh_index": 15
+        },
+        {
+          "cumulative_unique": 93,
+          "new_this_refresh": 6,
+          "refresh_index": 16
+        },
+        {
+          "cumulative_unique": 94,
+          "new_this_refresh": 1,
+          "refresh_index": 17
+        },
+        {
+          "cumulative_unique": 104,
+          "new_this_refresh": 10,
+          "refresh_index": 18
+        },
+        {
+          "cumulative_unique": 111,
+          "new_this_refresh": 7,
+          "refresh_index": 19
+        },
+        {
+          "cumulative_unique": 116,
+          "new_this_refresh": 5,
+          "refresh_index": 20
+        },
+        {
+          "cumulative_unique": 118,
+          "new_this_refresh": 2,
+          "refresh_index": 21
+        },
+        {
+          "cumulative_unique": 124,
+          "new_this_refresh": 6,
+          "refresh_index": 22
+        },
+        {
+          "cumulative_unique": 129,
+          "new_this_refresh": 5,
+          "refresh_index": 23
+        },
+        {
+          "cumulative_unique": 135,
+          "new_this_refresh": 6,
+          "refresh_index": 24
+        },
+        {
+          "cumulative_unique": 138,
+          "new_this_refresh": 3,
+          "refresh_index": 25
+        },
+        {
+          "cumulative_unique": 139,
+          "new_this_refresh": 1,
+          "refresh_index": 26
+        },
+        {
+          "cumulative_unique": 142,
+          "new_this_refresh": 3,
+          "refresh_index": 27
+        },
+        {
+          "cumulative_unique": 142,
+          "new_this_refresh": 0,
+          "refresh_index": 28
+        },
+        {
+          "cumulative_unique": 143,
+          "new_this_refresh": 1,
+          "refresh_index": 29
+        },
+        {
+          "cumulative_unique": 144,
+          "new_this_refresh": 1,
+          "refresh_index": 30
+        },
+        {
+          "cumulative_unique": 150,
+          "new_this_refresh": 6,
+          "refresh_index": 31
+        },
+        {
+          "cumulative_unique": 152,
+          "new_this_refresh": 2,
+          "refresh_index": 32
+        },
+        {
+          "cumulative_unique": 158,
+          "new_this_refresh": 6,
+          "refresh_index": 33
+        },
+        {
+          "cumulative_unique": 158,
+          "new_this_refresh": 0,
+          "refresh_index": 34
+        },
+        {
+          "cumulative_unique": 164,
+          "new_this_refresh": 6,
+          "refresh_index": 35
+        },
+        {
+          "cumulative_unique": 166,
+          "new_this_refresh": 2,
+          "refresh_index": 36
+        },
+        {
+          "cumulative_unique": 167,
+          "new_this_refresh": 1,
+          "refresh_index": 37
+        },
+        {
+          "cumulative_unique": 168,
+          "new_this_refresh": 1,
+          "refresh_index": 38
+        },
+        {
+          "cumulative_unique": 168,
+          "new_this_refresh": 0,
+          "refresh_index": 39
+        },
+        {
+          "cumulative_unique": 168,
+          "new_this_refresh": 0,
+          "refresh_index": 40
+        }
+      ],
+      "flat_tail_fraction": 0.05,
+      "genre_track_counts": [
+        [
+          "rock",
+          10
+        ],
+        [
+          "electronic",
+          10
+        ],
+        [
+          "chillout",
+          10
+        ],
+        [
+          "dance",
+          10
+        ]
+      ],
+      "last_refresh_contributing_new_tracks": 38,
+      "name": "long_session",
+      "refresh_count": 40,
+      "refreshes_after_last_new_track": 2,
+      "refreshes_contributing_new_tracks": 35,
+      "session_id": "eval82-long-15c2a",
+      "tracks_played": 40,
+      "unique_recommended": 168
+    }
+  ],
+  "run_id": "15c2a",
+  "scenario": "rock(10) -> electronic(10) -> chillout(10) -> dance(10)"
+}

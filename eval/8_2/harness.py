@@ -23,9 +23,12 @@ Per scenario, four things run at once:
                      committed, so a fresh Consumer per call re-reads the
                      same first message forever), snapshotting
                      session:{id}:recs after every real refresh
-  profile poller     samples session:{id}:profile_meta so H2 (profile
-                     compute lag) has a distribution rather than the two or
-                     three points a refresh-time-only read would give
+  profile poller     samples session:{id}:profile_meta AND
+                     session:{id}:profile, so H2 (profile compute lag) has a
+                     distribution rather than the two or three points a
+                     refresh-time-only read would give, and so metric 4 has a
+                     time series at all -- the Flink job overwrites both keys
+                     on every window fire and keeps no history
 
 This loop is harness-owned, test-shaped code. It is deliberately NOT a step
 toward a persistent refresh daemon in platform/streaming/ -- that gap is
@@ -68,12 +71,23 @@ SESSION_KEY_SUFFIXES = ("events", "profile", "profile_meta", "recs", "refresh_me
 @dataclass
 class ScenarioSpec:
     name: str
+    # Which metric family this scenario feeds. run.py dispatches on it:
+    # a long session has no pivot, so metric 1's pre/post split is
+    # meaningless for it, and metric 4/5's series are meaningless for a
+    # 16-event pivot run.
+    role: str
     session_id: str
     genre_track_counts: list[tuple[str, int]]
     seed: int
     speed: float
     pivot_track_index: int | None = None
     jitter: float = 0.0
+    # Metric 4 samples the profile vector by polling, because the Flink job
+    # overwrites session:{id}:profile on every window fire and keeps no
+    # history. Per scenario, not global: the resolvable sampling rate is set
+    # by how far apart in WALL-CLOCK the job's write bursts land, which is
+    # this scenario's own event-time gaps divided by its own --speed.
+    profile_poll_interval_seconds: float = PROFILE_POLL_INTERVAL_SECONDS
 
 
 @dataclass
@@ -94,11 +108,15 @@ def reset_session(redis_client, session_id: str) -> None:
     redis_client.delete(*[f"session:{session_id}:{suffix}" for suffix in SESSION_KEY_SUFFIXES])
 
 
-def _read_recs(redis_client, session_id: str) -> list[str]:
+def _read_recs(redis_client, session_id: str) -> list[dict]:
+    """The full ranked rows, not just their ids. Metric 1 only needs the id
+    set, but metric 6's determinism check compares scores too -- a run that
+    returns the same ten tracks with different scores has not reproduced,
+    and an id-only snapshot could not tell."""
     raw = redis_client.get(recs_key(session_id))
     if raw is None:
         return []
-    return [str(r["track_id"]) for r in json.loads(raw)]
+    return [{"track_id": str(r["track_id"]), "score": r["score"]} for r in json.loads(raw)]
 
 
 def _poster(spec: ScenarioSpec, planned: list[dict], pivot_index: int | None,
@@ -134,6 +152,10 @@ def _poster(spec: ScenarioSpec, planned: list[dict], pivot_index: int | None,
                     "h1_post_seconds": elapsed,
                     "track_id": item["event"]["track_id"],
                     "event_type": item["event"]["event_type"],
+                    # The SIMULATED clock. Metric 4's windows are defined in
+                    # session time, which --speed decouples from wall-clock,
+                    # so both timestamps have to be recorded per post.
+                    "event_time": item["event"]["event_time"],
                     "post_pivot": pivot_index is not None and i >= pivot_index,
                 })
 
@@ -193,7 +215,7 @@ def _refresh_driver_thread(spec: ScenarioSpec, event_count: int, deadline: float
                     rec.refresh_results.append(entry)
 
                 if result.get("refreshed"):
-                    track_ids = _read_recs(redis_client, spec.session_id)
+                    recs = _read_recs(redis_client, spec.session_id)
                     with rec.lock:
                         rec.snapshots.append({
                             "refresh_index": refresh_index,
@@ -201,7 +223,8 @@ def _refresh_driver_thread(spec: ScenarioSpec, event_count: int, deadline: float
                             "action": result["action"],
                             "wall_clock": now,
                             "post_pivot": entry["post_pivot"],
-                            "track_ids": track_ids,
+                            "track_ids": [r["track_id"] for r in recs],
+                            "recs": recs,
                         })
     except Exception as exc:  # noqa: BLE001
         with rec.lock:
@@ -213,16 +236,34 @@ def _refresh_driver_thread(spec: ScenarioSpec, event_count: int, deadline: float
 
 def _profile_poller_thread(spec: ScenarioSpec, redis_client, deadline: float,
                            rec: _Recording, stop: threading.Event) -> None:
-    """Samples session:{id}:profile_meta. Flink overwrites the key on every
-    window fire, so polling is the only way to see more than the last
-    value; each distinct computed_at is one H2 sample."""
+    """Samples session:{id}:profile_meta AND session:{id}:profile. Flink
+    overwrites both keys on every window fire and stores no history, so
+    polling is the only way to see more than the last value; each distinct
+    computed_at is one H2 latency sample (metric 2) and one point of metric
+    4's coherence series.
+
+    The two keys are read in one pipeline so the vector and the metadata come
+    from a single consistent view of Redis rather than two reads straddling a
+    write. The job writes the vector first and the metadata second, so a
+    sampled pair is never a new computed_at against a stale vector; it can be
+    a new computed_at against a vector one window fire NEWER, but only inside
+    a burst. Bursts are what the per-scenario poll interval is tuned to fall
+    between (see ScenarioSpec.profile_poll_interval_seconds) -- an event-time
+    gap advances the watermark past several 30s slides at once, so the job
+    fires those windows milliseconds apart and no poll rate could separate
+    them.
+    """
     seen: set[str] = set()
     while not stop.is_set() and time.monotonic() < deadline:
-        meta = redis_client.hgetall(profile_meta_key(spec.session_id))
+        pipe = redis_client.pipeline()
+        pipe.hgetall(profile_meta_key(spec.session_id))
+        pipe.get(profile_key(spec.session_id))
+        meta, profile_raw = pipe.execute()
         computed_at = meta.get("computed_at")
         if computed_at and computed_at not in seen:
             seen.add(computed_at)
             computed_at_f = float(computed_at)
+            vector = json.loads(profile_raw) if profile_raw else None
             with rec.lock:
                 # H2 is measured against the most recent event posted at or
                 # before the centroid was computed -- that event is the last
@@ -234,8 +275,9 @@ def _profile_poller_thread(spec: ScenarioSpec, redis_client, deadline: float,
                     "observed_at": time.time(),
                     "triggering_event_index": prior[-1]["index"] if prior else None,
                     "h2_profile_lag_seconds": (computed_at_f - prior[-1]["wall_clock"]) if prior else None,
+                    "vector": vector,
                 })
-        time.sleep(PROFILE_POLL_INTERVAL_SECONDS)
+        time.sleep(spec.profile_poll_interval_seconds)
 
 
 def run_scenario(spec: ScenarioSpec, anchor: dt.datetime, ids_by_genre: dict[str, list[int]],
@@ -244,13 +286,30 @@ def run_scenario(spec: ScenarioSpec, anchor: dt.datetime, ids_by_genre: dict[str
     """Drives one scenario end to end and returns everything observed."""
     script = scenario_gen.build_genre_session_script(spec.genre_track_counts, spec.seed, ids_by_genre)
     planned = sim_events.build_session_events(script, spec.session_id, durations, anchor)
+
+    # The pivot is located in EVENT-TIME order, before any jitter, because
+    # that is the order scenario_gen.pivot_event_index() counts in. Jitter
+    # then permutes DELIVERY order (event_time values are untouched -- see
+    # apply_jitter's docstring), so the pivot event can end up at a different
+    # position in the sequence actually posted. Everything downstream splits
+    # snapshots pre/post-pivot by delivery position, since that is the order
+    # refreshes are driven in, so the pivot has to be re-located by identity
+    # after the permutation rather than reused as a bare index -- otherwise a
+    # jittered run would label the wrong refreshes post-pivot and metric 7
+    # would be comparing a mislabelled curve against a correct one.
+    ordered_pivot_index = (
+        scenario_gen.pivot_event_index(script, spec.pivot_track_index)
+        if spec.pivot_track_index is not None else None
+    )
+    pivot_item = planned[ordered_pivot_index] if ordered_pivot_index is not None else None
+
     if spec.jitter > 0:
         import random
         planned = sim_events.apply_jitter(planned, spec.jitter, random.Random(spec.seed))
 
     pivot_index = (
-        scenario_gen.pivot_event_index(script, spec.pivot_track_index)
-        if spec.pivot_track_index is not None else None
+        next(i for i, item in enumerate(planned) if item is pivot_item)
+        if pivot_item is not None else None
     )
     simulated_span = sum(p["wall_clock_gap_seconds"] for p in planned)
     budget = simulated_span / spec.speed + 180.0
@@ -305,7 +364,9 @@ def run_scenario(spec: ScenarioSpec, anchor: dt.datetime, ids_by_genre: dict[str
             )
         return {
             "name": spec.name,
+            "role": spec.role,
             "session_id": spec.session_id,
+            "profile_poll_interval_seconds": spec.profile_poll_interval_seconds,
             "seed": spec.seed,
             "speed": spec.speed,
             "jitter": spec.jitter,
@@ -315,6 +376,10 @@ def run_scenario(spec: ScenarioSpec, anchor: dt.datetime, ids_by_genre: dict[str
             "event_count": len(planned),
             "simulated_span_seconds": simulated_span,
             "pivot_event_index": pivot_index,
+            "pivot_event_time_index": ordered_pivot_index,
+            "pivot_delivery_shift": (
+                None if pivot_index is None else pivot_index - ordered_pivot_index
+            ),
             "track_ids_in_order": [t["track_id"] for t in script["tracks"]],
             "warm_path_precondition": precondition,
             "posts": list(rec.posts),

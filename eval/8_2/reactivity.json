@@ -70,7 +70,7 @@
         "452",
         "93"
       ],
-      "session_id": "eval82-pivot-K3-20260906T083824"
+      "session_id": "eval82-pivot-K3-15c2a"
     },
     {
       "actions": [
@@ -134,7 +134,7 @@
         "397",
         "81"
       ],
-      "session_id": "eval82-pivot-K5-20260906T083824"
+      "session_id": "eval82-pivot-K5-15c2a"
     },
     {
       "actions": [
@@ -166,7 +166,7 @@
         {
           "event_index": 23,
           "events_since_pivot": 7,
-          "jaccard": 0.0,
+          "jaccard": 0.05263157894736842,
           "refresh_index": 9
         },
         {
@@ -200,7 +200,7 @@
         "348",
         "416"
       ],
-      "session_id": "eval82-pivot-K8-20260906T083824"
+      "session_id": "eval82-pivot-K8-15c2a"
     },
     {
       "actions": [
@@ -269,7 +269,7 @@
         "472",
         "474"
       ],
-      "session_id": "eval82-pivot-K12-20260906T083824"
+      "session_id": "eval82-pivot-K12-15c2a"
     }
   ],
   "pre_pivot_sets_nested": true,
@@ -311,6 +311,6 @@
       196
     ]
   },
-  "run_id": "20260906T083824",
+  "run_id": "15c2a",
   "scenario": "chillout(K) -> rock(8)"
 }

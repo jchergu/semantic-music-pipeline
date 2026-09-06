@@ -63,3 +63,22 @@ def connect_redis() -> redis.Redis:
         port=int(os.environ.get("REDIS_PORT", "6379")),
         decode_responses=True,
     )
+
+
+def fetch_embeddings(collection: Collection, track_ids: list[int]) -> dict[str, list[float]]:
+    """CLAP embeddings for the given tracks, keyed by track id AS A STRING --
+    behavioral events carry track_id as a string (platform/simulator/events.py
+    builds it that way), and metric 4 joins these against event payloads.
+
+    Read from Milvus, the system of record for embeddings, rather than from
+    the track:{id}:embedding copies preload_embeddings_to_redis.py leaves in
+    Redis for the Flink workers. The two should agree, but the Redis copy is
+    a convenience for containers without pymilvus, not a second source of
+    truth, and metric 4 compares against the profile those very copies fed --
+    reading the reference from the same copy could hide a stale preload.
+    """
+    if not track_ids:
+        return {}
+    expr = f"track_id in [{','.join(str(int(t)) for t in sorted(set(track_ids)))}]"
+    rows = collection.query(expr=expr, output_fields=["track_id", "embedding"], limit=len(set(track_ids)))
+    return {str(row["track_id"]): [float(v) for v in row["embedding"]] for row in rows}

@@ -1,60 +1,1218 @@
 {
   "cold_warm_transition": {
     "cold_start_seed_track_per_session": {
-      "eval82-pivot-K12-20260906T083824": 420,
-      "eval82-pivot-K3-20260906T083824": 420,
-      "eval82-pivot-K5-20260906T083824": 420,
-      "eval82-pivot-K8-20260906T083824": 420
+      "eval82-det_rep1-15c2a": 420,
+      "eval82-det_rep2-15c2a": 420,
+      "eval82-late_jitter-15c2a": 420,
+      "eval82-long-15c2a": 378,
+      "eval82-pivot-K12-15c2a": 420,
+      "eval82-pivot-K3-15c2a": 420,
+      "eval82-pivot-K5-15c2a": 420,
+      "eval82-pivot-K8-15c2a": 420
     },
-    "handoff_jaccard_mean": 0.8181818181818182,
-    "independence_caveat": "4 sessions but only 1 distinct cold-start seed track(s): random.Random(seed).sample() returns prefix-nested draws for increasing K, so every K in the sweep opens on the same tracks and the handoff numbers below are effectively ONE observation repeated, not several independent ones. Do not read the mean as an average over independent runs.",
-    "independent_observations": 1,
+    "handoff_jaccard_mean": 0.8059440559440559,
+    "independence_caveat": "8 sessions but only 2 distinct cold-start seed track(s), the largest group covering 7 of them. Every pivot-family scenario -- the four K-sweep runs and the three K=8 replicates -- opens on the same track, because random.Random(seed).sample() returns prefix-nested draws for increasing K. Their handoff numbers are therefore ONE observation repeated, not several independent ones. Do not read the mean below as an average over independent runs; see sessions_by_cold_start_seed_track for which sessions are repeats of which.",
+    "independent_observations": 2,
     "note": "The cold->warm handoff is not gated by an event count: it is a race between two independent consumer groups on the same topic (Flink's, which writes session:{id}:profile, and the refresh loop's, which reads it). Reported as a race, per METRICS.md section 4.",
     "per_session": {
-      "eval82-pivot-K12-20260906T083824": {
+      "eval82-det_rep1-15c2a": {
         "cold_start_refresh_count": 1,
         "first_warm_refresh_index": 2,
         "handoff_jaccard": 0.8181818181818182,
+        "handoff_rank_identical": false,
         "preceded_by_cold_start": true,
         "reached_warm_path": true,
-        "seconds_to_first_warm": 5.325180292129517
+        "seconds_to_first_warm": 5.2888336181640625
       },
-      "eval82-pivot-K3-20260906T083824": {
+      "eval82-det_rep2-15c2a": {
         "cold_start_refresh_count": 1,
         "first_warm_refresh_index": 2,
         "handoff_jaccard": 0.8181818181818182,
+        "handoff_rank_identical": false,
         "preceded_by_cold_start": true,
         "reached_warm_path": true,
-        "seconds_to_first_warm": 5.482961177825928
+        "seconds_to_first_warm": 5.295743703842163
       },
-      "eval82-pivot-K5-20260906T083824": {
+      "eval82-late_jitter-15c2a": {
         "cold_start_refresh_count": 1,
         "first_warm_refresh_index": 2,
-        "handoff_jaccard": 0.8181818181818182,
+        "handoff_jaccard": 0.5384615384615384,
+        "handoff_rank_identical": false,
         "preceded_by_cold_start": true,
         "reached_warm_path": true,
-        "seconds_to_first_warm": 5.3287272453308105
+        "seconds_to_first_warm": 8.056505680084229
       },
-      "eval82-pivot-K8-20260906T083824": {
+      "eval82-long-15c2a": {
+        "cold_start_refresh_count": 1,
+        "first_warm_refresh_index": 2,
+        "handoff_jaccard": 1.0,
+        "handoff_rank_identical": false,
+        "preceded_by_cold_start": true,
+        "reached_warm_path": true,
+        "seconds_to_first_warm": 15.035070419311523
+      },
+      "eval82-pivot-K12-15c2a": {
         "cold_start_refresh_count": 1,
         "first_warm_refresh_index": 2,
         "handoff_jaccard": 0.8181818181818182,
+        "handoff_rank_identical": false,
         "preceded_by_cold_start": true,
         "reached_warm_path": true,
-        "seconds_to_first_warm": 5.349709510803223
+        "seconds_to_first_warm": 5.293255090713501
+      },
+      "eval82-pivot-K3-15c2a": {
+        "cold_start_refresh_count": 1,
+        "first_warm_refresh_index": 2,
+        "handoff_jaccard": 0.8181818181818182,
+        "handoff_rank_identical": false,
+        "preceded_by_cold_start": true,
+        "reached_warm_path": true,
+        "seconds_to_first_warm": 5.383207321166992
+      },
+      "eval82-pivot-K5-15c2a": {
+        "cold_start_refresh_count": 1,
+        "first_warm_refresh_index": 2,
+        "handoff_jaccard": 0.8181818181818182,
+        "handoff_rank_identical": false,
+        "preceded_by_cold_start": true,
+        "reached_warm_path": true,
+        "seconds_to_first_warm": 5.286135673522949
+      },
+      "eval82-pivot-K8-15c2a": {
+        "cold_start_refresh_count": 1,
+        "first_warm_refresh_index": 2,
+        "handoff_jaccard": 0.8181818181818182,
+        "handoff_rank_identical": false,
+        "preceded_by_cold_start": true,
+        "reached_warm_path": true,
+        "seconds_to_first_warm": 5.2941083908081055
       }
     },
-    "sessions_measured": 4,
-    "sessions_reaching_warm_path": 4
+    "sessions_by_cold_start_seed_track": {
+      "378": [
+        "eval82-long-15c2a"
+      ],
+      "420": [
+        "eval82-pivot-K3-15c2a",
+        "eval82-pivot-K5-15c2a",
+        "eval82-pivot-K8-15c2a",
+        "eval82-pivot-K12-15c2a",
+        "eval82-det_rep1-15c2a",
+        "eval82-det_rep2-15c2a",
+        "eval82-late_jitter-15c2a"
+      ]
+    },
+    "sessions_measured": 8,
+    "sessions_reaching_warm_path": 8
   },
   "determinism_check": {
-    "pending": "15C.2 (METRICS.md section 7)"
+    "caveat": "The two replicates cannot share a session id or an event-time anchor: the behavioral-events topic is never purged and both consumer groups read from earliest, and Flink's watermark is stream-wide so scenarios must advance through event time. Anchors are aligned to whole multiples of the 300s window size (metrics.anchor_schedule), so window boundaries fall identically relative to each run's own events -- everything a seed can control is held fixed, and what is left is exactly what this metric is asking about.",
+    "jitter": 0.0,
+    "per_refresh": {
+      "1": {
+        "a_track_ids": [
+          93,
+          196,
+          315,
+          388,
+          440,
+          452,
+          319,
+          30,
+          301,
+          494
+        ],
+        "b_track_ids": [
+          93,
+          196,
+          315,
+          388,
+          440,
+          452,
+          319,
+          30,
+          301,
+          494
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "10": {
+        "a_track_ids": [
+          413,
+          106,
+          426,
+          56,
+          329,
+          157,
+          222,
+          153,
+          372,
+          455
+        ],
+        "b_track_ids": [
+          413,
+          106,
+          426,
+          56,
+          329,
+          157,
+          222,
+          153,
+          372,
+          455
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "11": {
+        "a_track_ids": [
+          14,
+          59,
+          439,
+          66,
+          444,
+          391,
+          181,
+          384,
+          80,
+          343
+        ],
+        "b_track_ids": [
+          14,
+          59,
+          439,
+          66,
+          444,
+          391,
+          181,
+          384,
+          80,
+          343
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "2": {
+        "a_track_ids": [
+          93,
+          315,
+          388,
+          440,
+          319,
+          30,
+          301,
+          494,
+          485,
+          452
+        ],
+        "b_track_ids": [
+          93,
+          315,
+          388,
+          440,
+          319,
+          30,
+          301,
+          494,
+          485,
+          452
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "3": {
+        "a_track_ids": [
+          93,
+          315,
+          440,
+          388,
+          30,
+          319,
+          129,
+          301,
+          305,
+          452
+        ],
+        "b_track_ids": [
+          93,
+          315,
+          440,
+          388,
+          30,
+          319,
+          129,
+          301,
+          305,
+          452
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "4": {
+        "a_track_ids": [
+          32,
+          81,
+          191,
+          30,
+          196,
+          129,
+          305,
+          148,
+          256,
+          397
+        ],
+        "b_track_ids": [
+          32,
+          81,
+          191,
+          30,
+          196,
+          129,
+          305,
+          148,
+          256,
+          397
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "5": {
+        "a_track_ids": [
+          499,
+          196,
+          93,
+          30,
+          315,
+          494,
+          145,
+          317,
+          397,
+          472
+        ],
+        "b_track_ids": [
+          499,
+          196,
+          93,
+          30,
+          315,
+          494,
+          145,
+          317,
+          397,
+          472
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "6": {
+        "a_track_ids": [
+          306,
+          226,
+          311,
+          302,
+          348,
+          157,
+          134,
+          115,
+          416,
+          196
+        ],
+        "b_track_ids": [
+          306,
+          226,
+          311,
+          302,
+          348,
+          157,
+          134,
+          115,
+          416,
+          196
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "7": {
+        "a_track_ids": [
+          30,
+          499,
+          317,
+          145,
+          450,
+          196,
+          191,
+          494,
+          164,
+          472
+        ],
+        "b_track_ids": [
+          30,
+          499,
+          317,
+          145,
+          450,
+          196,
+          191,
+          494,
+          164,
+          472
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "8": {
+        "a_track_ids": [
+          29,
+          308,
+          416,
+          306,
+          7,
+          134,
+          115,
+          140,
+          222,
+          331
+        ],
+        "b_track_ids": [
+          29,
+          308,
+          416,
+          306,
+          7,
+          134,
+          115,
+          140,
+          222,
+          331
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      },
+      "9": {
+        "a_track_ids": [
+          49,
+          161,
+          51,
+          157,
+          56,
+          4,
+          387,
+          131,
+          290,
+          294
+        ],
+        "b_track_ids": [
+          49,
+          161,
+          51,
+          157,
+          56,
+          4,
+          387,
+          131,
+          290,
+          294
+        ],
+        "classification": "identical",
+        "max_score_delta": 0.0
+      }
+    },
+    "runs": [
+      "eval82-det_rep1-15c2a",
+      "eval82-det_rep2-15c2a"
+    ],
+    "scenario": "chillout(8) -> rock(8)",
+    "seed": 42,
+    "speed": 60.0,
+    "verdict": {
+      "pass": true,
+      "refresh_count_check": {
+        "pass": true,
+        "run_a": 11,
+        "run_b": 11
+      },
+      "score_delta_check": {
+        "observed_max_delta": 0.0,
+        "pass": true,
+        "required": 0.0
+      },
+      "snapshot_identity_check": {
+        "classification_counts": {
+          "identical": 11,
+          "membership_changed": 0,
+          "order_only": 0
+        },
+        "diverging_refresh_indices": [],
+        "pass": true,
+        "refreshes_compared": 11
+      }
+    }
   },
   "generated_for": "8.2 (streaming, reactive)",
   "late_event_effect": {
-    "pending": "15C.2 (METRICS.md section 8)"
+    "arms": {
+      "baseline_a": {
+        "delivery": {
+          "events": 32,
+          "events_delivered_late": 0,
+          "max_lateness_seconds": 0.0,
+          "mean_lateness_seconds": 0.0,
+          "watermark_bound_seconds": 5.0
+        },
+        "events_to_adaptation": 7,
+        "jitter": 0.0,
+        "name": "det_rep1",
+        "pivot_delivery_shift": 0,
+        "post_pivot_refresh_count": 5,
+        "reactivity_curve": {
+          "1": 0.05263157894736842,
+          "2": 0.25,
+          "3": 0.05263157894736842,
+          "4": 0.05263157894736842,
+          "5": 0.0
+        },
+        "refresh_count": 11,
+        "session_id": "eval82-det_rep1-15c2a",
+        "warm_path_precondition": {
+          "checked_at": 1788687699.0674062,
+          "profile_exists_at_pivot": true
+        }
+      },
+      "baseline_b": {
+        "delivery": {
+          "events": 32,
+          "events_delivered_late": 0,
+          "max_lateness_seconds": 0.0,
+          "mean_lateness_seconds": 0.0,
+          "watermark_bound_seconds": 5.0
+        },
+        "events_to_adaptation": 7,
+        "jitter": 0.0,
+        "name": "det_rep2",
+        "pivot_delivery_shift": 0,
+        "post_pivot_refresh_count": 5,
+        "reactivity_curve": {
+          "1": 0.05263157894736842,
+          "2": 0.25,
+          "3": 0.05263157894736842,
+          "4": 0.05263157894736842,
+          "5": 0.0
+        },
+        "refresh_count": 11,
+        "session_id": "eval82-det_rep2-15c2a",
+        "warm_path_precondition": {
+          "checked_at": 1788687769.2489855,
+          "profile_exists_at_pivot": true
+        }
+      },
+      "jittered": {
+        "delivery": {
+          "events": 32,
+          "events_delivered_late": 20,
+          "max_lateness_seconds": 648.9299998283386,
+          "mean_lateness_seconds": 293.08549998998643,
+          "watermark_bound_seconds": 5.0
+        },
+        "events_to_adaptation": 7,
+        "jitter": 1.0,
+        "name": "late_jitter",
+        "pivot_delivery_shift": 1,
+        "post_pivot_refresh_count": 6,
+        "reactivity_curve": {
+          "1": 0.25,
+          "2": 0.0,
+          "3": 0.0,
+          "4": 0.0,
+          "5": 0.0,
+          "6": 0.0
+        },
+        "refresh_count": 12,
+        "session_id": "eval82-late_jitter-15c2a",
+        "warm_path_precondition": {
+          "checked_at": 1788687843.1339693,
+          "profile_exists_at_pivot": true
+        }
+      }
+    },
+    "coherence_by_arm": {
+      "baseline_a": [
+        {
+          "computed_at": 1788687668.2125041,
+          "cos_early": 0.9007014684656253,
+          "cos_recent": 0.9007014684656253,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 1,
+          "recent_track_ids": [
+            "420",
+            "97"
+          ],
+          "session_elapsed_seconds": 116.40000009536743
+        },
+        {
+          "computed_at": 1788687671.1101038,
+          "cos_early": 0.9551507627419688,
+          "cos_recent": 0.9058754634044518,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 3,
+          "recent_track_ids": [
+            "420",
+            "83",
+            "97"
+          ],
+          "session_elapsed_seconds": 312.3399999141693
+        },
+        {
+          "computed_at": 1788687678.122132,
+          "cos_early": 0.9091023820683357,
+          "cos_recent": 0.7537897839667528,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "440",
+            "83"
+          ],
+          "session_elapsed_seconds": 716.829999923706
+        },
+        {
+          "computed_at": 1788687681.122557,
+          "cos_early": 0.7191264658909544,
+          "cos_recent": 0.8949678210769544,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "128",
+            "440",
+            "83"
+          ],
+          "session_elapsed_seconds": 883.670000076294
+        },
+        {
+          "computed_at": 1788687685.2361472,
+          "cos_early": 0.7587719109918312,
+          "cos_recent": 0.8994613911731146,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "117",
+            "128",
+            "440"
+          ],
+          "session_elapsed_seconds": 1125.2000000476837
+        },
+        {
+          "computed_at": 1788687691.1416643,
+          "cos_early": 0.6882319317839796,
+          "cos_recent": 0.665352875880897,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "117",
+            "397"
+          ],
+          "session_elapsed_seconds": 1532.5999999046326
+        },
+        {
+          "computed_at": 1788687696.1514528,
+          "cos_early": 0.5759975895193533,
+          "cos_recent": 0.8463035325625275,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "101",
+            "117",
+            "397"
+          ],
+          "session_elapsed_seconds": 1809.0499999523163
+        },
+        {
+          "computed_at": 1788687701.1578324,
+          "cos_early": 0.6745091019213444,
+          "cos_recent": 0.869058677756193,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "101",
+            "397",
+            "427"
+          ],
+          "session_elapsed_seconds": 2105.869999885559
+        },
+        {
+          "computed_at": 1788687704.1540082,
+          "cos_early": 0.5813894565077895,
+          "cos_recent": 0.8448733382655741,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "101",
+            "427",
+            "48"
+          ],
+          "session_elapsed_seconds": 2303.75
+        },
+        {
+          "computed_at": 1788687708.1592374,
+          "cos_early": 0.4150961416734291,
+          "cos_recent": 0.9508597846693768,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "393",
+            "427",
+            "48"
+          ],
+          "session_elapsed_seconds": 2514.2400000095367
+        },
+        {
+          "computed_at": 1788687711.16334,
+          "cos_early": 0.38972160637042774,
+          "cos_recent": 0.8991164655442901,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "313",
+            "393",
+            "48"
+          ],
+          "session_elapsed_seconds": 2714.0599999427795
+        },
+        {
+          "computed_at": 1788687714.1595824,
+          "cos_early": 0.5088895539849206,
+          "cos_recent": 0.8778776859172225,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "313",
+            "393",
+            "40"
+          ],
+          "session_elapsed_seconds": 2868.289999961853
+        },
+        {
+          "computed_at": 1788687717.1633446,
+          "cos_early": 0.6400567004258808,
+          "cos_recent": 0.8702951363271391,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "313",
+            "351",
+            "40"
+          ],
+          "session_elapsed_seconds": 3086.539999961853
+        },
+        {
+          "computed_at": 1788687721.1750512,
+          "cos_early": 0.43169966172725244,
+          "cos_recent": 0.9195777268825828,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "227",
+            "351",
+            "40"
+          ],
+          "session_elapsed_seconds": 3329.039999961853
+        },
+        {
+          "computed_at": 1788687725.1787999,
+          "cos_early": 0.2426756614815069,
+          "cos_recent": 0.8341311103964556,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "16",
+            "227",
+            "351"
+          ],
+          "session_elapsed_seconds": 3545.3499999046326
+        }
+      ],
+      "baseline_b": [
+        {
+          "computed_at": 1788687738.1922872,
+          "cos_early": 0.9007014684656253,
+          "cos_recent": 0.9007014684656253,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 1,
+          "recent_track_ids": [
+            "420",
+            "97"
+          ],
+          "session_elapsed_seconds": 116.40000009536743
+        },
+        {
+          "computed_at": 1788687741.1995795,
+          "cos_early": 0.9551507627419688,
+          "cos_recent": 0.9058754634044518,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 3,
+          "recent_track_ids": [
+            "420",
+            "83",
+            "97"
+          ],
+          "session_elapsed_seconds": 312.3399999141693
+        },
+        {
+          "computed_at": 1788687748.3012593,
+          "cos_early": 0.9091023820683357,
+          "cos_recent": 0.7537897839667528,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "440",
+            "83"
+          ],
+          "session_elapsed_seconds": 716.829999923706
+        },
+        {
+          "computed_at": 1788687751.300595,
+          "cos_early": 0.7191264658909544,
+          "cos_recent": 0.8949678210769544,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "128",
+            "440",
+            "83"
+          ],
+          "session_elapsed_seconds": 883.670000076294
+        },
+        {
+          "computed_at": 1788687755.2154882,
+          "cos_early": 0.7587719109918312,
+          "cos_recent": 0.8994613911731146,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "117",
+            "128",
+            "440"
+          ],
+          "session_elapsed_seconds": 1125.2000000476837
+        },
+        {
+          "computed_at": 1788687762.1224444,
+          "cos_early": 0.6882319317839796,
+          "cos_recent": 0.665352875880897,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "117",
+            "397"
+          ],
+          "session_elapsed_seconds": 1532.5999999046326
+        },
+        {
+          "computed_at": 1788687766.1319618,
+          "cos_early": 0.5759975895193533,
+          "cos_recent": 0.8463035325625275,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "101",
+            "117",
+            "397"
+          ],
+          "session_elapsed_seconds": 1809.0499999523163
+        },
+        {
+          "computed_at": 1788687771.1368682,
+          "cos_early": 0.6745091019213444,
+          "cos_recent": 0.869058677756193,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "101",
+            "397",
+            "427"
+          ],
+          "session_elapsed_seconds": 2105.869999885559
+        },
+        {
+          "computed_at": 1788687774.137563,
+          "cos_early": 0.5813894565077895,
+          "cos_recent": 0.8448733382655741,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "101",
+            "427",
+            "48"
+          ],
+          "session_elapsed_seconds": 2303.75
+        },
+        {
+          "computed_at": 1788687778.145598,
+          "cos_early": 0.4150961416734291,
+          "cos_recent": 0.9508597846693768,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "393",
+            "427",
+            "48"
+          ],
+          "session_elapsed_seconds": 2514.2400000095367
+        },
+        {
+          "computed_at": 1788687781.1550398,
+          "cos_early": 0.38972160637042774,
+          "cos_recent": 0.8991164655442901,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "313",
+            "393",
+            "48"
+          ],
+          "session_elapsed_seconds": 2714.0599999427795
+        },
+        {
+          "computed_at": 1788687784.156199,
+          "cos_early": 0.5088895539849206,
+          "cos_recent": 0.8778776859172225,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "313",
+            "393",
+            "40"
+          ],
+          "session_elapsed_seconds": 2868.289999961853
+        },
+        {
+          "computed_at": 1788687788.1581125,
+          "cos_early": 0.6400567004258808,
+          "cos_recent": 0.8702951363271391,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "313",
+            "351",
+            "40"
+          ],
+          "session_elapsed_seconds": 3086.539999961853
+        },
+        {
+          "computed_at": 1788687792.1582263,
+          "cos_early": 0.43169966172725244,
+          "cos_recent": 0.9195777268825828,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "227",
+            "351",
+            "40"
+          ],
+          "session_elapsed_seconds": 3329.039999961853
+        },
+        {
+          "computed_at": 1788687795.2581415,
+          "cos_early": 0.2426756614815069,
+          "cos_recent": 0.8341311103964556,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "16",
+            "227",
+            "351"
+          ],
+          "session_elapsed_seconds": 3545.3499999046326
+        }
+      ],
+      "jittered": [
+        {
+          "computed_at": 1788687808.181525,
+          "cos_early": 0.9007014684656253,
+          "cos_recent": 1.0,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 1,
+          "recent_track_ids": [
+            "420"
+          ],
+          "session_elapsed_seconds": 116.40000009536743
+        },
+        {
+          "computed_at": 1788687812.2768698,
+          "cos_early": 0.9551507627419688,
+          "cos_recent": 0.9551507627419688,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 3,
+          "recent_track_ids": [
+            "420",
+            "97"
+          ],
+          "session_elapsed_seconds": 312.3399999141693
+        },
+        {
+          "computed_at": 1788687815.1892922,
+          "cos_early": 0.9007014761025197,
+          "cos_recent": 0.5507648658895647,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 1,
+          "recent_track_ids": [
+            "440"
+          ],
+          "session_elapsed_seconds": 883.670000076294
+        },
+        {
+          "computed_at": 1788687828.293354,
+          "cos_early": 0.7069729432908217,
+          "cos_recent": 0.48861621573380654,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 1,
+          "recent_track_ids": [
+            "117"
+          ],
+          "session_elapsed_seconds": 1532.5999999046326
+        },
+        {
+          "computed_at": 1788687837.112727,
+          "cos_early": 0.5759975895193533,
+          "cos_recent": 0.9413773777815404,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "117",
+            "397"
+          ],
+          "session_elapsed_seconds": 1809.0499999523163
+        },
+        {
+          "computed_at": 1788687842.1210158,
+          "cos_early": 0.6745091019213444,
+          "cos_recent": 0.9375235934764931,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "101",
+            "397"
+          ],
+          "session_elapsed_seconds": 2105.869999885559
+        },
+        {
+          "computed_at": 1788687845.1214817,
+          "cos_early": 0.5813894565077895,
+          "cos_recent": 0.9267663133970593,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "101",
+            "427"
+          ],
+          "session_elapsed_seconds": 2303.75
+        },
+        {
+          "computed_at": 1788687848.2413402,
+          "cos_early": 0.39375367795973926,
+          "cos_recent": 0.806040600202926,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 1,
+          "recent_track_ids": [
+            "393"
+          ],
+          "session_elapsed_seconds": 2714.0599999427795
+        },
+        {
+          "computed_at": 1788687854.140466,
+          "cos_early": 0.5088895539849206,
+          "cos_recent": 0.960428744226796,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "313",
+            "393"
+          ],
+          "session_elapsed_seconds": 2868.289999961853
+        },
+        {
+          "computed_at": 1788687859.1434832,
+          "cos_early": 0.6276218746784692,
+          "cos_recent": 0.36215278581380533,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 1,
+          "recent_track_ids": [
+            "351"
+          ],
+          "session_elapsed_seconds": 3329.039999961853
+        },
+        {
+          "computed_at": 1788687866.1458492,
+          "cos_early": 0.2426756614815069,
+          "cos_recent": 0.9217481539749748,
+          "early_track_ids": [
+            "420",
+            "97"
+          ],
+          "n_events_in_profile": 2,
+          "recent_track_ids": [
+            "227",
+            "351"
+          ],
+          "session_elapsed_seconds": 3545.3499999046326
+        }
+      ]
+    },
+    "jitter_level": 1.0,
+    "mechanism_reference": "docs/platform/stage15b-simulator-jitter-and-late-event-audit.md -- an event delivered more than 5s of event time behind the watermark is silently and permanently dropped from the windowed profile (no allowedLateness, no side output). That was established live there; this metric only asks whether the drop is VISIBLE downstream.",
+    "scenario": "chillout(8) -> rock(8)",
+    "verdict": {
+      "any_measure_distinguishable": true,
+      "measures": {
+        "events_to_adaptation": {
+          "baseline_vs_baseline": 0,
+          "baseline_vs_jittered": 0,
+          "distinguishable_from_noise": false
+        },
+        "max_coherence_cos_recent_delta": {
+          "baseline_vs_baseline": 0.0,
+          "baseline_vs_jittered": 0.5574249410687775,
+          "distinguishable_from_noise": true
+        },
+        "max_reactivity_jaccard_delta": {
+          "baseline_vs_baseline": 0.0,
+          "baseline_vs_jittered": 0.25,
+          "distinguishable_from_noise": true
+        },
+        "refresh_count": {
+          "baseline_vs_baseline": 0,
+          "baseline_vs_jittered": 1,
+          "distinguishable_from_noise": true
+        }
+      },
+      "measures_distinguishable": [
+        "max_coherence_cos_recent_delta",
+        "max_reactivity_jaccard_delta",
+        "refresh_count"
+      ],
+      "rule": "An effect counts as real only where the jitter-0 vs jitter-1.0 difference strictly exceeds the difference between two content-identical jitter-0 replicates on the same measure. Pre-registered before any of the three runs."
+    }
   },
   "recomputed_from_records": "eval/8_2/raw_scenario_records.json",
-  "run_id": "20260906T083824",
-  "stage": "15C"
+  "run_id": "15c2a",
+  "stage": "15C.2"
 }

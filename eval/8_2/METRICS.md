@@ -1,12 +1,19 @@
 # eval/8_2 Metric Spec — SIGNED OFF
 
 Status: reviewed and signed off by the thesis author (Jacopo) on
-2026-09-03. **Amended 2026-09-06** during Stage 15C's build, in three
-places, each marked inline: section 0's process list was missing two hard
+2026-09-03. **Amended 2026-09-06** during Stage 15C.2's build, in three
+further places, each marked inline: section 5 records the `--speed` the
+spec told the build session to pick by measurement, and the sampling
+ceiling that measurement exposed; section 7 records that metric 6 is run
+as two replicates whose difference is reused as a noise floor; section 8
+records that metric 7 is judged against that noise floor rather than as a
+bare delta, and measures its own dose. **Amended 2026-09-06** during
+Stage 15C's build, in three places, each marked inline: section 0's process list was missing two hard
 blockers (the Semantic API and the raw-state consumer); the "Resolved
 before handoff" claim that the K sweep isn't nested was wrong; and metrics
-1/2/3 are now built, with 4/5/6/7 deferred to Stage 15C.2. Amendments
-record what was found, they do not relax any definition. All open items from the draft (pivot genre pairing, K-sweep
+1/2/3 are now built, with 4/5/6/7 deferred to Stage 15C.2 (**built
+2026-09-06**). Amendments record what was found, they do not relax any
+definition. All open items from the draft (pivot genre pairing, K-sweep
 values, Metric 2's H3 latency instrumentation) are resolved — see
 "Resolved before handoff" below. Ready for Stage 15C's build session.
 Every definition here is something the author defends in the viva — Code
@@ -258,6 +265,23 @@ first 5 minutes))`. Plot both series against poll time.
 **Output**: `eval/8_2/coherence.json` + a figure — the two cosine series
 over session time.
 
+**Resolved during Stage 15C.2's build (2026-09-06)**, by doing the check
+this section asks for rather than defaulting: **`--speed 30`, poll
+interval 0.5s**. The measurement also exposed a constraint this section
+did not anticipate, and which changes what "undersampling" even means
+here. The profile writes are not evenly spaced. A `complete` event
+advances session time by most of a track duration (median 231s in these
+scripts), which advances the watermark past seven or eight 30s slides at
+once — so the job fires those windows *milliseconds* apart, each
+overwriting the same Redis key. **The resolvable ceiling is one vector per
+watermark-advancing event, not one per window fire**, and no poll rate can
+raise it. Measured on a 12-event `rock` probe (6 watermark-advancing
+events; 45 window fires analytically): speed 60 captured 5 of 6 distinct
+writes (min inter-burst gap 3.30s wall), speed 30 captured 6 of 6 (6.60s).
+`coherence.json` therefore reports `distinct_profile_writes_observed`
+against `watermark_advancing_events`, not against the analytic window-fire
+count — the latter would report complete sampling as ~13%.
+
 ## 6. Metric 5 — Catalog coverage and attractor collapse
 
 **Scenario**: the 40-track, 4-genre long session from §1.
@@ -291,6 +315,29 @@ this reason.
 (`determinism_check`), reusing `eval/8_1/diff_runs.py`'s comparison
 methodology rather than writing a second diffing tool.
 
+**Amended during Stage 15C.2's build (2026-09-06)**, adding detail this
+section left open rather than changing what it claims:
+
+- The PASS/FAIL rule is **pre-registered** in
+  `metrics.determinism_verdict()`, committed before either replicate ran.
+  PASS requires all three of: equal refresh counts, every compared refresh
+  classifying as `identical`, and a maximum score delta of **exactly
+  0.0** — no tolerance, because Stage 15A.2 measured this scoring path's
+  repeated-run noise floor at exactly 0.0 across 41,100 matched pairs, so
+  any drift here is a new effect that 8.1's evidence does not cover.
+- The comparison takes the **union** of refresh indices, not the
+  intersection: a refresh only one run produced is a divergence, and
+  intersecting would drop exactly the evidence of it.
+- The two replicates cannot share a session id (the topic is never purged
+  and both groups read from `earliest`) or an event-time anchor (the
+  watermark is stream-wide). Anchors are aligned to whole multiples of the
+  300s window size, so window boundaries fall identically relative to each
+  run's own events. Everything a seed can control is held fixed; what is
+  left is exactly what this metric asks about.
+- The two replicates are also **reused as metric 7's noise floor** — see
+  section 8. That is why they are two dedicated runs rather than a repeat
+  of the sweep's K=8.
+
 ## 8. Metric 7 — Late-event handling
 
 **Scenario**: the pivot scenario (§2) at a fixed K already confirmed to
@@ -314,6 +361,33 @@ imply a *visible* downstream effect at every window/K combination).
 **Output**: folded into `eval/8_2/results.json` as `late_event_effect`,
 cross-referencing `eval/8_1`-style — actually cross-referencing Stage
 15B's doc for the underlying drop mechanism, not re-deriving it here.
+
+**Amended during Stage 15C.2's build (2026-09-06)**, strengthening this
+section in two ways it did not specify:
+
+- **The delta is judged against a noise floor, not reported bare.** This
+  section asks for "the deltas" between a jitter-0 and a jitter-1.0 run,
+  but the pipeline is not run-to-run identical to begin with (the debounce
+  is wall-clock while `--speed` compresses only session time, and the
+  profile the warm path reads comes from a separately scheduled consumer
+  group), so a bare delta is uninterpretable. Metric 6's two
+  content-identical jitter-0 replicates supply the floor: an effect is
+  reported as real only where the baseline-vs-jittered difference
+  **strictly exceeds** the baseline-vs-baseline difference on the same
+  measure. Pre-registered in `metrics.late_event_verdict()` before any of
+  the three runs. Same methodology as Stage 15A.2's ANN noise floor.
+- **The dose is measured, not assumed from the setting.** `--jitter` is a
+  probability over a bounded positional reorder, so how many events it
+  actually pushes past the 5s watermark bound is a draw.
+  `metrics.late_delivery_count()` counts them from the delivery order
+  actually posted. Without it, a null result would be indistinguishable
+  from "the draw happened to drop nothing" — which this section's own
+  admission of a null result makes it important to separate.
+- Curves are aligned across arms on **position within the post-pivot
+  refresh sequence** (metric 1) and on **session-elapsed time** (metric 4),
+  never on event index or sample index: jitter permutes delivery order, so
+  the n-th delivered event is not the same event across arms, and window
+  fires are not under the harness's control, so sample counts differ.
 
 ## Output file summary
 

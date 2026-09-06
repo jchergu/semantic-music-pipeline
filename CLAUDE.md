@@ -3,11 +3,11 @@
 Master's thesis (Bologna). Kappa-style streaming pipeline, 3 layers, with a
 Recommender Engine as the Layer 3 demo for the first use case. **8.1
 (batch, reactive) is complete** — see Build order below. **8.2 (streaming,
-reactive) is in progress** — stages 13-14 and 15A/15B/15C are done
-(session profile centroid, recommendation refresh loop, bug closure,
-simulator late-event support, and the `eval/8_2` harness with metrics
-1/2/3); **Stage 15C.2** (metrics 4/5/6/7) is next, then **stage 16**
-(refresh daemon + `session_api`, Decision E), then 15D (failure injection
+reactive) is in progress** — stages 13-14 and 15A/15B/15C/15C.2 are
+done (session profile centroid, recommendation refresh loop, bug closure,
+simulator late-event support, and the `eval/8_2` harness with **all seven
+metrics** of its signed-off spec); **stage 16** (refresh daemon +
+`session_api`, Decision E) is next, then 15D (failure injection
 — deliberately after stage 16, so it can also ask what a client sees when
 a store dies mid-session) and 15E (run the full harness, then write
 chapter 6's 8.2 half). Do not build further 8.2/8.3 work unless explicitly asked — they
@@ -94,7 +94,7 @@ notes.
 | Use case | Mode | Type | Status |
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — build order done, results evaluated |
-| 8.2 | Streaming | Reactive | In progress — stages 13-14 + 15A/15B/15C done; 15C.2 (eval metrics 4-7), 15D, 15E remain |
+| 8.2 | Streaming | Reactive | In progress — stages 13-14 + 15A/15B/15C/15C.2 done (`eval/8_2` complete, metrics 1-7); stage 16, 15D, 15E remain |
 | 8.3 | Streaming | Proactive | Not started — auto-tagging reused as live classifier only, no live writes to Neo4j |
 
 8.1 / 8.2 / 8.3 are independent modules: no shared runtime state, no shared
@@ -800,7 +800,114 @@ this speed, not its 5s interval branch. All four sessions reached the warm
 path after one cold-start refresh, ~5.3-5.5 s in. See
 `docs/platform/stage15c-eval-8_2-harness.md` and `eval/8_2/README.md`; a
 `--from-records` flag recomputes every metric from saved raw records with
-no live run. 148/148 tests pass repo-wide.
+no live run. 148/148 tests passed repo-wide at the time.
+
+The numbers above are this stage's own run. Stage 15C.2 re-ran the whole
+pack and **the artifacts checked in under `eval/8_2/` are now that later
+run's** — the deterministic metrics reproduced exactly (`events_to_adaptation`
+4/5/7/10, unchanged), while the wall-clock latencies moved as expected for
+a quantity both eval packs explicitly exclude from any reproduction claim
+(H1 7.2 ms, H2 2.12 s, H3 24.4 ms). `events_behind_each_refresh` is also
+now reported per `--speed`: the p50 = p95 = max = 3 recorded above still
+holds at speed 60, but the long session's speed 30 sits at p50 = 2, where
+the debounce's 5s interval branch fires before its 3-event branch.
+
+### Stage 15C.2 (eval/8_2 metrics 4/5/6/7 — `eval/8_2` complete)
+
+Verified working as of 2026-09-06 — the four metrics Stage 15C deferred
+with explicit `pending` markers, on the same harness and the same anchor
+schedule, no new orchestration. Three scenarios added, bringing the pack
+to eight: a 40-track four-genre `long_session`
+(`rock`/`electronic`/`chillout`/`dance`, 10 each) feeding metrics 4 and 5,
+plus three replicates of the pivot at K=8 — `det_rep1`, `det_rep2`
+(both `--jitter 0`) and `late_jitter` (`--jitter 1.0`). A full run is
+~25 minutes; `--skip-extra-scenarios` runs only the metric 1/2/3 sweep.
+Metrics 1/2/3 reproduced Stage 15C's published numbers exactly.
+
+**The design decision that shapes metrics 6 and 7**: the two jitter-0
+replicates do double duty. They are metric 6's determinism comparison,
+*and* their difference is the run-to-run noise floor metric 7's jitter
+effect has to beat before it counts as real. `METRICS.md` §8 asked only
+for a bare jitter-0 vs jitter-1.0 delta, which is uninterpretable here —
+the debounce is wall-clock while `--speed` compresses only session time,
+and the warm path reads a profile written by a separately scheduled
+consumer group, so any two runs differ somewhat. Same methodology Stage
+15A.2 used against the ANN noise floor, at the cost of one extra scenario
+rather than a separate experiment. Both verdict rules are pre-registered
+in `metrics.py` (`determinism_verdict`, `late_event_verdict`), committed
+before any of the three runs. Metric 7 also measures its own **dose**
+(`late_delivery_count`) — `--jitter` is a probability, so how many events
+it actually pushes past the 5s watermark bound is a draw, and without that
+number a null result would be indistinguishable from "nothing was
+dropped".
+
+**Metric 4's `--speed` was picked by measurement**, as `METRICS.md` §5
+demanded rather than defaulted, and the probe exposed a constraint the
+spec did not anticipate: profile writes arrive in *bursts*. A `complete`
+event advances session time by most of a track duration (median 231s),
+advancing the watermark past seven or eight 30s slides at once, which the
+job fires milliseconds apart over one overwritten Redis key. **The
+resolvable ceiling is one vector per watermark-advancing event, not one
+per window fire**, at any poll rate. Measured on a 12-event probe at a
+0.5s poll: speed 60 captured 5 of 6 distinct writes, speed 30 captured
+6 of 6 — hence `LONG_SESSION_SPEED = 30`. `coherence.json` reports capture
+against that ceiling, not against the analytic window-fire count, which
+would report complete sampling as ~13%.
+
+Real numbers. **Metric 4**: 39 of 41 resolvable writes captured (95%);
+mean `cos(profile, last 5 min of session)` **0.8707** against mean
+`cos(profile, first 5 min)` **0.6186**, with 35 of 39 samples (90%)
+closer to the recent window — the first evidence for the recency decay
+`session_profile.py` has claimed in a comment since stage 13. **Metric
+5**: **168 distinct tracks, 40.88% of the catalog**, over 40 refreshes,
+with 35 of those 40 contributing something never recommended before and
+the last new track arriving at refresh 38 — **no attractor collapse**, a
+flat tail of 2 refreshes (5%). **Metric 6: PASS**, and more strongly than
+expected — 11 refreshes each, all 11 `identical`, max score delta exactly
+0.0; a FAIL was a legitimate possible outcome and the claim stays bounded
+to two runs at one K, one speed, on an idle machine. **Metric 7**: the
+dose was heavy (20 of 32 events delivered late, up to 648.9s past the
+bound) and three of four measures cleared the zero noise floor —
+`refresh_count` 11→12, max reactivity Jaccard delta 0.2500, max coherence
+`cos_recent` delta **0.5574** — but **`events_to_adaptation` is 7 in all
+three arms**. The profile is measurably corrupted and the recommendation
+sets genuinely differ, yet losing most of the pre-pivot profile does not
+change *when* the recommender turns over, only *what* it turns over to.
+
+Two by-products. The debounce statistics are now split per `--speed` as
+well as pooled, and the split earned its keep: speed 60 sits at p50 = 3
+events behind each refresh (the debounce's *count* branch) while speed 30
+sits at p50 = 2 (the 5s *interval* branch fires first) — pooling the
+pack's two speeds would have averaged away exactly the effect
+`latency.json`'s `speed_caveat` describes. And metric 3's handoff Jaccard
+was found to hide a rank change: the long session reports 1.000 because
+the first warm refresh returned the same ten tracks as the cold start, in
+a different order (the top track dropped to position six).
+`METRICS.md` §4 defines it over *sets* and that stands, so
+`cold_warm_transition()` reports `handoff_rank_identical` alongside it
+rather than redefining the metric — it is `false` for every session in the
+pack, including the four at Jaccard 0.818.
+
+One real bug found and fixed: `run_scenario()` located the pivot as an
+index into the event-time-ordered plan and then applied that index to the
+post-jitter list. `apply_jitter()` permutes *delivery* order and leaves
+`event_time` untouched, so on `late_jitter` that would have labelled the
+wrong refreshes post-pivot — metric 7 comparing a mislabelled curve
+against a correct one, with no error anywhere. Fixed by locating the pivot
+by identity before the permutation and finding its new position after;
+`pivot_event_time_index`, `pivot_event_index` and `pivot_delivery_shift`
+are all recorded so the displacement is visible in the data.
+
+Raw artifacts are now split (`raw_scenario_records.json` +
+`raw_profile_vectors.json` + `raw_embeddings.json`, ~2.9 MB total, nothing
+rounded because metric 6 compares for exact equality) and written
+**before** any metric is computed — a live run costs ~25 minutes and the
+raw records *are* the measurement. `--from-records` reads all three and
+was used to regenerate the published outputs after three definitions were
+refined post-run, with no second live run. See
+`docs/platform/stage15c2-eval-8_2-metrics-4-7.md` and `eval/8_2/README.md`.
+61 tests in `eval/8_2/tests/` (up from 29), all pure; 180/180 pass
+repo-wide.
 
 ## Stack (all open-source, self-hostable)
 
@@ -851,17 +958,18 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (**148 tests**, measured: 47 across platform stages
+Run the full test suite (**180 tests**, measured: 47 across platform stages
 2-4+7-11 + 8.1 stages 5-6 (includes Stage 15A's `related_by_genre`
 ordering regression test), 20 for `eval/8_1` (18 pure metric functions + 2
 smoke), 15 for stage 12's event simulator, 2 for Decision C's consumer
 ownership boundary — see `tests/test_stage10_postgres_events.py` — 16 for
 stage 13's session profile centroid (Stage 15C added the
 `profile_meta_key` cross-check), 13 for stage 14's recommendation refresh
-loop, 6 for stage 15B's simulator jitter/late-event audit, 29 for stage
-15C's `eval/8_2` harness — `pytest.ini`'s `testpaths` includes `eval`
-alongside `tests`/`usecases`. The enumeration sums to exactly 148 as of
-Stage 15C: the older 2-test drift noted here since Stage 15A.2 was the
+loop, 6 for stage 15B's simulator jitter/late-event audit, 61 for
+`eval/8_2` (29 from stage 15C's harness plus 32 added by Stage 15C.2 for
+metrics 4-7) — `pytest.ini`'s `testpaths` includes `eval`
+alongside `tests`/`usecases`. The enumeration sums to exactly 180 as of
+Stage 15C.2: the older 2-test drift noted here since Stage 15A.2 was the
 `eval/8_1` smoke tests going uncounted, reconciled 2026-09-06. Note that
 test files under `eval/` must be uniquely named across packages — `8_1`
 and `8_2` aren't valid Python identifiers, so same-named files silently
@@ -939,15 +1047,20 @@ Postgres/Milvus/Neo4j directly, no Semantic API needed):
 platform/enrichment/.venv/bin/python -m eval.8_1.run
 ```
 
-Run `eval/8_2`'s harness (stage 15C). Needs the stack up and the track
-embeddings preloaded into Redis; it starts the Semantic API, the event
-ingestion service, the Flink job and both consumer loops itself, and
-cancels/tears them down afterward. ~5 minutes for the default K sweep:
+Run `eval/8_2`'s harness (stages 15C + 15C.2, all seven metrics). Needs
+the stack up and the track embeddings preloaded into Redis; it starts the
+Semantic API, the event ingestion service, the Flink job and both consumer
+loops itself, and cancels/tears them down afterward. **~25 minutes** for
+all eight scenarios; `--skip-extra-scenarios` runs only the metric 1/2/3 K
+sweep in ~6:
 
 ```bash
 PYTHONPATH=platform platform/enrichment/.venv/bin/python platform/streaming/preload_embeddings_to_redis.py
 platform/enrichment/.venv/bin/python -m eval.8_2.run
-# recompute every metric from a previous run's records, no live run:
+# only the metric 1/2/3 K sweep (~6 min instead of ~25):
+platform/enrichment/.venv/bin/python -m eval.8_2.run --skip-extra-scenarios
+# recompute every metric from a previous run's records, no live run --
+# reads raw_profile_vectors.json and raw_embeddings.json alongside it:
 platform/enrichment/.venv/bin/python -m eval.8_2.run --from-records eval/8_2/raw_scenario_records.json
 ```
 
