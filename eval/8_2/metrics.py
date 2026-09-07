@@ -528,3 +528,88 @@ def late_delivery_count(posts: list[dict], bound_seconds: float = WATERMARK_BOUN
         "max_lateness_seconds": max(lateness) if lateness else 0.0,
         "mean_lateness_seconds": (sum(lateness) / len(lateness)) if lateness else 0.0,
     }
+
+
+# ---------------------------------------------------------------------------
+# Metric 8 (Stage 15D): failure injection. See METRICS.md section 9.
+# ---------------------------------------------------------------------------
+
+# The measures section 9.4 defines, split by how a difference between two
+# replicates is interpreted. Both kinds must AGREE across replicates to
+# support a claim; they differ only in what "agree" means -- an int has to
+# match exactly here because section 9.2 fixes the injection window by event
+# index precisely so that the count cannot drift between replicates.
+CATEGORICAL_MEASURES = ("recovers_without_restart", "staleness_detectable", "client_status_sequence")
+COUNT_MEASURES = ("events_lost",)
+
+
+def _measure_value(record: dict, measure: str):
+    """Pulls one section 9.4 measure out of an arm record.
+
+    `client_status_sequence` is derived rather than stored: measure 3 records
+    whole API responses at four phases, which is the evidence a reader needs,
+    but what a verdict can compare across arms is the HTTP status triple at
+    each phase. Reduced here, in the pre-registered code, rather than in the
+    harness -- so the reduction is fixed alongside the rule that uses it.
+    """
+    if measure == "client_status_sequence":
+        return tuple(
+            (s["phase"], s["session_status"], s["recommendations_status"], s["profile_status"])
+            for s in record.get("client_samples", [])
+        )
+    return record.get(measure)
+
+
+def failure_injection_verdict(control: dict, replicates: list[dict]) -> dict:
+    """Metric 8's PRE-REGISTERED rule, fixed before any arm ran.
+
+    Two conditions, both from METRICS.md section 9.5:
+
+      - **An effect counts only if it is absent from the control arm.** The
+        control runs the identical scenario with no injection, so anything
+        already true there is a property of the pipeline rather than of the
+        failure.
+      - **An effect counts only if both replicates of the arm agree on it.**
+        Where they disagree, the measure is reported `unstable` and NO claim
+        is made about it -- not averaged, not resolved by picking one.
+
+    `pass` means the failure was detected, bounded, and its client-visible
+    consequence characterised. It does NOT mean the system behaved well: an
+    arm where events are lost and `staleness_detectable` is False passes as a
+    measurement while being a bad result for the system. Keeping those two
+    judgements apart is the point -- the verdict says the measurement is
+    sound, the finding says what it found.
+
+    Only two replicates, where Stage 15A.2's noise floor and metric 6 use
+    n>=5, because these measures are categorical and deterministic (an event
+    is in the Postgres log or it is not) rather than draws from a
+    distribution. The second replicate buys reproducibility, not a
+    percentile. Section 9.5 states this deviation rather than leaving it to
+    be noticed.
+    """
+    measures = {}
+    for measure in CATEGORICAL_MEASURES + COUNT_MEASURES:
+        values = [_measure_value(r, measure) for r in replicates]
+        stable = all(v == values[0] for v in values) if values else False
+        control_value = _measure_value(control, measure)
+        agreed = values[0] if stable and values else None
+        measures[measure] = {
+            "control": control_value,
+            "replicates": values,
+            "stable": stable,
+            # Only meaningful when stable; None otherwise, so a reader can
+            # never mistake an unstable measure for a null effect.
+            "differs_from_control": (agreed != control_value) if stable else None,
+            "effect": agreed if stable else "unstable",
+        }
+    unstable = sorted(m for m, v in measures.items() if not v["stable"])
+    return {
+        "arm": replicates[0].get("arm") if replicates else None,
+        "replicate_count": len(replicates),
+        "pass": not unstable,
+        "unstable_measures": unstable,
+        "effects_beyond_control": sorted(
+            m for m, v in measures.items() if v["stable"] and v["differs_from_control"]
+        ),
+        "measures": measures,
+    }

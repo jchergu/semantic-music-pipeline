@@ -1,9 +1,13 @@
 # eval/8_2 Metric Spec — SIGNED OFF
 
 Status: reviewed and signed off by the thesis author (Jacopo) on
-2026-09-03. **Amended 2026-09-06** during Stage 15C.2's build, in three
-further places, each marked inline: section 5 records the `--speed` the
-spec told the build session to pick by measurement, and the sampling
+2026-09-03. **Extended 2026-09-07** for Stage 15D with section 9 (metric 8,
+failure injection) — an addition beyond the signed-off seven, not an
+amendment to any of them, pre-registered under the same discipline and
+scoped by explicit decision that day. **Amended 2026-09-06** during Stage
+15C.2's build, in three further places, each marked inline: section 5
+records the `--speed` the spec told the build session to pick by
+measurement, and the sampling
 ceiling that measurement exposed; section 7 records that metric 6 is run
 as two replicates whose difference is reused as a noise floor; section 8
 records that metric 7 is judged against that noise floor rather than as a
@@ -389,6 +393,177 @@ section in two ways it did not specify:
   the n-th delivered event is not the same event across arms, and window
   fires are not under the harness's control, so sample counts differ.
 
+## 9. Metric 8 — Failure injection
+
+**Added 2026-09-07 for Stage 15D.** Not part of the 2026-09-03 sign-off:
+metrics 1-7 above measure the pipeline when every component is up, and
+Stage 15D was sequenced deliberately after Stage 16 so it could ask the
+question none of them can — *what does a client see when a store dies
+underneath a live session?* This section is pre-registered under the same
+discipline as the rest of the file: the arms, the measures and the verdict
+rule below were committed before the first arm ran, and
+`metrics.failure_injection_verdict()` implements exactly what is written
+here.
+
+**Scope, fixed by explicit decision (2026-09-07)**: three injections —
+**Redis outage**, **Semantic API outage**, and **raw-state TTL expiry** —
+against the **real Stage 16 deployment shape**. Postgres, Milvus, Kafka and
+Flink outages are out of scope for this stage; §9.6 records what reading the
+code predicts for them, as stated hypotheses that this stage does not test.
+
+The `allowedLateness`/side-output decision that Stage 15B and 15C.2 left to
+"15C/15D" is **also out of scope and stays open**. §8's metric 7 exists to
+quantify the consequence of the job having no lateness handling; adding it
+here would destroy the effect that metric measures. It is future work, and
+the thesis should say so.
+
+### 9.1 What this runs against
+
+Unlike metrics 1-7, this metric does **not** use `harness.run_scenario()`.
+That harness owns test-shaped threads — its own raw-consumer loop and its own
+driver loop over `process_one_event()` — and §0 is explicit that those are
+not a deployment. A failure-injection result measured against harness threads
+would be a claim about the harness, not about the system, and the client-visible
+half would have no client at all.
+
+So this metric drives the real thing, as five processes:
+
+1. `platform/semantic_api` (uvicorn)
+2. `platform/event_ingestion` (uvicorn)
+3. `platform/session_api` (uvicorn) — **the client's view**, the component
+   metrics 1-7 never touch
+4. `platform/streaming/session_consumer_daemon.py` (subprocess)
+5. `platform/streaming/refresh_daemon.py` (subprocess)
+
+plus the Stage 13 Flink job, submitted the same way `orchestration.py` already
+submits it. The daemons run under the **canonical group ids** from
+`streaming/config.py`, not throwaway ones: committed offsets and restart
+behaviour are part of what is being measured, and a throwaway group id would
+replay the never-purged topic from earliest and hide exactly that.
+
+### 9.2 Scenario and injection timing
+
+One fixed scenario across every arm: the §2 pivot scenario at **K=8**, speed
+60 — already confirmed by metrics 6 and 7 to satisfy the warm-path
+precondition, so an arm that produces no warm refresh is a finding rather
+than a mis-chosen scenario.
+
+The injection is scheduled by **event index, not wall-clock**: it is applied
+after the *n*-th event has been posted, held for a fixed number of subsequent
+posts, then reverted. Both boundaries are recorded in the raw record. Indexing
+by event keeps the outage window covering the same events in every arm and
+every replicate, which is what makes `events_lost` comparable at all; a
+wall-clock window would cover a different number of events each run because
+posting is paced by `gap/speed` against a live stack.
+
+The injection window is placed **after the pivot** and after at least one warm
+refresh, so each arm has a healthy pre-injection baseline of its own inside
+the same run.
+
+### 9.3 Arms
+
+| Arm | Injection | Reverted by |
+|---|---|---|
+| `control` | none | — |
+| `redis_outage` | `docker stop 8-1-redis` | `docker start 8-1-redis` |
+| `semantic_api_outage` | terminate the Semantic API's uvicorn process | restart it on the same port |
+| `ttl_expiry` | `EXPIRE session:{id}:events 0` | not reverted — expiry is not an outage |
+
+`ttl_expiry` reproduces the Stage 16 deferred finding deterministically rather
+than waiting 30 minutes for the real sliding TTL to fire. It is the same idiom
+`tests/test_stage16_session_api.py` already uses to construct that state, and
+it makes the arm a decision procedure rather than a stopwatch.
+
+**Each arm runs twice.** See §9.5 for why two and not five.
+
+### 9.4 Measures
+
+Four per arm, recorded per replicate.
+
+1. **`events_lost`** — simulator posts accepted by the ingestion service
+   (HTTP 2xx, so the event genuinely reached Kafka) that never appear in the
+   Postgres `events` log for that session. Postgres is the ground truth here,
+   not Redis: it is the system of record, it has no TTL, and the raw-state
+   daemon writes both stores on the same poll, so a post that reached Kafka
+   and is absent from Postgres was consumed and discarded.
+2. **`recovers_without_restart`** — after the injection is reverted, does the
+   pipeline produce a further successful refresh for that session with no
+   process restarted? Recorded with the wall-clock of the first post-recovery
+   refresh, or `false` with the daemon's error count if none arrives.
+3. **`client_visible_signal`** — the full `GET /sessions/{id}` body plus the
+   HTTP status of `/sessions/{id}/recommendations` and `/sessions/{id}/profile`,
+   sampled at four points: before injection, during, immediately after
+   reverting, and at end of scenario. This is the half of the metric that only
+   exists because Stage 16 shipped first.
+4. **`staleness_detectable`** — whether a client could tell, **from those API
+   responses alone**, that what it is being served is stale or incomplete.
+   Derived from measure 3, with the specific field (or its absence) recorded as
+   evidence. A `false` here is the most consequential possible result: it means
+   the service serves degraded output indistinguishable from healthy output.
+
+### 9.5 Verdict rule (pre-registered)
+
+Implemented in `metrics.failure_injection_verdict()`, committed before any arm
+ran.
+
+- **An effect counts only if it is absent from the control arm.** The control
+  runs the identical scenario with no injection; any measure that already
+  differs from nominal there is a property of the pipeline, not of the failure.
+  This is the same shape as §7/§8's noise-floor rule, reduced to its
+  categorical form.
+- **An effect counts only if both replicates of an arm agree on it.** Where the
+  two replicates disagree on a categorical measure, that measure is reported as
+  `unstable` and **no claim is made** about it.
+- A `pass` for an arm means: the failure was detected, bounded, and its
+  client-visible consequence characterised. It explicitly does **not** mean the
+  system behaved well. An arm where `events_lost > 0` and
+  `staleness_detectable` is `false` still passes as a measurement while being a
+  bad result for the system — and that distinction is the point of separating
+  the verdict from the finding.
+
+**Why two replicates and not the n≥5 this project uses elsewhere.** Stage
+15A.2's ANN noise floor and §7's determinism replicates pool repeated runs
+because they estimate a *ceiling on a continuous quantity* — a max score delta,
+a percentile — and a single draw from a distribution is not its ceiling. The
+measures here are **categorical and deterministic**: an event is in the
+Postgres log or it is not; the daemon resumes or it does not; the API exposes a
+staleness field or there is no such field to expose. Repetition here buys
+reproducibility, not a percentile, so the second replicate is there to catch a
+non-deterministic outcome (which is reported as `unstable` rather than
+averaged), and a third would add nothing. `events_lost` is the one count that
+could in principle vary; it is bounded by the injection window, which §9.2
+fixes by event index precisely so that it cannot drift. This is a deliberate,
+stated deviation from the n≥5 rule, not an oversight.
+
+### 9.6 Predicted but untested (stated, not measured)
+
+Reading the daemons' code predicts the following. Stage 15D does **not** test
+them, and the thesis must not report them as results:
+
+- Both daemons contain a per-event failure with a blanket `except Exception`
+  that counts the error and **commits the offset past the message**. That is the
+  correct policy for a poison message; applied to a dependency outage it
+  discards every event arriving during the outage, unrecoverably. The
+  `redis_outage` and `semantic_api_outage` arms measure this consequence
+  directly, so for those two it is tested.
+- The daemons open Postgres and Milvus connections once at startup and never
+  re-establish them. psycopg2 does not self-heal, so a Postgres outage is
+  predicted to break a daemon permanently rather than transiently — the one
+  place where "recovers without restart" is predicted to be `false` for reasons
+  unrelated to lost events. **Untested here** (Postgres is out of scope).
+- A Kafka outage is predicted to be *invisible*: `poll()` returning nothing is
+  indistinguishable from idle traffic, so the daemon reports itself healthy
+  while consuming nothing. **Untested here.**
+
+### 9.7 Output
+
+`eval/8_2/failure_injection.json`, alongside the metric 1-7 packs and not
+folded into `results.json` — this metric is measured against a different
+process topology (§9.1) and merging it would blur what `results.json`'s
+determinism claim covers. Raw per-arm records are written **before** any
+verdict is computed, and a `--from-records` path recomputes the verdicts
+without a live run, for the same reason §0 gives.
+
 ## Output file summary
 
 - `eval/8_2/results.json` — deterministic per §6: `cold_warm_transition`
@@ -400,6 +575,10 @@ section in two ways it did not specify:
 - `eval/8_2/figures/*.png` — reactivity curve, coherence series, coverage
   curve, latency breakdown.
 - `eval/8_2/tables.md` — thesis-ready tables assembled from the above.
+- `eval/8_2/failure_injection.json` — §9, deliberately NOT folded into
+  `results.json`: it is measured against a different process topology (the
+  real daemons and `session_api`, not the harness's threads), and merging it
+  would blur what `results.json`'s determinism claim covers.
 
 ## Resolved before handoff
 
