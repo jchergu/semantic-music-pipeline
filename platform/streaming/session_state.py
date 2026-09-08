@@ -10,7 +10,7 @@ import json
 
 import redis
 
-from streaming.config import REDIS_HOST, REDIS_PORT, SESSION_TTL_SECONDS
+from streaming.config import DERIVED_TTL_SECONDS, REDIS_HOST, REDIS_PORT, SESSION_TTL_SECONDS
 
 _client = redis.Redis(host=REDIS_HOST, port=int(REDIS_PORT), decode_responses=True)
 
@@ -62,6 +62,34 @@ def recs_key(session_id: str) -> str:
     avoids a reader needing to know which module actually owns the
     string."""
     return f"session:{session_id}:recs"
+
+
+def refresh_meta_key(session_id: str) -> str:
+    """The refresh debounce's bookkeeping (hash fields: last_refresh_ts,
+    events_since_refresh), DERIVED state written by stage 14's
+    recommendation_refresh.py.
+
+    Added in stage 15D. It was the one session key with no canonical
+    definition here -- recommendation_refresh.py built the string inline --
+    which is exactly how it came to be the one derived key nobody noticed
+    was missing a TTL. Defined alongside its siblings now so the next
+    reader sees all four derived keys in one place."""
+    return f"session:{session_id}:refresh_meta"
+
+
+def expire_derived(client, session_id: str, *keys: str) -> None:
+    """Applies DERIVED_TTL_SECONDS to derived session keys.
+
+    Takes the caller's own client rather than using this module's, because
+    the writers of derived state each hold their own connection (stage 14's
+    refresh passes one in; stage 13's Flink job cannot import this module at
+    all and duplicates the call inline, the same arrangement profile_key()
+    documents).
+
+    Sliding, like record_event's: the TTL is reset on every write, so a
+    session that keeps producing refreshes keeps its derived state alive."""
+    for key in keys:
+        client.expire(key, DERIVED_TTL_SECONDS)
 
 
 def record_event(session_id: str, event: dict) -> None:

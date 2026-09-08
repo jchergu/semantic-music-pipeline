@@ -39,6 +39,29 @@ REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 SESSION_TTL_SECONDS = 1800  # 30 min sliding session window
 
+# Stage 15D. The same 30 minutes, applied to the DERIVED session keys
+# (:profile, :profile_meta, :recs, :refresh_meta) that carried no expiry at
+# all until this stage -- the finding stage 16 surfaced and deferred here.
+#
+# One constant rather than two, deliberately: derived state is meaningless
+# without the session it derives from, Redis is a session cache and never a
+# system-of-record substitute (CLAUDE.md), and the Postgres events log stays
+# the durable record, so nothing irreplaceable expires here.
+#
+# The asymmetry does not become a guarantee in the other direction, and the
+# docs must not claim it does. Raw events refresh their TTL on every event;
+# derived state refreshes its own only when a refresh fires or a Flink window
+# closes, and a window can close either side of the session's last event. So
+# the derived keys now expire *near* the raw state rather than before it:
+# measured across 32 derived keys in 8 sessions (Stage 15D's post-fix pack),
+# derived-minus-raw TTL lands in [-21s, +23s] -- :recs and :refresh_meta
+# always at or before raw, :profile/:profile_meta either side. Bounded
+# seconds, set by the window/debounce cadence, instead of the unbounded
+# "never" this replaces. session_api can no longer serve recommendations for
+# a session it has forgotten by more than that margin, and GET /sessions/{id}
+# still reports the transient via raw_state_expired.
+DERIVED_TTL_SECONDS = SESSION_TTL_SECONDS
+
 # The canonical Kafka consumer group id for the platform-owned Decision B
 # consumer (session_consumer.py's consume_and_cache_one/_many). Explicit,
 # not defaulted into those functions' signatures -- group_id stays a
@@ -46,9 +69,10 @@ SESSION_TTL_SECONDS = 1800  # 30 min sliding session window
 # this constant. Tests intentionally use their own throwaway group ids for
 # isolation instead (a fresh id per test avoids cross-test interference on
 # the shared, never-purged behavioral-events topic) -- only a real,
-# continuously-running deployment of this consumer (which doesn't exist
-# yet -- see docs/platform/stage12-event-simulator.md's "No persistent
-# consumer daemon" section) should use this one. Decision C, 2026-08-31.
+# continuously-running deployment of this consumer should use this one.
+# Since stage 16 that deployment exists: session_consumer_daemon.py passes
+# this by default, and is the first consumer in the repo to commit offsets
+# because it is the first that restarts. Decision C, 2026-08-31.
 SESSION_CONSUMER_GROUP_ID = "platform-session-consumer"
 
 # Stage 14's recommendation-refresh consumer: a separate, independent

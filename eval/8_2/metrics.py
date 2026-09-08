@@ -603,13 +603,29 @@ def failure_injection_verdict(control: dict, replicates: list[dict]) -> dict:
             "effect": agreed if stable else "unstable",
         }
     unstable = sorted(m for m, v in measures.items() if not v["stable"])
+    # A measure the control arm cannot have is not control-differenceable.
+    # recovers_without_restart is the case: with no injection there is nothing
+    # to recover from, so the control records None, and comparing True against
+    # None would report "the system recovered" as an *effect of the failure*.
+    # Corrected after the first clean pre-fix pack (METRICS.md section 9.5's
+    # amendment): this REMOVES a vacuous effect rather than creating one, and
+    # the measure is still reported and still required to be stable across
+    # replicates -- only its comparison to the control is dropped.
+    not_comparable = sorted(
+        m for m, v in measures.items() if v["control"] is None
+    )
+    for measure in not_comparable:
+        measures[measure]["differs_from_control"] = None
+        measures[measure]["comparable_to_control"] = False
     return {
         "arm": replicates[0].get("arm") if replicates else None,
         "replicate_count": len(replicates),
         "pass": not unstable,
         "unstable_measures": unstable,
+        "measures_not_comparable_to_control": not_comparable,
         "effects_beyond_control": sorted(
-            m for m, v in measures.items() if v["stable"] and v["differs_from_control"]
+            m for m, v in measures.items()
+            if v["stable"] and v["differs_from_control"] and m not in not_comparable
         ),
         "measures": measures,
     }

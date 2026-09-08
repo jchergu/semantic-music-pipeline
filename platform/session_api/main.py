@@ -44,7 +44,9 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from streaming.config import REDIS_HOST, REDIS_PORT
-from streaming.session_state import events_key, profile_key, profile_meta_key, recs_key
+from streaming.session_state import (
+    events_key, profile_key, profile_meta_key, recs_key, refresh_meta_key,
+)
 
 _client: redis.Redis | None = None
 
@@ -134,8 +136,18 @@ def _missing(session_id: str, what: str) -> HTTPException:
     different situations — a wrong session id versus a session whose first
     events have not yet cleared the refresh debounce — and collapsing them
     into one 404 would make the second look like a bug.
+
+    Keyed off ANY of the session's keys, not the raw event list alone
+    (fixed in stage 15D). Deciding it from session:{id}:events made this
+    function collapse the two cases in exactly the situation it exists to
+    separate: once the raw list expired, a session that still had live
+    recommendations or a live profile was reported as `unknown session`.
     """
-    known = _client.exists(events_key(session_id)) == 1
+    known = _client.exists(
+        events_key(session_id), profile_key(session_id),
+        profile_meta_key(session_id), recs_key(session_id),
+        refresh_meta_key(session_id),
+    ) > 0
     detail = (
         f"session {session_id!r} exists but has no {what} yet"
         if known else f"unknown session {session_id!r}"

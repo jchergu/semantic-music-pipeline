@@ -535,6 +535,22 @@ could in principle vary; it is bounded by the injection window, which §9.2
 fixes by event index precisely so that it cannot drift. This is a deliberate,
 stated deviation from the n≥5 rule, not an oversight.
 
+**Amended 2026-09-08, after the first clean pre-fix pack.** A measure the
+control arm *cannot have* is not control-differenceable.
+`recovers_without_restart` is the case: with no injection there is nothing to
+recover from, so the control records `None`, and the rule as written reported
+every arm's `True` against it — turning "the system recovered" into an
+*effect of the failure*, which is the opposite of what it means. Such measures
+are now listed under `measures_not_comparable_to_control` and excluded from
+`effects_beyond_control`; they are still reported and still required to be
+stable across replicates.
+
+This is a post-hoc correction to code that was pre-registered, so it is worth
+being exact about its direction: it **removes a vacuous effect rather than
+creating one**, it makes no arm's result stronger, and both the pre- and
+post-correction outputs are derivable from the same raw records via
+`--from-records`, so nothing is hidden by it.
+
 ### 9.6 Predicted but untested (stated, not measured)
 
 Reading the daemons' code predicts the following. Stage 15D does **not** test
@@ -554,6 +570,33 @@ them, and the thesis must not report them as results:
 - A Kafka outage is predicted to be *invisible*: `poll()` returning nothing is
   indistinguishable from idle traffic, so the daemon reports itself healthy
   while consuming nothing. **Untested here.**
+
+### 9.6a Run-validity guard (added 2026-09-08, after a real incident)
+
+The first pre-fix pack was invalidated by something no measure above would
+have caught: the machine suspended overnight, freezing one arm for twenty
+hours between two of its posts. The arm *completed*. Every event landed,
+`events_lost` was 0, and its four measures looked entirely ordinary --
+indistinguishable from a healthy run, and in agreement with its own
+replicate.
+
+It was nonetheless not the specified experiment. The refresh debounce is
+wall-clock while `--speed` compresses only session time, and
+`session:{id}:events` carries a 30-minute TTL, so an arm frozen for hours
+silently becomes a TTL-expiry arm regardless of which injection it was meant
+to be testing.
+
+`failure_injection.wall_clock_stall()` now compares, for every post, the
+wall-clock actually elapsed against the pacing the scenario intended, and
+flags any arm with an overrun beyond `STALL_THRESHOLD_SECONDS` (60s --
+generous, because a real stall is hours and a false positive would be worse
+than the miss it prevents). A flagged arm is **excluded and re-run, never
+adjusted or reweighted**: a measurement taken under conditions the spec did
+not describe is a different experiment, not a weaker observation of this one.
+
+This is an amendment in the same sense as the others in this file -- it
+records what was found and adds a guard. It relaxes no definition, and the
+pack published for this metric contains no stalled arm.
 
 ### 9.7 Output
 

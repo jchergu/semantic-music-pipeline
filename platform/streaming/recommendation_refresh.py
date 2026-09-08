@@ -40,8 +40,13 @@ sys.path.insert(0, str(ROOT / "usecases" / "8_1_batch_reactive"))
 
 from recommender import context_builder  # noqa: E402
 from scoring import ranking  # noqa: E402
-from streaming.config import BOOTSTRAP_SERVERS, PG_DSN, RECS_REFRESH_GROUP_ID, TOPIC_BEHAVIORAL_EVENTS  # noqa: E402
-from streaming.session_state import get_session_events, profile_key, recs_key  # noqa: E402
+from streaming.config import (  # noqa: E402
+    BOOTSTRAP_SERVERS, DERIVED_TTL_SECONDS, PG_DSN, RECS_REFRESH_GROUP_ID,
+    TOPIC_BEHAVIORAL_EVENTS,
+)
+from streaming.session_state import (  # noqa: E402
+    expire_derived, get_session_events, profile_key, recs_key, refresh_meta_key,
+)
 
 log = logging.getLogger("recommendation_refresh")
 
@@ -158,7 +163,12 @@ def fetch_track_meta(conn, track_ids: list[int]) -> dict:
 
 
 def _write_recs(redis_client, session_id: str, ranked: list[dict]) -> None:
-    redis_client.set(recs_key(session_id), json.dumps(ranked))
+    """Writes the session's recommendations with a sliding TTL (stage 15D).
+
+    Before that stage this key had no expiry at all, so session_api could
+    serve recommendations for a session whose raw events had expired hours
+    earlier, and the derived keyspace grew without bound."""
+    redis_client.set(recs_key(session_id), json.dumps(ranked), ex=DERIVED_TTL_SECONDS)
 
 
 def refresh_recommendations(
@@ -288,10 +298,16 @@ def process_one_event(
             if expected_session_id is not None and session_id != expected_session_id:
                 continue
 
-            meta_key = f"session:{session_id}:refresh_meta"
+            meta_key = refresh_meta_key(session_id)
             last_ts_raw = redis_client.hget(meta_key, "last_refresh_ts")
             last_ts = float(last_ts_raw) if last_ts_raw is not None else None
             events_since = int(redis_client.hincrby(meta_key, "events_since_refresh", 1))
+            # Also here, not only after a successful refresh: hincrby CREATES
+            # this key on a session's first event, so a session that never
+            # gets far enough to refresh would otherwise leave an immortal
+            # :refresh_meta behind -- the same unbounded growth this stage
+            # exists to close, in the one case a refresh never reaches.
+            expire_derived(redis_client, session_id, meta_key)
             now = now_fn()
 
             if should_refresh(last_ts, events_since, now):
@@ -317,6 +333,7 @@ def process_one_event(
                     # next event re-evaluates should_refresh() against the
                     # same accumulated state instead of a falsely-reset one.
                     redis_client.hset(meta_key, mapping={"last_refresh_ts": now, "events_since_refresh": 0})
+                    expire_derived(redis_client, session_id, meta_key)
                 result.update(
                     {
                         "session_id": session_id,

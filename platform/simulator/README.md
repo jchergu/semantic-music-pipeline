@@ -77,7 +77,7 @@ adds two fields beyond the existing `session_id`/`event_type`/`track_id`:
   (`<5000ms` = early skip, `>80%` duration = late skip), which are
   uncomputable from the event stream without it.
 
-## No persistent consumer daemon
+## Draining a whole session, and the persistent daemons
 
 `platform/streaming/session_consumer.py` only had a single-message
 `consume_and_cache_one()` before this stage — correct for every existing
@@ -86,10 +86,17 @@ multi-event session: it never commits Kafka offsets, so a second call, even
 with a fresh consumer group, just re-reads the same "earliest" matching
 message again rather than advancing. This stage adds
 `consume_and_cache_many(group_id, count, ...)`, which uses one `Consumer`
-for the whole batch instead of recreating one per message. There is still
-no long-running daemon that continuously drains the topic — verification
-uses `consume_and_cache_many` directly, same as every other stage's tests
-use `consume_and_cache_one`.
+for the whole batch instead of recreating one per message.
+
+**Since stage 16 a long-running daemon does exist**:
+`platform/streaming/session_consumer_daemon.py` wraps
+`consume_and_cache_many()` in a continuous loop under the canonical group id,
+alongside `refresh_daemon.py` for the derived recommendations. Those two are
+the first consumers in this repo to commit Kafka offsets, because they are the
+first that restart. This simulator's own verification still drives
+`consume_and_cache_many` directly — a bounded, throwaway-group read is the
+right shape for a test — but "no persistent consumer exists" is no longer
+true of the platform.
 
 ## Regenerating / verifying
 

@@ -16,7 +16,9 @@ latency, reactivity, coverage or semantic coherence — a systems claim.
 
 ## Status
 
-**All seven metrics of `METRICS.md` (signed off 2026-09-03) are built.**
+**All seven metrics of `METRICS.md` (signed off 2026-09-03) are built, plus
+metric 8 (failure injection), added for Stage 15D on a separate entry point —
+see below.**
 Stage 15C landed metrics 1, 2 and 3 — reactivity, latency per hop, and the
 cold-start → warm transition — off one pivot scenario. Stage 15C.2 added
 metrics 4 (semantic coherence), 5 (catalog coverage), 6 (determinism) and 7
@@ -136,6 +138,11 @@ consumer.
   embeddings live in side files only to keep the records readable — nothing
   is rounded, because metric 6 compares outputs for exact equality.
 - `tables.md`, `figures/*.png`.
+- `failure_injection.json` + `raw_failure_records.json` — metric 8, with the
+  `_before` pair measured against the pre-TTL-fix code. Deliberately **not**
+  folded into `results.json`: metric 8 is measured against a different process
+  topology, and merging it would blur what `results.json`'s determinism claim
+  covers.
 
 `write_outputs()` writes the three raw files **before** computing any metric:
 a live run costs ~18 minutes and the raw records *are* the measurement, so a
@@ -205,3 +212,48 @@ run replay the previous run's events for that session. Observed live while
 building this stage — a re-run of K=3 consumed 22 stale events, exhausted its
 event budget and reported 0 post-pivot refreshes. Scenario *content* stays
 fully seed-determined; only the keying moves.
+
+## Metric 8 runs the real deployment, not this harness
+
+`python -m eval.8_2.run` drives harness-owned threads — its own raw-state
+consumer loop and its own driver loop over `process_one_event()`. That is the
+right shape for metrics 1-7, and `METRICS.md` §0 is explicit that those threads
+are not a deployment.
+
+Metric 8 asks what a **client** sees when a store dies, so it cannot use them:
+a result measured against harness threads would be a claim about the harness,
+and the client-visible half would have no client in it at all. `python -m
+eval.8_2.failure_run` therefore starts the real stage 16 shape — Semantic API,
+event ingestion, `session_api`, and both daemons **under the canonical consumer
+group ids** — plus the Flink job. Committed offsets and restart behaviour are
+part of what is measured.
+
+Four arms (a no-injection control plus Redis outage, Semantic API outage and
+raw-state TTL expiry), two replicates each, on the K=8 pivot scenario. The
+injection window is indexed by **event, not wall-clock**, so `events_lost` is
+comparable across arms. `--from-records` recomputes every verdict with no live
+run, as for metrics 1-7.
+
+**It stops and starts the `8-1-redis` container**, so do not run it against a
+stack anyone else is using.
+
+### Two rules worth knowing before reading the numbers
+
+- **`pass` means the failure was measured soundly, not that the system behaved
+  well.** The `semantic_api_outage` arm passes while showing that the failure
+  is completely invisible to a client — which is the worst result in the pack.
+- **A measure the control cannot have is not compared to it.**
+  `recovers_without_restart` is `None` in the control, so it is reported under
+  `measures_not_comparable_to_control` rather than counted as an effect of the
+  failure. Corrected after the first clean pack; METRICS.md §9.5 records why
+  that removes a vacuous effect rather than creating one.
+
+### An arm whose wall-clock was interrupted is discarded, not repaired
+
+The first pre-fix pack was invalidated by an overnight machine suspend that
+froze one arm for twenty hours between two posts. The arm completed, lost no
+events, and agreed with its replicate — indistinguishable from a healthy run,
+while actually being a different experiment (the debounce is wall-clock and
+`session:{id}:events` has a 30-minute TTL, so a frozen arm silently becomes a
+TTL-expiry arm). `wall_clock_stall()` now flags any post-to-post overrun beyond
+60s, and a flagged arm is re-run rather than adjusted.

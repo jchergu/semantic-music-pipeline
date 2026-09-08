@@ -28,6 +28,7 @@ lifted from tests/conftest.py, which has been running it since stage 4.
 from __future__ import annotations
 
 import contextlib
+import os
 import socket
 import subprocess
 import sys
@@ -60,47 +61,137 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-@contextlib.contextmanager
-def uvicorn_service(app: str, name: str, ready_timeout: float = 30.0):
-    """Runs `uvicorn <app> --app-dir platform` on a free port until exit.
-    Same shape as tests/conftest.py's semantic_api_server /
-    event_ingestion_server fixtures, including running under sys.executable
-    so it always uses the interpreter the harness itself is running under."""
-    port = _free_port()
-    proc = subprocess.Popen(
-        [
-            sys.executable, "-m", "uvicorn", app,
-            "--app-dir", str(ROOT / "platform"),
-            "--host", "127.0.0.1", "--port", str(port),
-        ],
-        cwd=str(ROOT),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    base_url = f"http://127.0.0.1:{port}"
-    try:
-        deadline = time.monotonic() + ready_timeout
+class RestartableService:
+    """A uvicorn service whose process can be stopped and started again on
+    the SAME port.
+
+    The port is claimed once, in __init__, and reused across restarts --
+    that is the whole point. Stage 15D's semantic_api_outage arm kills this
+    service mid-scenario while the refresh daemon is already running with a
+    fixed --semantic-api-url, so a restart that landed on a different port
+    would look like a permanent outage no matter how the daemon behaved,
+    and the arm would measure the harness instead of the system.
+
+    Same subprocess shape tests/conftest.py has used since stage 4 (free
+    port, poll /health, terminate then kill), including running under
+    sys.executable so it always uses the interpreter the harness itself is
+    running under.
+    """
+
+    def __init__(self, app: str, name: str, ready_timeout: float = 30.0):
+        self.app = app
+        self.name = name
+        self.ready_timeout = ready_timeout
+        self.port = _free_port()
+        self.base_url = f"http://127.0.0.1:{self.port}"
+        self._proc: subprocess.Popen | None = None
+
+    @property
+    def running(self) -> bool:
+        return self._proc is not None and self._proc.poll() is None
+
+    def start(self) -> str:
+        if self.running:
+            return self.base_url
+        self._proc = subprocess.Popen(
+            [
+                sys.executable, "-m", "uvicorn", self.app,
+                "--app-dir", str(ROOT / "platform"),
+                "--host", "127.0.0.1", "--port", str(self.port),
+            ],
+            cwd=str(ROOT),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        deadline = time.monotonic() + self.ready_timeout
         while time.monotonic() < deadline:
-            if proc.poll() is not None:
-                out = proc.stdout.read() if proc.stdout else ""
-                raise RuntimeError(f"{name} exited early (code {proc.returncode}):\n{out}")
+            if self._proc.poll() is not None:
+                out = self._proc.stdout.read() if self._proc.stdout else ""
+                raise RuntimeError(f"{self.name} exited early (code {self._proc.returncode}):\n{out}")
             try:
-                if httpx.get(f"{base_url}/health", timeout=1.0).status_code == 200:
-                    print(f"  [{name}] ready at {base_url}")
-                    yield base_url
-                    return
+                if httpx.get(f"{self.base_url}/health", timeout=1.0).status_code == 200:
+                    print(f"  [{self.name}] ready at {self.base_url}")
+                    return self.base_url
             except httpx.TransportError:
                 pass
             time.sleep(0.3)
-        raise RuntimeError(f"{name} did not become healthy within {ready_timeout}s")
-    finally:
-        proc.terminate()
+        raise RuntimeError(f"{self.name} did not become healthy within {self.ready_timeout}s")
+
+    def stop(self) -> None:
+        if self._proc is None:
+            return
+        self._proc.terminate()
         try:
-            proc.wait(timeout=10)
+            self._proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait(timeout=5)
+            self._proc.kill()
+            self._proc.wait(timeout=5)
+        self._proc = None
+
+
+@contextlib.contextmanager
+def uvicorn_service(app: str, name: str, ready_timeout: float = 30.0):
+    """Runs `uvicorn <app> --app-dir platform` on a free port until exit.
+
+    Thin wrapper over RestartableService for the callers that never need to
+    restart anything (run.py's metric 1-7 harness); the lifecycle itself
+    lives there so there is exactly one copy of it.
+    """
+    service = RestartableService(app, name, ready_timeout)
+    service.start()
+    try:
+        yield service.base_url
+    finally:
+        service.stop()
+
+
+@contextlib.contextmanager
+def daemon_process(module: str, args: list[str], name: str, log_path: Path,
+                   ready_marker: str = "started", ready_timeout: float = 60.0):
+    """Runs one of the stage 16 daemons as a real subprocess.
+
+    Stage 15D drives the real deployment shape rather than this package's
+    own threads (METRICS.md section 9.1), and a daemon is a process: it
+    holds its own connections, its own consumer-group membership and its own
+    committed offsets, none of which a thread inside the harness would
+    exercise the same way.
+
+    Output goes to a file rather than a PIPE. A daemon logs one line per
+    event and these runs are minutes long, so an unread PIPE would fill its
+    64KB buffer and block the daemon mid-scenario -- which would look
+    exactly like the dependency outage the arm is trying to measure.
+    """
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT / "platform")
+    with open(log_path, "w") as log_file:
+        proc = subprocess.Popen(
+            [sys.executable, "-m", module, *args],
+            cwd=str(ROOT), env=env, stdout=log_file, stderr=subprocess.STDOUT, text=True,
+        )
+        try:
+            deadline = time.monotonic() + ready_timeout
+            while time.monotonic() < deadline:
+                if proc.poll() is not None:
+                    raise RuntimeError(
+                        f"{name} exited early (code {proc.returncode}); see {log_path}"
+                    )
+                if ready_marker in log_path.read_text():
+                    print(f"  [{name}] ready (log: {log_path})")
+                    yield proc
+                    return
+                time.sleep(0.3)
+            raise RuntimeError(f"{name} did not log {ready_marker!r} within {ready_timeout}s")
+        finally:
+            # SIGTERM, not kill: daemon_runtime installs a handler that lets
+            # the loop finish the message it is holding and commit, which is
+            # the shutdown path a real deployment uses.
+            proc.terminate()
+            try:
+                proc.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=5)
 
 
 def list_flink_jobs() -> list[dict]:

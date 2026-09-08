@@ -44,6 +44,12 @@ KAFKA_BOOTSTRAP = "kafka:29092"
 TOPIC = "behavioral-events"
 REDIS_HOST = "redis"
 REDIS_PORT = 6379
+# streaming/config.py::DERIVED_TTL_SECONDS. Duplicated rather than
+# imported for the same reason the key strings below are: this job's
+# Python UDF workers have no platform/ on their path inside the
+# container. tests/test_stage15d_ttl.py cross-checks the two, the same way
+# test_stage13_session_profile.py cross-checks the key strings.
+DERIVED_TTL_SECONDS = 1800
 EMBED_DIM = 512
 
 RECORD_TYPE = Types.TUPLE(
@@ -126,7 +132,8 @@ class SessionProfileWindow(ProcessWindowFunction):
 
         if weight_total > 0:
             centroid = [v / weight_total for v in weighted_sum]
-            self._redis.set(f"session:{key}:profile", json.dumps(centroid))
+            self._redis.set(f"session:{key}:profile", json.dumps(centroid),
+                            ex=DERIVED_TTL_SECONDS)
             # Provenance for eval/8_2's H2 latency hop (stage 15C): when this
             # window's centroid was computed, in the harness's own wall-clock
             # frame. A SIBLING key, never a field inside :profile above --
@@ -137,6 +144,8 @@ class SessionProfileWindow(ProcessWindowFunction):
                 f"session:{key}:profile_meta",
                 mapping={"computed_at": repr(time.time()), "n_events": n},
             )
+            # hset takes no ex=, so the TTL is a second call (stage 15D).
+            self._redis.expire(f"session:{key}:profile_meta", DERIVED_TTL_SECONDS)
             yield f"{key}: {n} events in window, weight_total={weight_total:.3f}, profile written"
         else:
             yield f"{key}: {n} events in window, weight_total=0, no profile written"

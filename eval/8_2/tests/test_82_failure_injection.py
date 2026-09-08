@@ -108,3 +108,62 @@ def test_every_section_9_4_measure_is_covered_by_the_verdict():
         "events_lost", "recovers_without_restart", "staleness_detectable",
         "client_status_sequence",
     }
+
+
+# --- run-validity guard (METRICS.md section 9.6a) --------------------------
+
+
+def _posts(gaps_expected, gaps_actual):
+    """Builds a post list whose intended pacing is `gaps_expected` and whose
+    realised wall-clock spacing is `gaps_actual`."""
+    wall, posts = 1000.0, [{"index": 0, "wall_clock": 1000.0, "expected_sleep_seconds": 0.0}]
+    for i, (exp, act) in enumerate(zip(gaps_expected, gaps_actual), start=1):
+        wall += act
+        posts.append({"index": i, "wall_clock": wall, "expected_sleep_seconds": exp})
+    return posts
+
+
+def test_normal_pacing_is_not_flagged():
+    fi = import_module("eval.8_2.failure_injection")
+    result = fi.wall_clock_stall(_posts([2.0, 3.0, 2.5], [2.1, 3.2, 2.6]))
+    assert result["wall_clock_stall_detected"] is False
+    assert result["max_post_gap_overrun_seconds"] < 1.0
+
+
+def test_a_suspended_arm_is_flagged():
+    """The real incident: twenty hours between two posts, everything else
+    normal. Nothing else in the record would have shown it."""
+    fi = import_module("eval.8_2.failure_injection")
+    result = fi.wall_clock_stall(_posts([2.0, 3.0, 2.5], [2.1, 73_000.0, 2.6]))
+    assert result["wall_clock_stall_detected"] is True
+    assert result["max_post_gap_overrun_seconds"] > 72_000
+
+
+def test_the_guard_measures_overrun_not_raw_gap():
+    """A long gap that the scenario INTENDED (a slow-paced arm) is not a
+    stall -- only the excess over the intended pacing counts."""
+    fi = import_module("eval.8_2.failure_injection")
+    result = fi.wall_clock_stall(_posts([600.0], [601.0]))
+    assert result["wall_clock_stall_detected"] is False
+
+
+def test_a_measure_undefined_in_the_control_is_not_reported_as_an_effect():
+    """`recovers_without_restart` is None in the control -- there is no
+    injection to recover from -- so comparing an arm's True against it would
+    report "the system recovered" as an effect OF THE FAILURE. Reported under
+    measures_not_comparable_to_control instead, still stability-checked."""
+    control = _record(recovers=None)
+    arm = _record(arm="redis_outage", recovers=True)
+    verdict = metrics.failure_injection_verdict(control, [arm, dict(arm)])
+    assert verdict["measures_not_comparable_to_control"] == ["recovers_without_restart"]
+    assert "recovers_without_restart" not in verdict["effects_beyond_control"]
+    assert verdict["measures"]["recovers_without_restart"]["effect"] is True
+    assert verdict["measures"]["recovers_without_restart"]["comparable_to_control"] is False
+
+
+def test_an_arm_that_fails_to_recover_is_still_visible_in_the_measure():
+    """Dropping the control comparison must not hide the finding itself."""
+    control = _record(recovers=None)
+    arm = _record(arm="x", recovers=False)
+    verdict = metrics.failure_injection_verdict(control, [arm, dict(arm)])
+    assert verdict["measures"]["recovers_without_restart"]["effect"] is False

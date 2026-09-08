@@ -6,12 +6,10 @@ Recommender Engine as the Layer 3 demo for the first use case. **8.1
 reactive) is in progress** — stages 13-14 and 15A/15B/15C/15C.2 are
 done (session profile centroid, recommendation refresh loop, bug closure,
 simulator late-event support, and the `eval/8_2` harness with **all seven
-metrics** of its signed-off spec), and **stage 16** (both refresh daemons
-+ `session_api`, Decision E) is done; **15D** (failure injection
-— deliberately after stage 16, so it can also ask what a client sees when
-a store dies mid-session; it also inherits stage 16's deferred TTL finding,
-below) is next, then 15E (run the full harness, then write chapter 6's 8.2
-half). Do not build further 8.2/8.3 work unless explicitly asked — they
+metrics** of its signed-off spec), **stage 16** (both refresh daemons
++ `session_api`, Decision E) and **15D** (failure injection + the TTL fix
+stage 16 deferred) are done; **15E** (write chapter 6's 8.2 half) is all
+that remains. Do not build further 8.2/8.3 work unless explicitly asked — they
 are separate modules, not shared code paths with each other or with 8.1.
 
 This file is tracked in git (as of the commit that rescoped it to the
@@ -95,7 +93,7 @@ notes.
 | Use case | Mode | Type | Status |
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — build order done, results evaluated |
-| 8.2 | Streaming | Reactive | In progress — stages 13-14 + 15A/15B/15C/15C.2 + 16 done (`eval/8_2` complete, metrics 1-7; daemons + `session_api` delivering); 15D, 15E remain |
+| 8.2 | Streaming | Reactive | In progress — stages 13-14 + 15A/15B/15C/15C.2 + 16 + 15D done (`eval/8_2` complete, metrics 1-8; daemons + `session_api` delivering; derived-state TTLs closed); only 15E (thesis §6.1) remains |
 | 8.3 | Streaming | Proactive | Not started — auto-tagging reused as live classifier only, no live writes to Neo4j |
 
 8.1 / 8.2 / 8.3 are independent modules: no shared runtime state, no shared
@@ -990,6 +988,101 @@ the real deployment shape — five processes under the canonical group ids,
 simulator-driven, with and without the Flink job. See
 `docs/platform/stage16-session-api.md`. 197/197 pass repo-wide.
 
+### Stage 15D (failure injection + the TTL fix stage 16 deferred)
+
+Verified working as of 2026-09-08. Two halves, sequenced deliberately —
+**measure first, then fix** — so the fix's effect is observed rather than
+asserted. Sequenced after stage 16 on purpose: once `session_api` existed
+there was finally a client, so this stage could ask what a client sees when
+a store dies mid-session.
+
+**Metric 8**, added to `eval/8_2/METRICS.md` as §9 and committed **before
+any arm ran** so the pre-registration is verifiable. Four arms — a
+no-injection `control` plus `redis_outage`, `semantic_api_outage` and
+`ttl_expiry` — two replicates each, on the K=8 pivot scenario metrics 6/7
+already use. Scope fixed by explicit decision: Postgres/Milvus/Kafka
+outages are **not** tested (§9.6 records what reading the code predicts for
+them, marked as predictions), and the `allowedLateness` decision 15B/15C.2
+left open **stays open**, since metric 7 exists to quantify the consequence
+of not having it.
+
+Run by `python -m eval.8_2.failure_run`, a **separate entry point from
+`run.py`**: metrics 1-7 are measured against harness-owned threads, while
+metric 8 drives the real stage 16 deployment — five processes (Semantic API,
+event ingestion, `session_api`, both daemons under the **canonical group
+ids**) plus the Flink job. Committed offsets and restart behaviour are part
+of what is measured. `orchestration.py` gained `RestartableService` (same
+port across restarts, so killing the Semantic API is not indistinguishable
+from a permanent outage) and `daemon_process`; `uvicorn_service` was
+refactored onto the former, so there is one copy of that lifecycle.
+
+Real numbers (both replicates agreed on every measure; no arm stalled).
+**`redis_outage`**: 6 events accepted by the ingestion service never reached
+the Postgres log — both daemons caught `redis.ConnectionError`, counted an
+error and **committed the offset past the message**. That handler is right
+for a poison message and wrong for a dependency outage, and the two are
+indistinguishable to it; there is no retry, and the advanced offset means a
+restart cannot recover them. Both daemons did recover with nothing
+restarted (redis-py is pool-backed), and a client saw 500s *during* the
+outage only. The outage also killed the Flink job permanently — its window
+function writes to Redis and the compose cluster runs it with no
+checkpointing, so the restart strategy is "none"; the harness resubmits
+between arms, without which every later arm would have run with no profile
+at all. **`semantic_api_outage`: no measure distinguishes it from the
+control**, and that is the finding. No events are lost (the raw daemon does
+not depend on it) and every client request returns 200 throughout, while
+every refresh attempted during the outage fails and `session:{id}:recs`
+silently stops moving — served as current, because `:recs` carries no
+timestamp of any kind, unlike `:profile` and its sibling `:profile_meta`.
+**`ttl_expiry`**: visible, via the `raw_state_expired` flag stage 16 added.
+
+**The TTL fix.** `streaming/config.py` now defines `DERIVED_TTL_SECONDS`
+(= `SESSION_TTL_SECONDS`), applied to all four derived keys: TTLs in
+`recommendation_refresh._write_recs()` and on the `hincrby` that *creates*
+`:refresh_meta` (a session that never refreshes would otherwise leave an
+immortal key), and in `flink_session_profile_job.py` (constant duplicated
+inline for the same reason the key strings are, and cross-checked by test).
+`session_state.py` gained `refresh_meta_key()` and `expire_derived()` —
+`:refresh_meta` was the one session key with no canonical definition here,
+which is exactly how it became the one derived key nobody noticed had no
+TTL. **The asymmetry becomes a bound, not a reversal** — worth stating
+precisely, since the obvious claim ("derived now expires first") is false:
+raw events refresh their TTL on every event while derived state refreshes
+only on a refresh or a window close, and a window can close either side of
+the last event. Measured on the post-fix pack across 32 derived keys in 8
+sessions, derived-minus-raw TTL lands in **[-21s, +23s]** (`:recs` and
+`:refresh_meta` always at or before raw; `:profile`/`:profile_meta` either
+side). Derived state now expires within about half a minute of its session
+instead of never, and `GET /sessions/{id}` still reports the transient. `session_api._missing()` now decides "known session"
+from **any** session key: keying it off `:events` alone made that function
+collapse the two cases it exists to separate once the raw list expired
+(regression test confirmed failing against the old code).
+`track:{id}:embedding`/`:duration_sec` stay TTL-free by design — catalog
+state, not session state.
+
+Two things the running of it found. A **suspended machine produced a
+perfect-looking, invalid arm**: the first pre-fix pack was frozen twenty
+hours mid-arm by an overnight suspend, and the arm completed, lost no
+events and agreed with its replicate — while actually being a different
+experiment, since the debounce is wall-clock and `:events` has a 30-minute
+TTL. `failure_injection.wall_clock_stall()` now compares realised against
+intended pacing per post and flags any overrun beyond 60s; **a flagged arm
+is excluded and re-run, never reweighted**, and that pack was discarded.
+And **a measure the control cannot have is not control-differenceable**:
+`recovers_without_restart` is `None` in the control, so the rule as written
+reported every arm's `True` as an *effect of the failure*; corrected to
+report such measures under `measures_not_comparable_to_control` — a
+post-hoc correction that **removes a vacuous effect rather than creating
+one**, recorded as such in §9.5.
+
+**Metrics 1-7 are unchanged by the fix**: `eval.8_2.run --from-records`
+reproduced `results.json`, `reactivity.json`, `coherence.json` and
+`coverage.json` byte-identically (md5-verified). The live 25-minute harness
+re-run was deliberately skipped in favour of this recomputation, which
+answers exactly that question at zero live cost — recorded so the
+substitution is visible. See
+`docs/platform/stage15d-failure-injection.md`. 215/215 pass repo-wide.
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
@@ -1048,18 +1141,20 @@ docker compose ps      # verify all services healthy before moving to next stage
 docker compose down    # stop the stack (add -v to also wipe volumes)
 ```
 
-Run the full test suite (**197 tests**, measured: 47 across platform stages
+Run the full test suite (**215 tests**, measured: 47 across platform stages
 2-4+7-11 + 8.1 stages 5-6 (includes Stage 15A's `related_by_genre`
 ordering regression test), 20 for `eval/8_1` (18 pure metric functions + 2
 smoke), 15 for stage 12's event simulator, 2 for Decision C's consumer
 ownership boundary — see `tests/test_stage10_postgres_events.py` — 16 for
 stage 13's session profile centroid (Stage 15C added the
 `profile_meta_key` cross-check), 13 for stage 14's recommendation refresh
-loop, 6 for stage 15B's simulator jitter/late-event audit, 61 for
+loop, 6 for stage 15B's simulator jitter/late-event audit, 73 for
 `eval/8_2` (29 from stage 15C's harness plus 32 added by Stage 15C.2 for
-metrics 4-7), and 17 for stage 16's daemons and session API —
+metrics 4-7, plus 12 added by Stage 15D for metric 8), 17 for stage 16's
+daemons and session API, and 6 for Stage 15D's derived-key TTLs —
 `pytest.ini`'s `testpaths` includes `eval` alongside `tests`/`usecases`.
-The enumeration sums to exactly 197 as of stage 16 (47+20+15+2+16+13+6+61+17):
+The enumeration sums to exactly 215 as of Stage 15D
+(47+20+15+2+16+13+6+73+17+6):
 the older 2-test drift noted here since Stage 15A.2 was the
 `eval/8_1` smoke tests going uncounted, reconciled 2026-09-06. Note that
 test files under `eval/` must be uniquely named across packages — `8_1`
@@ -1178,6 +1273,20 @@ platform/enrichment/.venv/bin/python -m eval.8_2.run --skip-extra-scenarios
 # recompute every metric from a previous run's records, no live run --
 # reads raw_profile_vectors.json and raw_embeddings.json alongside it:
 platform/enrichment/.venv/bin/python -m eval.8_2.run --from-records eval/8_2/raw_scenario_records.json
+```
+
+Run `eval/8_2`'s metric 8 (Stage 15D failure injection). A **separate entry
+point**: unlike `run.py`, which drives harness-owned threads, this starts the
+real stage 16 deployment — Semantic API, event ingestion, `session_api` and
+both daemons under the canonical group ids — plus the Flink job, and injects
+failures into it. **It stops and starts the `8-1-redis` container**, so don't
+run it against a stack anyone else is using. ~15 minutes for all eight arms:
+
+```bash
+platform/enrichment/.venv/bin/python -m eval.8_2.failure_run
+# recompute every verdict from a previous run's records, no live run:
+platform/enrichment/.venv/bin/python -m eval.8_2.failure_run \
+    --from-records eval/8_2/raw_failure_records.json
 ```
 
 No lint command exists in this repo yet — don't invent one; add it here

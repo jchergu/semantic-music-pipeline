@@ -99,3 +99,31 @@ Debounce design floor (stated, not measured): refresh at most once per 5.0s **or
 > An effect counts as real only where the jitter-0 vs jitter-1.0 difference strictly exceeds the difference between two content-identical jitter-0 replicates on the same measure. Pre-registered before any of the three runs.
 
 > The drop mechanism itself is not re-derived here — see `docs/platform/stage15b-simulator-jitter-and-late-event-audit.md`, which proved live that an event past the watermark bound is silently and permanently dropped. This metric only asks whether that drop is visible downstream.
+
+## Metric 8 — failure injection (Stage 15D)
+
+Measured against the **real stage 16 deployment** (five processes plus the Flink job, daemons under the canonical consumer group ids), not this pack's own threads. Two replicates per arm; both agreed on every measure in every arm, and no arm was flagged by the wall-clock stall guard.
+
+| Arm | Events lost | Recovers w/o restart | Client can tell | Effects beyond control |
+|---|---|---|---|---|
+| `control` ×2 | 0 | — (n/a) | no | — |
+| `redis_outage` ×2 | **6** | yes | yes (HTTP 500, *during* only) | `events_lost`, `client_status_sequence`, `staleness_detectable` |
+| `semantic_api_outage` ×2 | 0 | yes | **no** | **none** |
+| `ttl_expiry` ×2 | 0 | yes | yes (`raw_state_expired`) | `staleness_detectable` |
+
+> `pass` means the failure was measured soundly, **not** that the system behaved well. All three arms pass. `semantic_api_outage` passes while showing the worst behaviour in the pack: no measure distinguishes it from the control, because no event is lost and every request returns 200 — yet every refresh during the outage fails and `session:{id}:recs` silently freezes, served as current. `:recs` carries no timestamp, unlike `:profile` and its sibling `:profile_meta`, so there is no field a client could read to notice.
+
+> `recovers_without_restart` is undefined for the control (no injection to recover from), so it is reported under `measures_not_comparable_to_control` rather than counted as an effect of the failure. See METRICS.md §9.5.
+
+### The TTL fix changed none of these numbers, and that is expected
+
+The pre-fix (`15dpre2`) and post-fix (`15dpost`) packs are **identical on all four measures in all four arms**. An arm runs about 90 seconds while `DERIVED_TTL_SECONDS` is 1800, so no derived key can expire inside one — metric 8 as specified cannot see this fix, and reporting it as validation of the fix would be an overclaim.
+
+The fix is verified directly instead, by reading Redis:
+
+| Session written by | `:events` | `:profile` | `:profile_meta` | `:recs` | `:refresh_meta` |
+|---|---|---|---|---|---|
+| pre-fix code | *expired* | `-1` | `-1` | `-1` | `-1` |
+| post-fix code | 1082 | 1104 | 1104 | 1077 | 1081 |
+
+`-1` is Redis for "exists, never expires" — the unbounded growth the fix closes. Across 32 derived keys in 8 post-fix sessions, derived-minus-raw TTL lands in **[-21s, +23s]**: `:recs` and `:refresh_meta` always at or before raw, `:profile`/`:profile_meta` either side, because a Flink window can close either side of the session's last event. Derived state now expires within about half a minute of its session rather than never — a bound, not a reversal.
