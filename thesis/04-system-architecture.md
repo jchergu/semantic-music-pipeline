@@ -55,9 +55,11 @@ The Recommender Engine — the demo application used throughout this thesis — 
   ----------------- ---------------------- -------------------------------------------------------------- -----------------
   8.1               Batch, reactive        Explicit query against a static/batch context                  REST
 
-  8.2               Streaming, reactive    Explicit query within a live session                           WebSocket
+  8.2               Streaming, reactive    Explicit query within a live session                           REST
 
   8.3               Streaming, proactive   System-inferred, no explicit query, from a live-played track   WebSocket
   -------------------------------------------------------------------------------------------------------------------------
+
+Use case 8.2's transport was revised from WebSocket to REST during implementation, and the table above records the revised value; the reasoning is given in Section 6.1.2, since it turns on the distinction between 8.2 and 8.3 rather than on a transport preference. 8.3's remains WebSocket, push delivery being the natural transport for a use case in which the user never asked.
 
 For 8.2 and 8.3, Redis serves as a session cache — distinct from PostgreSQL's role as the system of record — fed by the platform-owned Kafka consumer that reads the behavioral-events topic and, on the same poll, writes each event to both Redis (under a sliding 30-minute TTL) and PostgreSQL directly, rather than through a separate stream-processing job (Decision B). For 8.3, Auto-tagging is reused as a classifier-only building block inside the Semantic API, with no live persistence to Neo4j during the streaming session. Use case 8.3's implementation simulates a live audio stream via a Creative-Commons clip served through the Freesound API, rather than live hardware capture.
