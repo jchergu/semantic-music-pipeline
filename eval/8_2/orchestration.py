@@ -276,6 +276,13 @@ def flink_session_profile_job(manage: bool = True):
     try:
         yield job_id
     finally:
+        # Cancel every RUNNING job, not just the one submitted here. Stage
+        # 15D's failure_run resubmits mid-loop when a Redis outage kills the
+        # job (no checkpointing, restart strategy "none"), so by the time this
+        # exits the live job is usually NOT job_id -- and cancelling only the
+        # tracked id leaked the replacement, which then kept consuming Kafka
+        # and overwriting session:{id}:profile indefinitely. Observed live
+        # after the first full 15D pack.
         with contextlib.suppress(Exception):
-            httpx.patch(f"{FLINK_REST}/jobs/{job_id}?mode=cancel", timeout=20.0)
-            print(f"  [flink] cancelled job {job_id}")
+            cancelled = cancel_running_flink_jobs()
+            print(f"  [flink] cancelled job(s) {', '.join(cancelled) or '(none running)'}")
