@@ -14,8 +14,6 @@
 
 ## 7.3 Future Work
 
-A post-graduation continuation with the supervisor is under discussion, aimed at producing an open-source framework for the scientific community; this is noted here as a direction for future work and is not part of the scope evaluated in this thesis.
-
 -   Scaling the seed dataset and re-introducing Spark/Flink/Airflow as the workload grows beyond single-machine CPU feasibility.
 
 -   Extending the architecture to the image and video modalities surveyed in Chapter 3 but not implemented here.
