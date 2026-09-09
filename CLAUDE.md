@@ -1,4 +1,4 @@
-# Project: Semantic-Aware Multimodal Music Pipelining
+# Project: Data-Driven Context-Aware Pipelining for Multimodal Music Systems
 
 Master's thesis (Bologna). Kappa-style streaming pipeline, 3 layers, with a
 Recommender Engine as the Layer 3 demo for the first use case. **8.1

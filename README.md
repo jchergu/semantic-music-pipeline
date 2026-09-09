@@ -1,4 +1,4 @@
-# Semantic-Aware Multimodal Music Pipelining
+# Data-Driven Context-Aware Pipelining for Multimodal Music Systems
 
 A Kappa-style, three-layer streaming/batch pipeline for music semantic
 enrichment and recommendation, built as part of a Master's thesis
