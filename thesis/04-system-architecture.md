@@ -8,7 +8,7 @@ Responsible for transforming raw inputs into structured representations: cleanin
 
 ## 4.2 Layer 2 — Semantic Enrichment
 
-Maps structured features into a shared semantic space via a knowledge graph representing domain knowledge — genres, moods (e.g. relaxing, energetic), functional labels (e.g. focus, workout, chill), and the relationships between entities. For streaming data this layer is stateful, maintaining temporal context and updating semantic representations dynamically as new data arrives. CLAP embeddings populate a vector index (Milvus) for similarity search, while the Neo4j graph captures discrete relational structure (artist, genre, and related-entity edges); the two are joined on a common key — the MusicBrainz recording ID where available, or the pipeline's own internal track ID otherwise — so that the Semantic API layer can combine continuous-similarity and discrete-relational signals for the same entity.
+Maps structured features into a shared semantic space via a knowledge graph representing domain knowledge: genres, moods (e.g. relaxing, energetic), functional labels (e.g. focus, workout, chill), and the relationships between entities. For streaming data this layer is stateful, maintaining temporal context and updating semantic representations dynamically as new data arrives. CLAP embeddings populate a vector index (Milvus) for similarity search, while the Neo4j graph captures discrete relational structure (artist, genre, and related-entity edges); the two are joined on a common key (the MusicBrainz recording ID where available, or the pipeline's own internal track ID otherwise) so that the Semantic API layer can combine continuous-similarity and discrete-relational signals for the same entity.
 
 ## 4.3 Layer 3 — Semantic API / Application
 
@@ -18,7 +18,7 @@ Consumes the semantically enriched representations to generate outputs tailored 
 
 ## 4.4 Technology Stack
 
-Every technology in the stack is open-source and self-hostable, and the entire prototype is scoped to run on local CPU hardware by capping the seed dataset at 200-500 tracks — resolving the compute-feasibility question without altering the architecture itself.
+Every technology in the stack is open-source and self-hostable, and the entire prototype is scoped to run on local CPU hardware by capping the seed dataset at 200-500 tracks, resolving the compute-feasibility question without altering the architecture itself.
 
   --------------------------------------------------------------------------------------------------------------------------------
   **Component**           **Technology**          **Role**
@@ -44,7 +44,7 @@ Every technology in the stack is open-source and self-hostable, and the entire p
   Application API         FastAPI                 L3 Semantic API and application services
   --------------------------------------------------------------------------------------------------------------------------------
 
-Kafka topics are deliberately separated by concern — media streams are not conflated with behavioral event streams — and the architecture follows a Kappa-style approach in which batch is the primary processing paradigm and streaming is treated as a real-time extension of the same logic, avoiding the duplicated business-logic maintenance burden of a Lambda architecture.
+Kafka topics are deliberately separated by concern (media streams are not conflated with behavioral event streams), and the architecture follows a Kappa-style approach in which batch is the primary processing paradigm and streaming is treated as a real-time extension of the same logic, avoiding the duplicated business-logic maintenance burden of a Lambda architecture.
 
 ## 4.5 Use Case Taxonomy
 
@@ -62,4 +62,4 @@ The Recommender Engine (the demo application used throughout this thesis) is dec
 
 Use case 8.2's transport was revised from WebSocket to REST during implementation, and the table above records the revised value; the reasoning is given in Section 6.1.2, since it turns on the distinction between 8.2 and 8.3 rather than on a transport preference. 8.3's remains WebSocket, push delivery being the natural transport for a use case in which the user never asked.
 
-For 8.2 and 8.3, Redis serves as a session cache — distinct from PostgreSQL's role as the system of record — fed by the platform-owned Kafka consumer that reads the behavioral-events topic and, on the same poll, writes each event to both Redis (under a sliding 30-minute TTL) and PostgreSQL directly, rather than through a separate stream-processing job (Decision B). For 8.3, Auto-tagging is reused as a classifier-only building block inside the Semantic API, with no live persistence to Neo4j during the streaming session. Use case 8.3's implementation simulates a live audio stream via a Creative-Commons clip served through the Freesound API, rather than live hardware capture.
+For 8.2 and 8.3, Redis serves as a session cache (distinct from PostgreSQL's role as the system of record), fed by the platform-owned Kafka consumer that reads the behavioral-events topic and, on the same poll, writes each event to both Redis (under a sliding 30-minute TTL) and PostgreSQL directly, rather than through a separate stream-processing job (Decision B). For 8.3, Auto-tagging is reused as a classifier-only building block inside the Semantic API, with no live persistence to Neo4j during the streaming session. Use case 8.3's implementation simulates a live audio stream via a Creative-Commons clip served through the Freesound API, rather than live hardware capture.
