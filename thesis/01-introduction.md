@@ -2,7 +2,7 @@
 
 Modern music systems operate on large volumes of heterogeneous data originating from multiple modalities, including audio signals, images (e.g. album artwork), video (e.g. music videos), and textual metadata. While these data sources differ in structure and representation, they jointly contribute to the perception, interpretation, and consumption of music.
 
-Raw multimedia data, however, is typically unstructured, noisy, and difficult to interpret at a semantic level. Low-level features extracted from different modalities — spectral characteristics in audio, visual patterns in images — do not directly correspond to human-understandable concepts like mood, genre, or usage context. This discrepancy is commonly referred to as the semantic gap.
+Raw multimedia data, however, is typically unstructured, noisy, and difficult to interpret at a semantic level. Low-level features extracted from different modalities (spectral characteristics in audio, visual patterns in images) do not directly correspond to human-understandable concepts like mood, genre, or usage context. This discrepancy is commonly referred to as the semantic gap.
 
 This thesis proposes a data-driven multimedia pipeline designed to process heterogeneous inputs in a unified, input-agnostic manner within the music domain, transforming raw static and streaming data into structured, semantically enriched representations that support a variety of downstream applications. The architecture is general and modular, enabling multiple specialized pipelines to be generated for different tasks; several application scenarios are presented, spanning both batch and real-time use cases.
 
