@@ -960,3 +960,13 @@ once one is actually configured.
   sessions: don't touch it as part of a refactor, formatting pass, or any
   code-focused change. Only edit it when the task is explicitly about the
   thesis text itself.
+- `build/` is gitignored build output — **never edit `build/thesis.docx`
+  directly**, `make` discards it. Page 1 (the UniBo frontispiece) is the one
+  part of the document with no Markdown source: it lives in
+  `thesis/titlepage.docx`, is edited by hand in LibreOffice, and
+  `thesis/merge_frontmatter.py` splices it in front of pandoc's output and
+  relocates pandoc's TOC to sit after it (pandoc always emits the TOC first
+  and offers no way to place it). The Makefile refuses to build while
+  LibreOffice holds a lock on the output, because a rebuild during an open
+  editing session is exactly how a hand-edited page 1 got overwritten on
+  2026-09-09.

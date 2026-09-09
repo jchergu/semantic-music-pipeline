@@ -1,24 +1,7 @@
-Alma Mater Studiorum – Università di Bologna
-
-School of Engineering
-
-Master's Degree in Computer Engineering
-
-**Semantic-Aware Multimodal Music Pipelining:**
-
-**A Data-Driven Architecture for Context-Aware Recommendation**
-
-*Master's Thesis in [insert exam name]*
-
-**Supervisor:**
-
-Prof. [IB — full name]
-
-**Candidate:**
-
-Jacopo Chergui
-
-Academic Year 2025/2026
+<!-- The title page (page 1) is not written here: it lives in
+     titlepage.docx, edited by hand in LibreOffice, and is spliced in
+     front of the built document by merge_frontmatter.py. Editing page 1
+     of ../build/thesis.docx has no effect -- that file is build output. -->
 
 # Abstract
 

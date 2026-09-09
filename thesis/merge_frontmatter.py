@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""Splice `titlepage.docx` into the front of the pandoc-built thesis.
+
+Two things the Markdown sources cannot express, fixed in place on the built
+`.docx`:
+
+1. **The frontispiece.** Page 1 is the Alma Mater / Università di Bologna
+   title page, whose layout (centering, 22pt lines, the Relatore/Presentata da
+   block, eventually a logo) has no faithful Markdown representation. It is
+   maintained by hand in LibreOffice as `titlepage.docx` — a real source file,
+   tracked in git — and prepended here. Editing page 1 in `../build/thesis.docx`
+   instead does nothing: that file is build output and the next `make` discards
+   it.
+2. **TOC placement.** Pandoc's docx writer always emits the table of contents
+   as the very first block of the body, which would put it ahead of the title
+   page. It is moved to sit after the frontispiece, on its own page.
+
+Styles and images that the title page references but the built document lacks
+are copied across, so a logo or a new paragraph style added on page 1 in
+LibreOffice survives the rebuild.
+
+    usage: merge_frontmatter.py <built.docx> <titlepage.docx>
+"""
+
+import re
+import shutil
+import sys
+import xml.etree.ElementTree as ET
+import zipfile
+from pathlib import Path
+
+W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+PKG_REL = "http://schemas.openxmlformats.org/package/2006/relationships"
+CONTENT_TYPES = "http://schemas.openxmlformats.org/package/2006/content-types"
+IMAGE_REL = ("http://schemas.openxmlformats.org/officeDocument/2006/"
+             "relationships/image")
+
+# Schema order of the <w:pPr> children that may precede <w:pageBreakBefore>.
+BEFORE_PAGE_BREAK = (W + "pStyle", W + "keepNext", W + "keepLines")
+
+
+def read_parts(path):
+    with zipfile.ZipFile(path) as z:
+        return {name: z.read(name) for name in z.namelist()}
+
+
+def register_namespaces(*xml_blobs):
+    """Keep the original prefixes so the rewritten XML stays readable."""
+    for blob in xml_blobs:
+        for prefix, uri in re.findall(r'xmlns:([A-Za-z0-9_]+)="([^"]+)"',
+                                      blob.decode("utf-8")):
+            ET.register_namespace(prefix, uri)
+
+
+def body_of(document_xml):
+    root = ET.fromstring(document_xml)
+    return root, root.find(W + "body")
+
+
+def find_toc(body):
+    """Pandoc's TOC: an <w:sdt> whose docPartGallery is 'Table of Contents'."""
+    for child in body:
+        if child.tag != W + "sdt":
+            continue
+        for gallery in child.iter(W + "docPartGallery"):
+            if gallery.get(W + "val") == "Table of Contents":
+                return child
+    return None
+
+
+def page_break_before(element):
+    """Start this paragraph on a new page, without an empty spacer paragraph."""
+    paragraph = element if element.tag == W + "p" else next(
+        (p for p in element.iter(W + "p")), None)
+    if paragraph is None:
+        return
+    pPr = paragraph.find(W + "pPr")
+    if pPr is None:
+        pPr = ET.Element(W + "pPr")
+        paragraph.insert(0, pPr)
+    if pPr.find(W + "pageBreakBefore") is not None:
+        return
+    index = 0
+    while index < len(pPr) and pPr[index].tag in BEFORE_PAGE_BREAK:
+        index += 1
+    pPr.insert(index, ET.Element(W + "pageBreakBefore"))
+
+
+def copy_images(title_children, parts, title_parts):
+    """Copy media the title page references, remapping relationship ids."""
+    rels_name = "word/_rels/document.xml.rels"
+    rels_root = ET.fromstring(parts[rels_name])
+    title_rels = {rel.get("Id"): rel
+                  for rel in ET.fromstring(title_parts[rels_name])}
+    taken = {rel.get("Id") for rel in rels_root}
+    used = set()
+    for child in title_children:
+        for element in child.iter():
+            for attr in (R + "embed", R + "id", R + "link"):
+                if element.get(attr):
+                    used.add(element.get(attr))
+
+    remap, extensions = {}, set()
+    for old_id in sorted(used):
+        rel = title_rels.get(old_id)
+        if rel is None or rel.get("Type") != IMAGE_REL:
+            continue
+        source = "word/" + rel.get("Target").lstrip("/")
+        if source not in title_parts:
+            continue
+        suffix = Path(source).suffix
+        target = f"media/titlepage-{len(remap)}{suffix}"
+        parts["word/" + target] = title_parts[source]
+        new_id = f"rIdTitlePage{len(remap)}"
+        while new_id in taken:
+            new_id += "x"
+        taken.add(new_id)
+        remap[old_id] = new_id
+        extensions.add(suffix.lstrip(".").lower())
+        ET.SubElement(rels_root, f"{{{PKG_REL}}}Relationship",
+                      {"Id": new_id, "Type": IMAGE_REL, "Target": target})
+
+    if not remap:
+        return
+    for child in title_children:
+        for element in child.iter():
+            for attr in (R + "embed", R + "id", R + "link"):
+                if element.get(attr) in remap:
+                    element.set(attr, remap[element.get(attr)])
+
+    ET.register_namespace("", PKG_REL)
+    parts[rels_name] = ET.tostring(rels_root, encoding="UTF-8",
+                                   xml_declaration=True)
+
+    types_root = ET.fromstring(parts["[Content_Types].xml"])
+    known = {d.get("Extension", "").lower() for d in types_root}
+    ET.register_namespace("", CONTENT_TYPES)
+    for extension in sorted(extensions - known):
+        ET.SubElement(types_root, f"{{{CONTENT_TYPES}}}Default",
+                      {"Extension": extension,
+                       "ContentType": f"image/{'jpeg' if extension in ('jpg', 'jpeg') else extension}"})
+    parts["[Content_Types].xml"] = ET.tostring(types_root, encoding="UTF-8",
+                                               xml_declaration=True)
+
+
+def copy_missing_styles(title_children, parts, title_parts):
+    """Bring across any style the title page uses that the build lacks."""
+    styles_name = "word/styles.xml"
+    if styles_name not in parts or styles_name not in title_parts:
+        return
+    styles_root = ET.fromstring(parts[styles_name])
+    present = {s.get(W + "styleId") for s in styles_root.iter(W + "style")}
+    available = {s.get(W + "styleId"): s
+                 for s in ET.fromstring(title_parts[styles_name]).iter(W + "style")}
+
+    wanted = set()
+    for child in title_children:
+        for tag in (W + "pStyle", W + "rStyle", W + "tblStyle"):
+            for element in child.iter(tag):
+                wanted.add(element.get(W + "val"))
+
+    added = []
+    while wanted:
+        style_id = wanted.pop()
+        if style_id in present or style_id not in available:
+            continue
+        style = available[style_id]
+        styles_root.append(style)
+        present.add(style_id)
+        added.append(style_id)
+        for tag in (W + "basedOn", W + "next", W + "link"):
+            for element in style.iter(tag):
+                wanted.add(element.get(W + "val"))
+    if added:
+        print(f"  copied {len(added)} style(s) from the title page: "
+              f"{', '.join(sorted(added))}")
+        parts[styles_name] = ET.tostring(styles_root, encoding="UTF-8",
+                                         xml_declaration=True)
+
+
+def merge(built_path, title_path):
+    parts = read_parts(built_path)
+    title_parts = read_parts(title_path)
+    register_namespaces(parts["word/document.xml"],
+                        title_parts["word/document.xml"])
+
+    root, body = body_of(parts["word/document.xml"])
+    _, title_body = body_of(title_parts["word/document.xml"])
+
+    # The title page's own sectPr describes its source document's page setup,
+    # not this one's; dropping it keeps the built document in one section.
+    title_children = [c for c in title_body if c.tag != W + "sectPr"]
+    if not title_children:
+        sys.exit(f"error: {title_path} has no body content")
+
+    copy_images(title_children, parts, title_parts)
+    copy_missing_styles(title_children, parts, title_parts)
+
+    toc = find_toc(body)
+    rest = [c for c in body if c is not toc]
+    if toc is not None:
+        page_break_before(toc)
+    first_after = next((c for c in rest if c.tag == W + "p"), None)
+    if first_after is not None:
+        page_break_before(first_after)
+
+    for child in list(body):
+        body.remove(child)
+    for child in title_children:
+        body.append(child)
+    if toc is not None:
+        body.append(toc)
+    else:
+        print("  note: no pandoc TOC found (is --toc still in the Makefile?)")
+    for child in rest:
+        body.append(child)
+
+    parts["word/document.xml"] = ET.tostring(root, encoding="UTF-8",
+                                             xml_declaration=True)
+
+    temporary = Path(str(built_path) + ".tmp")
+    with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, data in parts.items():
+            z.writestr(name, data)
+    shutil.move(temporary, built_path)
+    print(f"  spliced {len(title_children)} title-page paragraphs into "
+          f"{built_path}")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        sys.exit(__doc__.strip().splitlines()[-1].strip())
+    merge(Path(sys.argv[1]), Path(sys.argv[2]))
