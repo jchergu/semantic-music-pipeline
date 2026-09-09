@@ -116,7 +116,7 @@ Running the daemons for the first time surfaced two real defects that no prior t
 
 ### 6.1.7 Evaluating 8.2: An Active Harness, and Pre-Registered Rules
 
-The 8.1 evaluation pack reads a frozen table: the recommendations were generated once, and every metric is computed against those stored rows. That approach is unavailable here. Use case 8.2 has no frozen output — its output is a Redis key rewritten live by two independently scheduled consumer groups racing on one Kafka topic — so the evaluation must **drive the system and measure it in flight**.
+The 8.1 evaluation pack reads stored rows: the recommendations were generated once, by a single batch invocation, and every metric is computed against that output rather than against a re-execution of it — whether the rows read are the original frozen table or the validated reconstruction Section 5.5.1 describes. That approach is unavailable here. Use case 8.2 has no frozen output — its output is a Redis key rewritten live by two independently scheduled consumer groups racing on one Kafka topic — so the evaluation must **drive the system and measure it in flight**.
 
 `eval/8_2` therefore starts the Semantic API, the ingestion service and the Flink job itself, and runs a paced event poster, the real raw-state consumer, a refresh driver and a profile poller concurrently, per scenario. Eight scenarios make up a full run, in roughly twenty-five minutes.
 

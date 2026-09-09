@@ -68,7 +68,7 @@ A single, read-only FastAPI service exposes six endpoints over the three Layer-1
 
 The API deliberately exposes no catalog-enumeration endpoint (no "list all tracks"): its fixed surface is scoped to reading about a known entity, which any Layer-3 consumer needs, rather than to enumerating the full catalog, which is specific to a batch job's own iteration needs. This keeps the API generic rather than shaped around the Recommender Engine's particular requirements — a concrete implementation of the pipeline-versus-application separation from Chapter 4.
 
-Verified by seven automated tests plus manual endpoint verification against the live 411-track dataset, covering health reporting, metadata retrieval, 404 handling for unknown identifiers, similarity-search correctness (exact k, self-exclusion, descending order), and artist/genre lookup correctness.
+Verified by eight automated tests plus manual endpoint verification against the live 411-track dataset, covering health reporting, metadata retrieval, 404 handling for unknown identifiers, similarity-search correctness (exact k, self-exclusion, descending order), and artist/genre lookup correctness.
 
 ### 5.3.4 Stage 5 — Recommender Engine
 
@@ -104,7 +104,7 @@ The suite runs against the live, already-populated stack rather than performing 
 
 Building this stage surfaced one genuine integration bug, not merely a test-writing exercise: a Milvus connection-alias collision between the Semantic API's in-process test client and the test suite's own shared fixture caused the API's shutdown handler to silently tear down the vector-database connection used by later, unrelated tests in the same session. The fix — a dedicated connection alias for the API, isolated from the test suite's own alias — is a concrete example of an integration-level defect that per-stage unit testing alone could not have caught, and is reported here as a finding, not only as a changelog entry.
 
-Final verification state: 32 of 32 tests passing across all six build stages, over the full 411-track dataset.
+Final verification state at the close of the build order: 32 of 32 tests passing across all six build stages, over the full 411-track dataset. Those stages carry thirty-three tests today. The additional one is the regression test for the ordering fix reported in Section 5.5.3, written to hold that behavior once the evaluation pack had exposed it — so the 32-to-33 step is a consequence of that finding rather than unexplained drift.
 
 ## 5.4 Summary
 
@@ -117,7 +117,7 @@ Final verification state: 32 of 32 tests passing across all six build stages, ov
 
   3 — Enrichment                      411/411 embedded (CLAP) + graphed (Neo4j), 6/6 tests
 
-  4 — Semantic API                    6 endpoints, FastAPI, 7/7 tests
+  4 — Semantic API                    6 endpoints, FastAPI, 8/8 tests
 
   5 — Recommender Engine              411/411 seeds, 4,110 recommendations, 8/8 tests
 
@@ -126,7 +126,7 @@ Final verification state: 32 of 32 tests passing across all six build stages, ov
 
 : Table 5.3 — Use case 8.1, stage by stage.
 
-32/32 tests pass across the whole suite. Kafka and Redis remain provisioned but intentionally unwired at this stage, reserved for the streaming use cases described in Chapter 6.
+Fifty-three of the repository's 215 automated tests belong to use case 8.1: the thirty-three the six build stages carry today, plus the twenty in the evaluation pack of Section 5.5, which did not exist when this stage closed. The remaining 162 belong to the streaming stages and their own evaluation packs, and are reported in Section 6.1.12. Kafka and Redis remain provisioned but intentionally unwired at this stage, reserved for the streaming use cases described in Chapter 6.
 
 ## 5.5 Results: Evaluating Use Case 8.1
 
