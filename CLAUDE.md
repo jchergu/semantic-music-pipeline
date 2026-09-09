@@ -732,10 +732,20 @@ test; and "32/32 across the whole suite" became 8.1's side of the 53 + 162 =
 softened §6.1.7's "reads a frozen table", an overstatement once the canonical
 pack reads a validated reconstruction.
 
-**Session 4 is outstanding**: `thesis/04-system-architecture.md:17` still
-carries a `[DRAFT NOTE]` for the confirmed component diagram (pipeline
-architecture — distinct from the software-architecture diagram that belongs
-in Chapter 5, per a distinction agreed with the supervisor).
+**Session 4**: the `[DRAFT NOTE]` at `thesis/04-system-architecture.md:17`
+is closed — Figure 4.1 (`thesis/figures/fig-4-1-architecture.png`, a
+hand-drawn schematic, not script-generated, so it has no
+`FIGURE_MANIFEST.md` entry) now sits at the end of §4.3 with a caption.
+This is the pipeline-architecture diagram only — the software-architecture
+diagram (internal modules, sequence diagrams, API contracts) still belongs
+in Chapter 5, per the distinction agreed with the supervisor, and does not
+exist yet. **The diagram's own labels are not yet reconciled with this
+file's fixed architecture or with what was built**: it shows OWL/Protégé +
+Apache Jena beside Neo4j, "ChromaDB for MVP" beside Milvus, Essentia in
+the audio extractor, "LightGCN + collab. filtering" as the Recommender
+Engine (8.1 uses CLAP similarity + genre-sibling + same-artist), `media.*`
+/ `events.*` for the `media-stream` / `behavioral-events` topics, and the
+pre-rename thesis title. Redrawing it is outstanding.
 
 ## Stack (all open-source, self-hostable)
 
