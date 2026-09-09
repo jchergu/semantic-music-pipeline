@@ -2,15 +2,15 @@
 
 Master's thesis (Bologna). Kappa-style streaming pipeline, 3 layers, with a
 Recommender Engine as the Layer 3 demo for the first use case. **8.1
-(batch, reactive) is complete** — see Build order below. **8.2 (streaming,
-reactive) is in progress** — stages 13-14 and 15A/15B/15C/15C.2 are
-done (session profile centroid, recommendation refresh loop, bug closure,
-simulator late-event support, and the `eval/8_2` harness with **all seven
-metrics** of its signed-off spec), **stage 16** (both refresh daemons
-+ `session_api`, Decision E), **15D** (failure injection + the TTL fix
-stage 16 deferred) and **15E** (thesis §6.1) are all done. **8.2 is
-complete.** Do not build further 8.2/8.3 work unless explicitly asked — they
-are separate modules, not shared code paths with each other or with 8.1.
+(batch, reactive) and 8.2 (streaming, reactive) are both complete** — code,
+evaluation and thesis chapter, for each. **8.3 is not started.** Do not build
+8.3 work, or extend 8.2, unless explicitly asked — they are separate modules,
+not shared code paths with each other or with 8.1.
+
+8.2's per-stage narrative has been removed from this file now that it is
+closed; each stage's record lives in its own `docs/platform/stageNN-*.md`.
+What outlived it — the constraints that bind whatever gets built next — is
+kept, under "What survives 8.2" in the Build order below.
 
 This file is tracked in git (as of the commit that rescoped it to the
 whole project) and is in scope for code review like any other file in the
@@ -93,7 +93,7 @@ notes.
 | Use case | Mode | Type | Status |
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — build order done, results evaluated |
-| 8.2 | Streaming | Reactive | **Complete** — stages 13-14 + 15A/15B/15C/15C.2 + 16 + 15D + 15E done (`eval/8_2` complete, metrics 1-8; daemons + `session_api` delivering; derived-state TTLs closed; thesis §6.1 written) |
+| 8.2 | Streaming | Reactive | **Complete** — stages 13-16 done; `eval/8_2` metrics 1-8; daemons + `session_api` delivering; thesis §6.1 written |
 | 8.3 | Streaming | Proactive | Not started — auto-tagging reused as live classifier only, no live writes to Neo4j |
 
 8.1 / 8.2 / 8.3 are independent modules: no shared runtime state, no shared
@@ -309,6 +309,143 @@ restructuring done after the build order closed:
   their seed, 1,600 (72.73%) never received `GENRE_BOOST` — see
   `eval/8_1/README.md`.
 
+### Stage 15A (bug closure in 8.1's shared code path, done ahead of 8.2's harness)
+
+Verified working as of 2026-09-01 — not a new build-order stage, a
+prerequisite bug-closure pass before 8.2 gets its own `eval/8_2/` harness
+(later stages), since 8.2's cold-start fallback in
+`recommendation_refresh.py` reuses `context_builder.py` +
+`platform/scoring/ranking.py` exactly as 8.1's `recommend.py` does
+(Decision D) — any latent bug in that shared path would poison 8.2's
+measurements too.
+
+Closed the `related_by_genre` finding from the 8.1 eval pack (see the
+2026-08-31 entry above): `platform/semantic_api/main.py`'s
+`/tracks/{id}/graph` Cypher had `LIMIT 10` with no `ORDER BY`, so on
+skewed/large genres the 10 siblings returned were an arbitrary cut, not
+a principled one. Fixed by ordering candidates by shared-genre-count
+descending, `track_id` ascending as a deterministic tiebreak. Fixes the
+*live* endpoint only — `eval/8_1/kg_connectivity.py::
+capped_genre_sibling_ids` deliberately keeps reproducing the *original*
+query, since it exists to reconcile against the already-generated,
+frozen 4110-row `recommendations` table (2026-08-07), not to mirror
+current API behavior; its docstring now says so explicitly. A new
+regression test, `tests/test_stage4_api.py::
+test_track_graph_related_by_genre_ordered_by_shared_genre_count`,
+confirmed to fail against the old query and pass against the fix.
+Re-running `eval/8_1` (`python -m eval.8_1.run`) after the fix produced
+a byte-identical `results.json` — confirming the fix is forward-looking
+(benefits 8.2's shared code path) and doesn't retroactively change any
+8.1 metric, so the 8.1 results write-up needs no revision. Only
+`latency.json`/`tables.md`'s live-measured per-stage timings shifted,
+expected run-to-run noise already treated separately from the
+deterministic metrics.
+
+Re-running `eval/8_1` also surfaced a second, unrelated latent bug:
+`eval/8_1/run.py` still imported `from recommender import ranking`, the
+pre-Decision-D path — Decision D's `git mv` to
+`platform/scoring/ranking.py` (2026-08-31) fixed the two import sites it
+checked (`usecases/8_1_batch_reactive/recommender/recommend.py` and its
+own test) but missed this one, so `eval/8_1/run.py` had been broken on
+`main` since that commit. Fixed by adding `platform/` to its `sys.path`
+and importing `from scoring import ranking`.
+
+### Stage 15A.2 (canonical results consolidation)
+
+Verified working as of 2026-09-01 — closes the duality Stage 15A left
+open (a stale `results.json` + a current `regenerated_results.json`,
+neither declared canonical) by first validating that
+`eval/8_1/regenerate_recommendations.py`'s reconstruction path (calls
+`context_builder.build_context()`/`ranking.score_recommendations()`
+directly) actually agrees with the real recommender
+(`usecases/8_1_batch_reactive/recommender/recommend.py`), since a naive
+diff can't tell "the paths differ" apart from "Milvus ANN is
+non-deterministic."
+
+**ANN noise floor**: backed up the frozen `recommendations` table
+(`pg_dump`, restore-tested into a throwaway database) before writing
+anything, then ran the real `recommend.py` five times end-to-end under
+fresh `run_id`s. All 10 pairwise comparisons (`eval/8_1/diff_runs.py`)
+came back at **exactly zero** — zero membership/order changes, zero
+score drift across 41,100 matched track-id pairs; the noise floor is
+0.0, not the nonzero number expected going in. New run_ids deleted after
+diffing (row-count-verified before and after) — the frozen
+`run_id 3a7ffa23-...` was never touched. The Milvus collection's index
+is **IVF_FLAT** (nlist=128, queried at nprobe=16 —
+`platform/semantic_api/main.py`), not FLAT/exhaustive: it's genuinely an
+approximate index (a true nearest neighbor can be missed if it falls in
+an unprobed cluster), so "0.0" is *run-to-run repeatability against a
+static, unrebuilt index*, not a claim that Milvus search is
+unconditionally deterministic or that IVF_FLAT achieves exact recall —
+neither was tested. See `eval/8_1/noise_floor.json`'s
+`milvus_index_info`/`milvus_index_note` fields.
+
+This result also retroactively corrects an explanation from the
+regeneration diff two sessions ago (`eval/8_1/regeneration_diff.json`,
+Stage 15A.1): 11 seeds classified `identical` still showed a small score
+delta, at the time attributed to "Milvus ANN's approximate-search
+non-determinism." That attribution never made it into this file, only
+into chat, but it was wrong regardless — the 0.0 noise floor rules it
+out. The `score::float8` fix below was also tested against it and made
+zero difference (SCORE_TOLERANCE=1e-4 already swamps that ~1e-7-scale
+artifact by three orders of magnitude, so it was never a candidate
+cause). The real cause, found by direct inspection: every one of the 15
+rows differs by exactly ±0.05 (`GENRE_BOOST`) — candidates whose
+genre-sibling status flipped between the pre- and post-Stage-15A query
+without changing rank. A real, if small, additional effect of the
+ordering fix that the track_id-based classification (277/411 "affected"
+seeds) was never designed to count. See
+`eval/8_1/diff_recommendations.py`'s module docstring and
+`regeneration_diff.json`'s `identical_but_row_diffs_note`.
+
+**Path validation**: diffing one real run against
+`regenerate_recommendations.py`'s output under a pre-registered rule
+(written before this number existed: PASS iff membership-changed count
+and max score delta don't exceed the noise floor) first came back FAIL
+— max delta 5.8e-8. Investigated per the prompt's instruction rather
+than loosened the rule: traced to `float4send()` showing the *actual*
+stored bytes were bit-identical to the regenerated value's float32 cast,
+but a plain `SELECT score FROM recommendations` doesn't round-trip a
+Postgres `real` column exactly (`extra_float_digits=0`'s default 6-digit
+text output loses precision that `psycopg2` then parses back into a
+slightly-off float64). Fixed by casting `score::float8` server-side in
+both `eval/8_1/diff_runs.py` and `eval/8_1/diff_recommendations.py` — an
+exact, lossless widening, no reliance on client-side GUC settings.
+Re-ran: **bit-exact match, VERDICT: PASS.** The reconstruction script and
+the real recommender produce identical output.
+
+**Canonicalization**: with validation passing, promoted the current
+(post-Stage-15A ordering fix) pack to `eval/8_1/results.json` /
+`tables.md` / `figures/*.png`; the previous stale pack (frozen table +
+pre-fix reconstruction) renamed to `frozen_legacy_results.json` /
+`frozen_legacy_tables.md` / `figures/frozen_legacy/*.png`, each marked
+with an explicit provenance note (generated under the original
+unordered `LIMIT 10` query, retained for provenance only, not to be
+cited). Same treatment for `eval/8_1/kg_connectivity.py`: added
+`capped_genre_sibling_ids_legacy()` reproducing the original query,
+docstring-marked historical; `capped_genre_sibling_ids()` (already
+un-frozen in Stage 15A) stays the sole canonical function. Also fixed
+the "no ORDER BY" note text that Stage 15A's fix had made stale in
+`eval/8_1/metrics.py` (x2), `eval/8_1/run.py`, and `eval/8_1/README.md`
+— now describes current behavior (ordered by shared-genre-count) while
+still stating the *unaddressed* limitation explicitly (the cap of 10
+itself, not the ordering, still causes most of the genre-boost coverage
+gap — 72.73%→72.48%, barely moved by the ordering fix alone).
+`eval/8_1/run.py` refactored (Stage 15A.1) into a shared `run_pipeline()`
+is unaffected by this stage beyond the note-text fix.
+
+New tools, reusable beyond this session: `eval/8_1/diff_runs.py` (the
+noise-floor/path-validation methodology, callable against any set of
+`run_id`s and a candidate table — this is also the N≥5 repeated-run
+measurement 8.2's determinism metric will need, produced as a byproduct
+here, not extra work).
+
+Exactly one `results.json` now exists in `eval/8_1/` and it reflects
+current code. All 112 pre-existing tests plus this session's work still
+pass — no new tests were added (the smoke test from Stage 15A.1 already
+covers the `run.py` import/wiring path this session's refactor didn't
+touch further).
+
 ### Platform build order (stages 7-12 — required before 8.2, all done)
 
 8.2 (streaming, reactive) needed platform capabilities beyond stages 1-4.
@@ -463,669 +600,95 @@ confirmed in Postgres: 18 events landed under the same deterministic
 `sim-42-0` session_id, every one of the 9 distinct events appearing
 exactly twice (79/79 total tests across the whole repo).
 
-### 8.2 (streaming, reactive) build order (stages 13-15, in progress)
+### 8.2 (streaming, reactive) — COMPLETE, do not extend
 
-Unlike stages 7-12 above (platform prerequisites *for* 8.2, not 8.2
-itself — see the header of this file), stage 13 is 8.2's own first piece
-of real business logic. Hard-timeboxed to one session (Session E of the
-roadmap) with an explicit PyFlink-or-fallback decision point going in —
-**the PyFlink path succeeded**, no fallback was needed.
+Stages 13-16 plus 15B/15C/15C.2/15D/15E are all done and verified: the
+PyFlink session-profile centroid, the recommendation refresh loop, the
+`eval/8_2` harness with all eight metrics of its signed-off spec
+(`eval/8_2/METRICS.md`), both persistent daemons and `session_api`
+(Decision E), failure injection with the derived-key TTL fix, and the
+thesis write-up in `thesis/06-streaming-use-cases.md` §6.1.
 
-**Stage 13** (Session profile centroid) verified working as of
-2026-08-31 — `platform/streaming/flink_session_profile_job.py`, a real
-PyFlink job on `flink:2.2.1-scala_2.12-java17` (upgraded from stage 8's
-`1.19.1`, built via a new `platform/streaming/Dockerfile.flink`):
-`KafkaSource` on `behavioral-events` → event-time watermarks (5s bounded
-out-of-orderness) → `keyBy(session_id)` →
-`SlidingEventTimeWindows(5 min, 30s slide)` → a `ProcessWindowFunction`
-computing a weighted, recency-decayed (half-life 3 events) centroid of
-session track embeddings, written to `session:{id}:profile` in Redis —
-the namespace Decision C reserved for exactly this. Weight table and
-centroid math live in `platform/streaming/session_profile.py` (pure,
-15 unit tests, `tests/test_stage13_session_profile.py`) as the tested
-reference; the Flink job's Python UDF workers duplicate the same logic
-inline rather than importing it (no `platform/` mounted into the
-container), verified to stay in sync by a key-format cross-check test.
-`platform/streaming/config.py`'s hosts became env-var-overridable
-(`KAFKA_HOST`/`REDIS_HOST`/`POSTGRES_HOST`, `localhost` default
-preserved) — the first code running *inside* the docker-compose network
-rather than against host-mapped ports.
-`platform/streaming/preload_embeddings_to_redis.py` is a one-off
-host-side script copying every track's embedding + `duration_sec` into
-Redis, since the Flink workers have neither `pymilvus` nor host DB access
-by design. See `docs/platform/stage13-flink-session-job.md` for the full
-design, the two real bugs found submitting the job (a missing `python`
-binary symlink, and Docker's `ADD <url>` silently landing the Kafka
-connector JAR as unreadable by the non-root `flink` user — neither was a
-PyFlink API problem), and both the analytical and live verification of
-the exit criterion: replaying the three-early-skips script pushes the
-session centroid to **cosine ≈ −0.98 against the high-energy region**
-(individual tracks in that region score +0.75 to +0.86), live-confirmed
-by pulling the actual vector the running job wrote to Redis, not just
-computed offline. Job submission and live verification were manual (no
-automated test drives the Flink job's own lifecycle — judged out of
-scope for the timebox); the exact commands and their real captured
-output are in the stage doc.
+**The per-stage narrative that used to live here has been removed now that
+8.2 is closed.** Each stage's full design, the bugs found building it, and
+its live verification output are in its own doc — that is the record, not
+this file:
 
-**Stage 14** (Recommendation refresh loop) verified working as of
-2026-08-31 — `platform/streaming/recommendation_refresh.py`, an
-independent Kafka consumer group (`RECS_REFRESH_GROUP_ID`) on
-`behavioral-events`: on each event, a debounced (5s or 3 events,
-whichever first — `should_refresh()`) decision to refresh
-`session:{id}:recs` in Redis — 8.2's first actual recommendation output.
-Cold start (fewer than 2 raw events, or no profile yet) falls back to
-exactly 8.1's own batch path (`context_builder.build_context()` +
-`scoring.ranking.score_recommendations()`, Decision D), seeded by the
-session's first track. The warm path is genuinely new: direct Milvus
-search over the profile vector (own alias `recs-refresh` — the Semantic
-API has no search-by-vector endpoint), excluding every track already
-played in the session, re-ranked against the session's active context
-(`context_builder`'s genre-sibling/same-artist calls, reused, filtered
-again against played tracks since Neo4j doesn't know about session play
-history) — then the same `ranking.score_recommendations()`. Catalog
-exhaustion (fewer than 10 novel candidates — real on a 411-track catalog)
-is logged explicitly, not padded or hidden. See
-`docs/platform/stage14-recommendation-refresh.md` for the full design
-and a real bug found testing it: the first version of
-`process_one_event()` created a fresh Kafka `Consumer` per call, which
-(offsets are never committed, same as `session_consumer.py`) always
-rescans from "earliest" and returns the same first message again — the
-same bug class stage 12 already fixed for the raw-state consumer, except
-this time it would have broken any real repeated use, not just the test.
-Fixed with `new_consumer()` + an optional reusable `consumer` parameter.
-13 new tests in `tests/test_stage14_recommendation_refresh.py` (11 pure +
-2 live) pass: the exit criterion (recs appear after a skip, stay
-byte-identical through a debounced no-op, and the count-based debounce
-branch independently re-arms a real refresh) and a dedicated warm-path
-test (seeds a fake profile directly rather than waiting on stage 13's
-real window timing, confirms already-played tracks never reappear).
-109/109 tests pass repo-wide.
+| Stage | What it built | Doc |
+|---|---|---|
+| 13 | Session profile centroid (PyFlink) | `docs/platform/stage13-flink-session-job.md` |
+| 14 | Recommendation refresh loop | `docs/platform/stage14-recommendation-refresh.md` |
+| 15B | Simulator jitter + late-event audit | `docs/platform/stage15b-simulator-jitter-and-late-event-audit.md` |
+| 15C | `eval/8_2` harness, metrics 1-3 | `docs/platform/stage15c-eval-8_2-harness.md` |
+| 15C.2 | Metrics 4-7 | `docs/platform/stage15c2-eval-8_2-metrics-4-7.md` |
+| 16 | Refresh daemons + `session_api` | `docs/platform/stage16-session-api.md` |
+| 15D | Failure injection (metric 8) + TTL fix | `docs/platform/stage15d-failure-injection.md` |
+| 15E | Thesis §6.1 | the chapter itself; `thesis/figures/make_82_diagrams.py` |
 
-### Stage 15A (bug closure, ahead of 8.2's evaluation harness)
+Decisions C, D and E are **not** historical and stay where they are, above —
+they constrain 8.3. See also the Commands section for how to run any of this;
+it is all still operational and re-runnable.
 
-Verified working as of 2026-09-01 — not a new build-order stage, a
-prerequisite bug-closure pass before 8.2 gets its own `eval/8_2/` harness
-(later stages), since 8.2's cold-start fallback in
-`recommendation_refresh.py` reuses `context_builder.py` +
-`platform/scoring/ranking.py` exactly as 8.1's `recommend.py` does
-(Decision D) — any latent bug in that shared path would poison 8.2's
-measurements too.
+#### What survives 8.2 and binds anything built next
 
-Closed the `related_by_genre` finding from the 8.1 eval pack (see the
-2026-08-31 entry above): `platform/semantic_api/main.py`'s
-`/tracks/{id}/graph` Cypher had `LIMIT 10` with no `ORDER BY`, so on
-skewed/large genres the 10 siblings returned were an arbitrary cut, not
-a principled one. Fixed by ordering candidates by shared-genre-count
-descending, `track_id` ascending as a deterministic tiebreak. Fixes the
-*live* endpoint only — `eval/8_1/kg_connectivity.py::
-capped_genre_sibling_ids` deliberately keeps reproducing the *original*
-query, since it exists to reconcile against the already-generated,
-frozen 4110-row `recommendations` table (2026-08-07), not to mirror
-current API behavior; its docstring now says so explicitly. A new
-regression test, `tests/test_stage4_api.py::
-test_track_graph_related_by_genre_ordered_by_shared_genre_count`,
-confirmed to fail against the old query and pass against the fix.
-Re-running `eval/8_1` (`python -m eval.8_1.run`) after the fix produced
-a byte-identical `results.json` — confirming the fix is forward-looking
-(benefits 8.2's shared code path) and doesn't retroactively change any
-8.1 metric, so the 8.1 results write-up needs no revision. Only
-`latency.json`/`tables.md`'s live-measured per-stage timings shifted,
-expected run-to-run noise already treated separately from the
-deterministic metrics.
+These are the non-obvious constraints a future session (8.3, most likely)
+would otherwise have to rediscover by reading code or repeating a bug:
 
-Re-running `eval/8_1` also surfaced a second, unrelated latent bug:
-`eval/8_1/run.py` still imported `from recommender import ranking`, the
-pre-Decision-D path — Decision D's `git mv` to
-`platform/scoring/ranking.py` (2026-08-31) fixed the two import sites it
-checked (`usecases/8_1_batch_reactive/recommender/recommend.py` and its
-own test) but missed this one, so `eval/8_1/run.py` had been broken on
-`main` since that commit. Fixed by adding `platform/` to its `sys.path`
-and importing `from scoring import ranking`.
+- **Test files under `eval/` must be uniquely named across packages.** `8_1`
+  and `8_2` aren't valid Python identifiers, so same-named files silently
+  collide and one package's tests are collected twice while the other's are
+  not collected at all. This cost 2 tests before Stage 15C caught it, hence
+  the `test_82_*` prefix. **Any future `eval/8_3/tests/` needs the same care.**
+- **The stage-16 daemons commit Kafka offsets; every consumer older than them
+  deliberately does not.** Bounded, throwaway-group-id reads want "start from
+  earliest"; a restarting daemon under a canonical group id does not, because
+  `behavioral-events` is never purged. Both daemons commit manually and
+  synchronously *after* the write (at-least-once). Don't "fix" the older
+  consumers to match.
+- **Derived session state carries a TTL; catalog state does not.**
+  `streaming/config.py::DERIVED_TTL_SECONDS` applies to `:profile`,
+  `:profile_meta`, `:recs` and `:refresh_meta`; `session_state.py::
+  expire_derived()` is the canonical helper, and every session key has a
+  canonical `*_key()` function there — `:refresh_meta` became the one key
+  nobody noticed had no TTL precisely because it had no such definition.
+  `track:{id}:embedding` / `:duration_sec` stay TTL-free by design.
+- **`session:{id}:profile_meta` is a *sibling* key, never fields inside
+  `session:{id}:profile`**, which `recommendation_refresh.py` `json.loads`es
+  as a flat vector.
+- **The Flink job duplicates logic inline rather than importing it.**
+  `platform/` is not mounted into the container, so
+  `flink_session_profile_job.py`'s UDF workers carry their own copy of
+  `session_profile.py`'s weight table and centroid math, the Redis key
+  strings, and the TTL constant. Cross-check tests keep them in sync — if you
+  change one side, the test tells you about the other.
+- **Every independent Milvus consumer needs its own connection alias** (see
+  Platform contracts above). In use today: `"api"` (Semantic API), `"default"`
+  (`tests/conftest.py`), `"eval"` (`eval/8_1`), `"eval82"` (`eval/8_2`),
+  `"preload"` (`preload_embeddings_to_redis.py`) and `"recs-refresh"`
+  (`recommendation_refresh.py`) — six, so pick a new one, don't reuse.
+- **`contracts/` is still deliberately unpopulated** beyond the frozen
+  `semantic-api-v1.json`. The shared recommendation response shape lands there
+  once a second independent consumer exists — i.e. **when 8.3 starts**.
+- `streaming/config.py`'s hosts are env-var overridable
+  (`KAFKA_HOST`/`REDIS_HOST`/`POSTGRES_HOST`, `localhost` default) for code
+  running inside the compose network rather than against host-mapped ports.
+  `preload_embeddings_to_redis.py` must be run before the Flink job or the
+  eval harness — the Flink workers have neither `pymilvus` nor host DB access.
 
-### Stage 15A.2 (canonical results consolidation)
+#### Two known limitations, left open on purpose
 
-Verified working as of 2026-09-01 — closes the duality Stage 15A left
-open (a stale `results.json` + a current `regenerated_results.json`,
-neither declared canonical) by first validating that
-`eval/8_1/regenerate_recommendations.py`'s reconstruction path (calls
-`context_builder.build_context()`/`ranking.score_recommendations()`
-directly) actually agrees with the real recommender
-(`usecases/8_1_batch_reactive/recommender/recommend.py`), since a naive
-diff can't tell "the paths differ" apart from "Milvus ANN is
-non-deterministic."
-
-**ANN noise floor**: backed up the frozen `recommendations` table
-(`pg_dump`, restore-tested into a throwaway database) before writing
-anything, then ran the real `recommend.py` five times end-to-end under
-fresh `run_id`s. All 10 pairwise comparisons (`eval/8_1/diff_runs.py`)
-came back at **exactly zero** — zero membership/order changes, zero
-score drift across 41,100 matched track-id pairs; the noise floor is
-0.0, not the nonzero number expected going in. New run_ids deleted after
-diffing (row-count-verified before and after) — the frozen
-`run_id 3a7ffa23-...` was never touched. The Milvus collection's index
-is **IVF_FLAT** (nlist=128, queried at nprobe=16 —
-`platform/semantic_api/main.py`), not FLAT/exhaustive: it's genuinely an
-approximate index (a true nearest neighbor can be missed if it falls in
-an unprobed cluster), so "0.0" is *run-to-run repeatability against a
-static, unrebuilt index*, not a claim that Milvus search is
-unconditionally deterministic or that IVF_FLAT achieves exact recall —
-neither was tested. See `eval/8_1/noise_floor.json`'s
-`milvus_index_info`/`milvus_index_note` fields.
-
-This result also retroactively corrects an explanation from the
-regeneration diff two sessions ago (`eval/8_1/regeneration_diff.json`,
-Stage 15A.1): 11 seeds classified `identical` still showed a small score
-delta, at the time attributed to "Milvus ANN's approximate-search
-non-determinism." That attribution never made it into this file, only
-into chat, but it was wrong regardless — the 0.0 noise floor rules it
-out. The `score::float8` fix below was also tested against it and made
-zero difference (SCORE_TOLERANCE=1e-4 already swamps that ~1e-7-scale
-artifact by three orders of magnitude, so it was never a candidate
-cause). The real cause, found by direct inspection: every one of the 15
-rows differs by exactly ±0.05 (`GENRE_BOOST`) — candidates whose
-genre-sibling status flipped between the pre- and post-Stage-15A query
-without changing rank. A real, if small, additional effect of the
-ordering fix that the track_id-based classification (277/411 "affected"
-seeds) was never designed to count. See
-`eval/8_1/diff_recommendations.py`'s module docstring and
-`regeneration_diff.json`'s `identical_but_row_diffs_note`.
-
-**Path validation**: diffing one real run against
-`regenerate_recommendations.py`'s output under a pre-registered rule
-(written before this number existed: PASS iff membership-changed count
-and max score delta don't exceed the noise floor) first came back FAIL
-— max delta 5.8e-8. Investigated per the prompt's instruction rather
-than loosened the rule: traced to `float4send()` showing the *actual*
-stored bytes were bit-identical to the regenerated value's float32 cast,
-but a plain `SELECT score FROM recommendations` doesn't round-trip a
-Postgres `real` column exactly (`extra_float_digits=0`'s default 6-digit
-text output loses precision that `psycopg2` then parses back into a
-slightly-off float64). Fixed by casting `score::float8` server-side in
-both `eval/8_1/diff_runs.py` and `eval/8_1/diff_recommendations.py` — an
-exact, lossless widening, no reliance on client-side GUC settings.
-Re-ran: **bit-exact match, VERDICT: PASS.** The reconstruction script and
-the real recommender produce identical output.
-
-**Canonicalization**: with validation passing, promoted the current
-(post-Stage-15A ordering fix) pack to `eval/8_1/results.json` /
-`tables.md` / `figures/*.png`; the previous stale pack (frozen table +
-pre-fix reconstruction) renamed to `frozen_legacy_results.json` /
-`frozen_legacy_tables.md` / `figures/frozen_legacy/*.png`, each marked
-with an explicit provenance note (generated under the original
-unordered `LIMIT 10` query, retained for provenance only, not to be
-cited). Same treatment for `eval/8_1/kg_connectivity.py`: added
-`capped_genre_sibling_ids_legacy()` reproducing the original query,
-docstring-marked historical; `capped_genre_sibling_ids()` (already
-un-frozen in Stage 15A) stays the sole canonical function. Also fixed
-the "no ORDER BY" note text that Stage 15A's fix had made stale in
-`eval/8_1/metrics.py` (x2), `eval/8_1/run.py`, and `eval/8_1/README.md`
-— now describes current behavior (ordered by shared-genre-count) while
-still stating the *unaddressed* limitation explicitly (the cap of 10
-itself, not the ordering, still causes most of the genre-boost coverage
-gap — 72.73%→72.48%, barely moved by the ordering fix alone).
-`eval/8_1/run.py` refactored (Stage 15A.1) into a shared `run_pipeline()`
-is unaffected by this stage beyond the note-text fix.
-
-New tools, reusable beyond this session: `eval/8_1/diff_runs.py` (the
-noise-floor/path-validation methodology, callable against any set of
-`run_id`s and a candidate table — this is also the N≥5 repeated-run
-measurement 8.2's determinism metric will need, produced as a byproduct
-here, not extra work).
-
-Exactly one `results.json` now exists in `eval/8_1/` and it reflects
-current code. All 112 pre-existing tests plus this session's work still
-pass — no new tests were added (the smoke test from Stage 15A.1 already
-covers the `run.py` import/wiring path this session's refactor didn't
-touch further).
-
-### Stage 15B (simulator capability audit and late-event support)
-
-Verified working as of 2026-09-01 — the first piece of 8.2's own stage 15
-work, ahead of `eval/8_2/` (stage 15C): the headline justification for
-using Flink over a scheduled job is event-time semantics with watermarks,
-but the stage 12 simulator only ever emitted events in strict
-`event_time` order, so that machinery had never been exercised. Audited
-`platform/streaming/flink_session_profile_job.py` (read-only, unchanged
-this stage): the watermark bound is confirmed exactly
-`for_bounded_out_of_orderness(Duration.of_seconds(5))`, and the
-`SlidingEventTimeWindows(5 min, 30s slide)` has no `allowedLateness` and
-no side-output configured. Added `--jitter` to the stage 12 simulator
-(`platform/simulator/cli.py`/`events.py::apply_jitter()`) — a pure,
-seeded-`rng`-driven bounded reorder of an already-planned session's
-delivery order (event_time values themselves untouched, only position
-moves, by up to `MAX_JITTER_DELAY` = 3 positions); `--jitter 0.0`
-(default) is a byte-identical no-op. Planning
-(`build_session_events`/`apply_jitter`) moved out of the per-session
-thread into `main()`'s single-threaded section, since concurrent
-sessions racing on one seeded `rng` from separate threads would have
-broken `--seed` determinism. See
-`docs/platform/stage15b-simulator-jitter-and-late-event-audit.md`.
-
-Manually submitted the unmodified Stage 13 job and replayed
-`coherent_session.yaml` twice (same absolute event-time span, different
-session_ids) — once plain, once with `--jitter 1.0` — and diffed every
-window the job printed. Live-confirmed, not just reasoned about: the
-jittered session's opening `play` event never appeared in any of the 7
-early windows the baseline showed it in — not delayed, not
-side-outputted, silently and permanently dropped (a window later in both
-sessions' output that *does* fire for both differs in `weight_total`
-despite matching event count, and the two sessions' final windows are
-identical, confirming the dropped event never rejoins). This job is not
-modified this stage — adding `allowedLateness`/side-output handling is
-left as a decision for 15C/15D. `tests/test_stage15b_jitter.py`: 6 new
-tests (5 pure on `apply_jitter`, 1 live proving genuine Kafka
-delivery-order divergence from event_time order beyond the 5s bound).
-118/118 tests pass repo-wide.
-
-### Stage 15C (eval/8_2 harness core + metrics 1/2/3)
-
-Verified working as of 2026-09-06 — `eval/8_2/`, built to the metric spec
-signed off 2026-09-03 (`eval/8_2/METRICS.md`). Scoped by explicit decision
-to the harness plus **metrics 1 (reactivity), 2 (latency per hop) and 3
-(cold-start → warm transition)**, all three off one pivot scenario;
-metrics 4/5/6/7 (coherence, coverage, determinism, late-event) are **Stage
-15C.2** and reuse this infrastructure. `results.json` carries explicit
-`pending` markers for them rather than omitting the keys.
-
-Unlike `eval/8_1` (passive: queries the frozen 4110-row table, never
-re-runs anything), this is an **active harness** — per scenario it runs a
-paced event poster, the real stages 9-10 raw-state consumer, a refresh
-driver loop over `process_one_event()`, and a profile-meta poller
-concurrently, and starts/stops the Semantic API, the event ingestion
-service and the Flink job itself (`eval/8_2/orchestration.py`), so
-`python -m eval.8_2.run` is one command. The refresh driver loop is
-harness-owned, test-shaped code — explicitly NOT a step toward a
-persistent refresh daemon in `platform/streaming/`, which remains the
-open gap stage 12 first flagged.
-
-Two additive platform edits, both sanctioned by the spec:
-`flink_session_profile_job.py` gained one `hset` writing
-`session:{id}:profile_meta` (`computed_at`/`n_events`) — a *sibling* key,
-never fields inside `session:{id}:profile`, which
-`recommendation_refresh.py` `json.loads`es as a flat vector;
-`session_state.py::profile_meta_key()` is its canonical definition, held
-to the same cross-check test as `profile_key()`. And
-`process_one_event()` now returns `refresh_compute_seconds`, timed
-*inside* the function around the `should_refresh()` →
-`refresh_recommendations()` block, since timing it from outside would fold
-in the up-to-10s Kafka poll wait. The debounced no-op branch is untouched.
-
-Three things the spec got wrong or omitted, all corrected in `METRICS.md`
-itself rather than silently diverged from: its section 0 process list was
-missing the **Semantic API** (both refresh paths call `context_builder`
-over HTTP) and the **stages 9-10 raw-state consumer** (without it
-`session:{id}:events` stays empty and *no refresh ever fires* — stage 14's
-live test hides this by calling `record_event()` directly); and its
-"Resolved before handoff" claim that the K sweep isn't nested is false —
-`random.Random(seed).sample()` draws sequentially, so K=3 ⊂ K=5 ⊂ K=8 ⊂
-K=12. The nesting is arguably better for metric 1 (only pre-pivot length
-varies) but it means the K runs aren't independent samples, and metric 3's
-four sessions share one cold-start seed track, so its four handoff numbers
-are **one observation repeated** — reported in the data as
-`reactivity.json::pre_pivot_sets_nested` and
-`results.json::cold_warm_transition.independent_observations`.
-
-Because Flink's watermark is stream-wide rather than per key, scenarios
-run back to back need scheduled event-time anchors
-(`metrics.anchor_schedule()`): strictly increasing with a ≥5 min gap, and
-every anchor a whole multiple of 300s from a fixed epoch so
-`SlidingEventTimeWindows` boundaries fall identically across runs (300s is
-the window size and a multiple of the 30s slide). The harness also cancels
-any pre-existing job and submits a fresh one per invocation.
-
-Two real bugs found by running it. Session ids must be scoped per
-invocation (`--run-id`): `behavioral-events` is never purged and both
-consumer groups start from `earliest`, so a re-used session id made the
-sweep replay the pre-flight's 22 stale events and report 0 post-pivot
-refreshes for K=3. And reconciling the test count (expected 148, measured
-146) exposed a silent pytest collision — `eval/8_2/tests/test_metrics.py`
-and `test_run_smoke.py` resolved to the same modules as `eval/8_1`'s
-same-named files (the package dirs `8_1`/`8_2` aren't valid identifiers),
-so the suite collected eval/8_1's tests twice and none of eval/8_2's;
-fixed by the `test_82_*` prefix, and any future `eval/8_3/tests/` needs
-the same care.
-
-Results (speed 60, seed 42, warm-path precondition satisfied at every K —
-nothing excluded): **adaptation is immediate** — every K crosses the
-pre-registered Jaccard < 0.3 threshold at its *first* post-pivot refresh,
-1-2 events after the pivot, and stays at ~0 after;
-`events_to_adaptation` (4/5/7/10 for K=3/5/8/12) rises with K only because
-more pre-pivot refreshes precede the crossing. Latency: H1 ingest POST
-p50 8.4 ms, H2 profile compute lag p50 2.56 s, H3 refresh compute p50
-38.9 ms — H2 dominates by two orders of magnitude, the only hop waiting on
-a windowed job. `events_behind_each_refresh` came back p50 = p95 = max =
-3, so the debounce fired on its *count* branch essentially every time at
-this speed, not its 5s interval branch. All four sessions reached the warm
-path after one cold-start refresh, ~5.3-5.5 s in. See
-`docs/platform/stage15c-eval-8_2-harness.md` and `eval/8_2/README.md`; a
-`--from-records` flag recomputes every metric from saved raw records with
-no live run. 148/148 tests passed repo-wide at the time.
-
-The numbers above are this stage's own run. Stage 15C.2 re-ran the whole
-pack and **the artifacts checked in under `eval/8_2/` are now that later
-run's** — the deterministic metrics reproduced exactly (`events_to_adaptation`
-4/5/7/10, unchanged), while the wall-clock latencies moved as expected for
-a quantity both eval packs explicitly exclude from any reproduction claim
-(H1 7.2 ms, H2 2.12 s, H3 24.4 ms). `events_behind_each_refresh` is also
-now reported per `--speed`: the p50 = p95 = max = 3 recorded above still
-holds at speed 60, but the long session's speed 30 sits at p50 = 2, where
-the debounce's 5s interval branch fires before its 3-event branch.
-
-### Stage 15C.2 (eval/8_2 metrics 4/5/6/7 — `eval/8_2` complete)
-
-Verified working as of 2026-09-06 — the four metrics Stage 15C deferred
-with explicit `pending` markers, on the same harness and the same anchor
-schedule, no new orchestration. Three scenarios added, bringing the pack
-to eight: a 40-track four-genre `long_session`
-(`rock`/`electronic`/`chillout`/`dance`, 10 each) feeding metrics 4 and 5,
-plus three replicates of the pivot at K=8 — `det_rep1`, `det_rep2`
-(both `--jitter 0`) and `late_jitter` (`--jitter 1.0`). A full run is
-~25 minutes; `--skip-extra-scenarios` runs only the metric 1/2/3 sweep.
-Metrics 1/2/3 reproduced Stage 15C's published numbers exactly.
-
-**The design decision that shapes metrics 6 and 7**: the two jitter-0
-replicates do double duty. They are metric 6's determinism comparison,
-*and* their difference is the run-to-run noise floor metric 7's jitter
-effect has to beat before it counts as real. `METRICS.md` §8 asked only
-for a bare jitter-0 vs jitter-1.0 delta, which is uninterpretable here —
-the debounce is wall-clock while `--speed` compresses only session time,
-and the warm path reads a profile written by a separately scheduled
-consumer group, so any two runs differ somewhat. Same methodology Stage
-15A.2 used against the ANN noise floor, at the cost of one extra scenario
-rather than a separate experiment. Both verdict rules are pre-registered
-in `metrics.py` (`determinism_verdict`, `late_event_verdict`), committed
-before any of the three runs. Metric 7 also measures its own **dose**
-(`late_delivery_count`) — `--jitter` is a probability, so how many events
-it actually pushes past the 5s watermark bound is a draw, and without that
-number a null result would be indistinguishable from "nothing was
-dropped".
-
-**Metric 4's `--speed` was picked by measurement**, as `METRICS.md` §5
-demanded rather than defaulted, and the probe exposed a constraint the
-spec did not anticipate: profile writes arrive in *bursts*. A `complete`
-event advances session time by most of a track duration (median 231s),
-advancing the watermark past seven or eight 30s slides at once, which the
-job fires milliseconds apart over one overwritten Redis key. **The
-resolvable ceiling is one vector per watermark-advancing event, not one
-per window fire**, at any poll rate. Measured on a 12-event probe at a
-0.5s poll: speed 60 captured 5 of 6 distinct writes, speed 30 captured
-6 of 6 — hence `LONG_SESSION_SPEED = 30`. `coherence.json` reports capture
-against that ceiling, not against the analytic window-fire count, which
-would report complete sampling as ~13%.
-
-Real numbers. **Metric 4**: 39 of 41 resolvable writes captured (95%);
-mean `cos(profile, last 5 min of session)` **0.8707** against mean
-`cos(profile, first 5 min)` **0.6186**, with 35 of 39 samples (90%)
-closer to the recent window — the first evidence for the recency decay
-`session_profile.py` has claimed in a comment since stage 13. **Metric
-5**: **168 distinct tracks, 40.88% of the catalog**, over 40 refreshes,
-with 35 of those 40 contributing something never recommended before and
-the last new track arriving at refresh 38 — **no attractor collapse**, a
-flat tail of 2 refreshes (5%). **Metric 6: PASS**, and more strongly than
-expected — 11 refreshes each, all 11 `identical`, max score delta exactly
-0.0; a FAIL was a legitimate possible outcome and the claim stays bounded
-to two runs at one K, one speed, on an idle machine. **Metric 7**: the
-dose was heavy (20 of 32 events delivered late, up to 648.9s past the
-bound) and three of four measures cleared the zero noise floor —
-`refresh_count` 11→12, max reactivity Jaccard delta 0.2500, max coherence
-`cos_recent` delta **0.5574** — but **`events_to_adaptation` is 7 in all
-three arms**. The profile is measurably corrupted and the recommendation
-sets genuinely differ, yet losing most of the pre-pivot profile does not
-change *when* the recommender turns over, only *what* it turns over to.
-
-Two by-products. The debounce statistics are now split per `--speed` as
-well as pooled, and the split earned its keep: speed 60 sits at p50 = 3
-events behind each refresh (the debounce's *count* branch) while speed 30
-sits at p50 = 2 (the 5s *interval* branch fires first) — pooling the
-pack's two speeds would have averaged away exactly the effect
-`latency.json`'s `speed_caveat` describes. And metric 3's handoff Jaccard
-was found to hide a rank change: the long session reports 1.000 because
-the first warm refresh returned the same ten tracks as the cold start, in
-a different order (the top track dropped to position six).
-`METRICS.md` §4 defines it over *sets* and that stands, so
-`cold_warm_transition()` reports `handoff_rank_identical` alongside it
-rather than redefining the metric — it is `false` for every session in the
-pack, including the four at Jaccard 0.818.
-
-One real bug found and fixed: `run_scenario()` located the pivot as an
-index into the event-time-ordered plan and then applied that index to the
-post-jitter list. `apply_jitter()` permutes *delivery* order and leaves
-`event_time` untouched, so on `late_jitter` that would have labelled the
-wrong refreshes post-pivot — metric 7 comparing a mislabelled curve
-against a correct one, with no error anywhere. Fixed by locating the pivot
-by identity before the permutation and finding its new position after;
-`pivot_event_time_index`, `pivot_event_index` and `pivot_delivery_shift`
-are all recorded so the displacement is visible in the data.
-
-Raw artifacts are now split (`raw_scenario_records.json` +
-`raw_profile_vectors.json` + `raw_embeddings.json`, ~2.9 MB total, nothing
-rounded because metric 6 compares for exact equality) and written
-**before** any metric is computed — a live run costs ~25 minutes and the
-raw records *are* the measurement. `--from-records` reads all three and
-was used to regenerate the published outputs after three definitions were
-refined post-run, with no second live run. See
-`docs/platform/stage15c2-eval-8_2-metrics-4-7.md` and `eval/8_2/README.md`.
-61 tests in `eval/8_2/tests/` (up from 29), all pure; 180/180 pass
-repo-wide.
-
-### Stage 16 (refresh daemons + `session_api`, Decision E)
-
-Verified working as of 2026-09-06 — 8.2's delivery path, and the closure
-of the persistent-consumer gap stage 12 first flagged. Two components:
-
-- **`platform/session_api/`** — a separate FastAPI service per Decision E,
-  read-only, request/response (never WebSocket), whose **only dependency
-  is Redis**. It computes nothing: `GET /sessions/{id}/recommendations`,
-  `/profile` and a `/sessions/{id}` status endpoint serve what the refresh
-  daemon and stage 13's Flink job already wrote. No Postgres/Milvus/Neo4j,
-  because the rows `recommendation_refresh` stores are already
-  self-contained. 404 deliberately distinguishes "unknown session" from
-  "session exists but has no recommendations yet" — to a client those are
-  completely different situations, and one 404 for both would make the
-  second look like a bug.
-- **Two daemons, not one.** Decision E names only
-  `platform/streaming/refresh_daemon.py`, but running just that produces
-  nothing: `refresh_recommendations()` returns `skip_insufficient_data`
-  below two events in `session:{id}:events`, and only the stages 9-10
-  raw-state consumer writes that key — which had no daemon either. So
-  `platform/streaming/session_consumer_daemon.py` ships alongside it
-  (separate module, separate consumer group, per Decision C's ownership
-  split), sharing only signal handling and logging via
-  `daemon_runtime.py`. **Explicitly approved as an addition to Decision
-  E's literal wording, 2026-09-06.**
-
-**These daemons commit Kafka offsets; nothing before them did.** Every
-pre-stage-16 consumer runs `enable.auto.commit: False` and never commits —
-right for a bounded, throwaway-group-id read where "start from earliest"
-is wanted. A daemon is the opposite: it runs under the canonical group id
-from `config.py` and restarts, and `behavioral-events` is never purged, so
-without commits every restart would re-push all cached events into Redis
-and duplicate rows into the Postgres log. Both daemons commit manually and
-synchronously *after* the write (at-least-once). No existing consumer's
-configuration changed — commits are per group and every older caller uses
-a throwaway id. Measured: first start on the 1,820-message topic drained
-1,780 cacheable events in 7.5s (raw) and 571 refreshes in ~11s (refresh,
-16ms per cold-start refresh), zero errors; both groups then sat at lag 0,
-and a real restart replayed **0 events**.
-
-Two real bugs, both found by running a daemon for the first time.
-`refresh_recommendations()` indexed Postgres integer track ids with a bare
-`int()`, but a behavioral event's `track_id` is a free-form string on an
-`extra="allow"` schema — every consumer before this was scoped to one
-session or one test's payloads, whereas a daemon reads *every* session, and
-the first non-numeric id it met (`"xyz789"`, left on the never-purged topic
-by stage 11's own test) raised `ValueError` and killed the loop. Fixed with
-`recommendation_refresh.as_track_id()` at all three call sites, plus a new
-`skip_unseedable_cold_start` action for a session whose opening track can't
-seed the fallback. That new action exposed a second-order bug:
-`process_one_event()` decided "real work happened" via
-`action != "skip_insufficient_data"`, so any *new* skip would have counted
-as a refresh and spent the debounce budget — now checked by `skip_` prefix.
-Separately, both daemon loops now contain per-event failures (log, count,
-commit past the message, continue) rather than exiting, since a daemon that
-dies on one poison message is not a daemon.
-
-**Deferred finding, handed to 15D**: `session:{id}:events` has a 30-minute
-sliding TTL (stage 9) but `:profile`, `:profile_meta`, `:recs` and
-`:refresh_meta` have **none** — stage 13's `redis.set` and stage 14's
-`_write_recs` set no TTL. So `session_api` can serve recommendations for a
-session whose raw state expired hours ago, and the derived keyspace grows
-without bound. Surfaced rather than patched by explicit decision
-(2026-09-06): fixing it changes stages 13 and 14, and 15D's failure
-injection is the right place to decide what a client should see when
-session state disappears underneath it. `GET /sessions/{id}` reports it as
-`raw_state_expired` with an explanatory note.
-
-`contracts/` deliberately untouched: `contracts/README.md` says the shared
-recommendation response shape lands there once a second independent
-consumer exists, and 8.3 doesn't exist yet. Revisit when 8.3 starts.
-`_session_key()` in `session_state.py` became public `events_key()` in the
-process — `session_api` needs it, and `tests/test_stage10_postgres_events.py`
-was already importing the private name.
-
-17 new tests (8 daemon, 9 API) against the live stack, plus a manual run of
-the real deployment shape — five processes under the canonical group ids,
-simulator-driven, with and without the Flink job. See
-`docs/platform/stage16-session-api.md`. 197/197 pass repo-wide.
-
-### Stage 15D (failure injection + the TTL fix stage 16 deferred)
-
-Verified working as of 2026-09-08. Two halves, sequenced deliberately —
-**measure first, then fix** — so the fix's effect is observed rather than
-asserted. Sequenced after stage 16 on purpose: once `session_api` existed
-there was finally a client, so this stage could ask what a client sees when
-a store dies mid-session.
-
-**Metric 8**, added to `eval/8_2/METRICS.md` as §9 and committed **before
-any arm ran** so the pre-registration is verifiable. Four arms — a
-no-injection `control` plus `redis_outage`, `semantic_api_outage` and
-`ttl_expiry` — two replicates each, on the K=8 pivot scenario metrics 6/7
-already use. Scope fixed by explicit decision: Postgres/Milvus/Kafka
-outages are **not** tested (§9.6 records what reading the code predicts for
-them, marked as predictions), and the `allowedLateness` decision 15B/15C.2
-left open **stays open**, since metric 7 exists to quantify the consequence
-of not having it.
-
-Run by `python -m eval.8_2.failure_run`, a **separate entry point from
-`run.py`**: metrics 1-7 are measured against harness-owned threads, while
-metric 8 drives the real stage 16 deployment — five processes (Semantic API,
-event ingestion, `session_api`, both daemons under the **canonical group
-ids**) plus the Flink job. Committed offsets and restart behaviour are part
-of what is measured. `orchestration.py` gained `RestartableService` (same
-port across restarts, so killing the Semantic API is not indistinguishable
-from a permanent outage) and `daemon_process`; `uvicorn_service` was
-refactored onto the former, so there is one copy of that lifecycle.
-
-Real numbers (both replicates agreed on every measure; no arm stalled).
-**`redis_outage`**: 6 events accepted by the ingestion service never reached
-the Postgres log — both daemons caught `redis.ConnectionError`, counted an
-error and **committed the offset past the message**. That handler is right
-for a poison message and wrong for a dependency outage, and the two are
-indistinguishable to it; there is no retry, and the advanced offset means a
-restart cannot recover them. Both daemons did recover with nothing
-restarted (redis-py is pool-backed), and a client saw 500s *during* the
-outage only. The outage also killed the Flink job permanently — its window
-function writes to Redis and the compose cluster runs it with no
-checkpointing, so the restart strategy is "none"; the harness resubmits
-between arms, without which every later arm would have run with no profile
-at all. **`semantic_api_outage`: no measure distinguishes it from the
-control**, and that is the finding. No events are lost (the raw daemon does
-not depend on it) and every client request returns 200 throughout, while
-every refresh attempted during the outage fails and `session:{id}:recs`
-silently stops moving — served as current, because `:recs` carries no
-timestamp of any kind, unlike `:profile` and its sibling `:profile_meta`.
-**`ttl_expiry`**: visible, via the `raw_state_expired` flag stage 16 added.
-
-**The TTL fix.** `streaming/config.py` now defines `DERIVED_TTL_SECONDS`
-(= `SESSION_TTL_SECONDS`), applied to all four derived keys: TTLs in
-`recommendation_refresh._write_recs()` and on the `hincrby` that *creates*
-`:refresh_meta` (a session that never refreshes would otherwise leave an
-immortal key), and in `flink_session_profile_job.py` (constant duplicated
-inline for the same reason the key strings are, and cross-checked by test).
-`session_state.py` gained `refresh_meta_key()` and `expire_derived()` —
-`:refresh_meta` was the one session key with no canonical definition here,
-which is exactly how it became the one derived key nobody noticed had no
-TTL. **The asymmetry becomes a bound, not a reversal** — worth stating
-precisely, since the obvious claim ("derived now expires first") is false:
-raw events refresh their TTL on every event while derived state refreshes
-only on a refresh or a window close, and a window can close either side of
-the last event. Measured on the post-fix pack across 32 derived keys in 8
-sessions, derived-minus-raw TTL lands in **[-21s, +23s]** (`:recs` and
-`:refresh_meta` always at or before raw; `:profile`/`:profile_meta` either
-side). Derived state now expires within about half a minute of its session
-instead of never, and `GET /sessions/{id}` still reports the transient. `session_api._missing()` now decides "known session"
-from **any** session key: keying it off `:events` alone made that function
-collapse the two cases it exists to separate once the raw list expired
-(regression test confirmed failing against the old code).
-`track:{id}:embedding`/`:duration_sec` stay TTL-free by design — catalog
-state, not session state.
-
-Two things the running of it found. A **suspended machine produced a
-perfect-looking, invalid arm**: the first pre-fix pack was frozen twenty
-hours mid-arm by an overnight suspend, and the arm completed, lost no
-events and agreed with its replicate — while actually being a different
-experiment, since the debounce is wall-clock and `:events` has a 30-minute
-TTL. `failure_injection.wall_clock_stall()` now compares realised against
-intended pacing per post and flags any overrun beyond 60s; **a flagged arm
-is excluded and re-run, never reweighted**, and that pack was discarded.
-And **a measure the control cannot have is not control-differenceable**:
-`recovers_without_restart` is `None` in the control, so the rule as written
-reported every arm's `True` as an *effect of the failure*; corrected to
-report such measures under `measures_not_comparable_to_control` — a
-post-hoc correction that **removes a vacuous effect rather than creating
-one**, recorded as such in §9.5.
-
-**Metrics 1-7 are unchanged by the fix**: `eval.8_2.run --from-records`
-reproduced `results.json`, `reactivity.json`, `coherence.json` and
-`coverage.json` byte-identically (md5-verified). The live 25-minute harness
-re-run was deliberately skipped in favour of this recomputation, which
-answers exactly that question at zero live cost — recorded so the
-substitution is visible. See
-`docs/platform/stage15d-failure-injection.md`. 215/215 pass repo-wide.
-
-### Stage 15E (thesis chapter 6.1 — 8.2's write-up)
-
-Written 2026-09-08 — the last item of 8.2's plan, and a **thesis session**
-per the Working agreement (`thesis/` is otherwise off-limits).
-`thesis/06-streaming-use-cases.md` grew from a 13-line placeholder to §6.1
-in twelve subsections (~7,600 words), covering scope, the transport
-correction, stages 7-12/13/14/16, the harness methodology, all eight
-metrics, limitations, and a summary — in chapter 5's style, including its
-"report it as a finding, not a changelog entry" pattern. §6.2 (8.3) stays
-a placeholder, now stating explicitly that 8.3 is not implemented and that
-§6.1's results stand independently of it.
-
-Eight figures. Five are `eval/8_2/figures/*.png`, **referenced in place**
-(`../eval/8_2/figures/...`, which resolves because `make` runs pandoc from
-`thesis/`) rather than copied, so the thesis cites the evaluation pack's
-own output and cannot drift from it. Three are new diagrams —
-runtime dataflow, the cold-start→warm race, and the warm-path
-composition — generated by `thesis/figures/make_82_diagrams.py`
-(matplotlib, since neither the `graphviz` binary nor the Python package is
-available in this environment; the enrichment venv already has
-matplotlib). Regenerate with:
-
-```bash
-platform/enrichment/.venv/bin/python thesis/figures/make_82_diagrams.py
-```
-
-**Two consistency fixes outside chapter 6**, both required by Decision E:
-§4.5's use-case table said 8.2's transport was WebSocket, which the
-implementation deliberately reversed. The table's 8.2 row now reads REST,
-with a following paragraph recording the revision and pointing at §6.1.2
-for the reasoning; 8.3's row stays WebSocket. This is the rewrite Decision
-E said was owed to a thesis session.
-
-Verified: `make` in `thesis/` builds `build/thesis.docx` clean, with all 8
-images embedded and all 8 table captions rendered; the full suite was run
-fresh rather than cited from these notes — **215/215 pass** — because the
-chapter states that number.
-
-Two accuracy notes for anyone editing §6.1: `eval/8_2`'s
-`events_to_adaptation` field is a **refresh index**, not an event count
-(K=3 → 4 means "crossed at the 4th refresh"), and the chapter defines it
-that way; and metric 3's eight-row table is two independent observations,
-not eight, which the prose says explicitly.
+- **The Flink job has no `allowedLateness` and no side output**, so an event
+  arriving past the 5s watermark bound is silently and permanently dropped —
+  not delayed, not side-outputted. This was measured, not assumed (Stage 15B
+  live-confirmed it; metric 7 quantifies the consequence), and left open
+  deliberately, because metric 7 exists to report exactly that cost.
+- **On a Redis outage both daemons log, count an error, and commit the offset
+  past the message.** That handler is right for a poison message and wrong for
+  a dependency outage, and the two are indistinguishable to it: there is no
+  retry, and the advanced offset means a restart cannot recover the lost
+  events. Measured in Stage 15D's `redis_outage` arm (6 events lost). Also
+  note a Redis outage kills the Flink job permanently — the compose cluster
+  runs it with no checkpointing, so its restart strategy is "none".
 
 ### Chapter 5 gap plan (thesis §5.5 — 8.1's write-up), sessions 1-3 + 5 done
 
