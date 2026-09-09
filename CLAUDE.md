@@ -1127,6 +1127,53 @@ Two accuracy notes for anyone editing §6.1: `eval/8_2`'s
 that way; and metric 3's eight-row table is two independent observations,
 not eight, which the prose says explicitly.
 
+### Chapter 5 gap plan (thesis §5.5 — 8.1's write-up), sessions 1-3 + 5 done
+
+Written 2026-09-08/09 — **thesis sessions**, like 15E. Chapter 5 documented
+that 8.1 was built and runs; it never reported what `eval/8_1` measured. A
+multi-session plan closed that gap, bringing §5.5 to the shape §6.1 set for
+8.2: methodological commitments, the six metrics, the `related_by_genre`
+finding, repeatability, limitations.
+
+**`thesis/facts/` is a new checked-in artifact class** — a frozen numbers
+extraction (`8_1_eval_facts.md`) holding every value the chapter may cite,
+copied from an artifact on disk with its source path and a confidence tag,
+never recomputed. It plays the role for Chapter 5 that `eval/8_2/METRICS.md`
+plays for Chapter 6, minus the pre-registration: 8.1's pack was written
+against an already-generated table, so §5.5 states outright that nothing in
+it was pre-registered and reports metrics 1-6 with **no verdict language**.
+Its §0 exists because `eval/8_1/` holds two complete packs (canonical
+post-fix, legacy pre-fix) plus a third under `reports/`, and citing across
+them is the easiest way to put a wrong number in the thesis — read it before
+citing any 8.1 number.
+
+Three thesis-owned figures from `thesis/figures/make_81_figures.py`
+(same conventions as `make_82_diagrams.py`), with `FIGURE_MANIFEST.md`
+giving every plotted value a source key. Figure 5.1 deliberately plots the
+**pre-fix** distribution because §5.3.4 narrates the original batch run, and
+its caption says so. Figure 5.4 is the eval pack's own
+`diversity_histogram.png`, referenced in place at `../eval/8_1/figures/`
+exactly as §6.1 references 8.2's. Regenerate with:
+
+```bash
+platform/enrichment/.venv/bin/python thesis/figures/make_81_figures.py
+```
+
+Session 5 (consistency pass) reconciled four stale test-count claims in
+Chapter 5 — stage 4 was verified by eight tests, not seven (the chapter's
+own "twenty-seven from Stages 2-5" already assumed eight); "32 of 32" is now
+marked as the state at the close of the build order against the **33** those
+stages carry today, the extra one being Stage 15A's ordering regression
+test; and "32/32 across the whole suite" became 8.1's side of the 53 + 162 =
+215 reconciliation that §6.1.12 already asserts the other half of. It also
+softened §6.1.7's "reads a frozen table", an overstatement once the canonical
+pack reads a validated reconstruction.
+
+**Session 4 is outstanding**: `thesis/04-system-architecture.md:17` still
+carries a `[DRAFT NOTE]` for the confirmed component diagram (pipeline
+architecture — distinct from the software-architecture diagram that belongs
+in Chapter 5, per a distinction agreed with the supervisor).
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
