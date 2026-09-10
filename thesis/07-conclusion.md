@@ -14,6 +14,10 @@
 
 ## 7.3 Future Work
 
+-   Implementing use case 8.3 (streaming, proactive) to the design set out in Section 6.2. The platform it needs is already built and measured; what remains unresolved is the trigger policy, and deciding when an unsolicited suggestion is worth making requires the relevance judgements this dataset does not carry.
+
+-   Closing the two limitations Section 6.1.11 records as deliberate: an allowed lateness and a side output on the Flink job, so that late events are diverted rather than silently dropped, and a timestamp alongside the recommendation key, without which a client cannot distinguish current recommendations from ones that stopped updating when a dependency failed.
+
 -   Scaling the seed dataset and re-introducing Spark/Flink/Airflow as the workload grows beyond single-machine CPU feasibility.
 
 -   Extending the architecture to the image and video modalities surveyed in Chapter 3 but not implemented here.

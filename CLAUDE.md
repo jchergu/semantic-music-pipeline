@@ -747,6 +747,69 @@ Engine (8.1 uses CLAP similarity + genre-sibling + same-artist), `media.*`
 / `events.*` for the `media-stream` / `behavioral-events` topics, and the
 pre-rename thesis title. Redrawing it is outstanding.
 
+### Thesis §6.2 written as design-only (8.3 still NOT started)
+
+Written 2026-09-10 — a **thesis session**, like 15E and the Chapter 5 gap
+plan above. **No 8.3 code exists and none was written**: the taxonomy row
+above still says "Not started" and it is accurate. `usecases/8_3_streaming_proactive/`
+is still just a `.gitkeep`, there is no `eval/8_3/`, and `contracts/` is
+still unpopulated beyond the frozen `semantic-api-v1.json`.
+
+What changed is that §6.2 stopped being a 183-word placeholder bracketed by
+two `[DRAFT NOTE]`s and became a ~2,200-word **design-and-feasibility
+section** (`thesis/06-streaming-use-cases.md`, §§6.2.1-6.2.7): the
+reactive/proactive distinction, the proposed design, **Table 6.9** (what 8.3
+reuses unchanged, each row citing where §6.1 verified it), **Table 6.10**
+(what would have to be built), what §6.1's measurements already *bound*
+about 8.3, and the trigger-policy question the design deliberately does not
+settle. It asserts **no 8.3 measurement anywhere** — §6.1.7's
+pre-registration rule forbids handing an unbuilt use case a verdict, and
+§6.2.2 says so in the chapter's own voice. Every number in §6.2 is 8.2's,
+cited from Tables 6.3-6.7 as an inherited bound.
+
+Three things a future 8.3 session should know:
+
+- **§6.2 is a commitment, not a sketch.** It states in print that the
+  classifier writes nothing to Neo4j during a session, that the recognised
+  track enters as an ordinary behavioural event over the existing ingestion
+  path (no second path), that `media-stream` gets its first producer, and
+  that delivery is push/WebSocket (Decision E's reservation). Building 8.3
+  differently means revising the chapter, not just the code.
+- **The profile weight table does not transfer.** §6.2.5 records the one
+  reuse caveat: `session_profile.py`'s weights are behavioural-event-shaped
+  (complete/like/early skip/late skip), and a "currently playing" signal has
+  no such shape. The centroid arithmetic transfers; the weights need their
+  own justification.
+- **Two §6.1.11 limitations become preconditions for 8.3**, per §6.2.6: the
+  recommendation key's missing timestamp (a client that never asked cannot
+  notice frozen recommendations) and the Flink job's silent late-event drop.
+  Both are optional for 8.2 and load-bearing under push delivery.
+
+**Figure 6.9** (`thesis/figures/fig-6-9-uc83-design.png`) was added to
+`thesis/figures/make_82_diagrams.py`, not a new script, because that file
+*draws* from hardcoded coordinates while `make_81_figures.py` *plots* from
+`results.json` — so a diagram for an unimplemented use case costs nothing
+and claims nothing. `box()` gained a `dashed=` parameter (white fill, dashed
+edge) used only by that figure to separate built components from proposed
+ones. Regenerate with the same command as the other chapter-6 diagrams:
+
+```bash
+platform/enrichment/.venv/bin/python thesis/figures/make_82_diagrams.py
+```
+
+Also added two `thesis/07-conclusion.md` §7.3 bullets (8.3, and the two
+deliberate §6.1.11 open items), neither of which §7.3 had.
+
+**Known stale claims elsewhere in `thesis/`, deliberately NOT fixed here**
+(flagged, each a separate consistency pass): the abstract
+(`00-frontmatter.md:10`) still claims verification of 8.1 only; §7.1 is
+still entirely a draft note citing the superseded "32/32 tests";
+§7.2's "Flink… not exercised at this dataset scale" is contradicted by
+stage 13; `01-introduction.md`'s bracketed hedge "[reports results /
+discusses 8.2 and 8.3, depending on what's completed by submission]" would
+ship into the `.docx` as-is; and `README.md:13` still lists 8.2 as "Not
+started". Four `[DRAFT NOTE]`s remain repo-wide, all outside Chapter 6.
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code

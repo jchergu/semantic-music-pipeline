@@ -6,10 +6,18 @@ for the eval packs. Run from the repository root:
 
     platform/enrichment/.venv/bin/python thesis/figures/make_82_diagrams.py
 
-Writes fig-6-1-runtime.png, fig-6-2-cold-warm.png and fig-6-3-warm-path.png
-into this directory. The measurement figures in chapter 6.1 are NOT generated
-here -- they are eval/8_2/figures/*.png, referenced in place so the thesis
-cites the evaluation pack's own output rather than a copy of it.
+Writes fig-6-1-runtime.png, fig-6-2-cold-warm.png, fig-6-3-warm-path.png and
+fig-6-9-uc83-design.png into this directory. The measurement figures in chapter
+6.1 are NOT generated here -- they are eval/8_2/figures/*.png, referenced in
+place so the thesis cites the evaluation pack's own output rather than a copy
+of it.
+
+Figure 6.9 belongs to section 6.2 (use case 8.3), which is design-only. It
+lives in this file rather than in a new one precisely because everything here
+is *drawn* from hardcoded coordinates rather than plotted from data, so a
+diagram for an unimplemented use case costs nothing and claims nothing --
+unlike make_81_figures.py, which cannot produce a figure without a completed
+evaluation run.
 """
 from pathlib import Path
 
@@ -30,13 +38,24 @@ STYLES = {
 }
 
 
-def box(ax, x, y, w, h, title, subtitle=None, style="service", fs=10, sub_fs=8):
-    """Draw a rounded box anchored at its lower-left corner."""
+def box(ax, x, y, w, h, title, subtitle=None, style="service", fs=10, sub_fs=8,
+        dashed=False):
+    """Draw a rounded box anchored at its lower-left corner.
+
+    `dashed=True` marks a component that does not exist: a dashed edge over a
+    white fill, which stays distinguishable from a solid filled box in
+    greyscale as well as in colour. Used only by Figure 6.9, where the whole
+    point is which half of the diagram is built and which half is proposed.
+    """
+    style_kw = dict(STYLES[style])
+    if dashed:
+        style_kw["linestyle"] = (0, (4, 3))
+        style_kw["fc"] = "white"
     ax.add_patch(
         FancyBboxPatch(
             (x, y), w, h,
             boxstyle="round,pad=0.0,rounding_size=1.2",
-            mutation_aspect=1.0, zorder=2, **STYLES[style],
+            mutation_aspect=1.0, zorder=2, **style_kw,
         )
     )
     if subtitle:
@@ -268,7 +287,97 @@ def fig_warm_path():
     save(fig, "fig-6-3-warm-path.png")
 
 
+# --------------------------------------------------------------------------
+# Figure 6.9 -- 8.3 as designed: the built lower lane, the proposed upper one
+# --------------------------------------------------------------------------
+def fig_uc83_design():
+    fig, ax = canvas(15.5, 8.6, xlim=(0, 124), ylim=(0, 104))
+
+    # --- upper lane: proposed, none of it implemented ---------------------
+    ax.text(62, 95.5, "PROPOSED — none of this is implemented (Sections 6.2.3, 6.2.5)",
+            ha="center", va="bottom", fontsize=9.5, color="#5f5f5f",
+            fontweight="bold", zorder=6,
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none"))
+
+    box(ax, 1, 76, 17, 15, "Freesound clip",
+        "CC audio served as a\nsimulated live stream,\nnot hardware capture",
+        "external", dashed=True, fs=9.5, sub_fs=7.5)
+    box(ax, 23, 76, 15, 15, "media-stream",
+        "Kafka topic:\nexists since stage 7,\nnever produced to",
+        "broker", fs=9.5, sub_fs=7.5)
+    box(ax, 43, 76, 21, 15, "Live CLAP + auto-tagger",
+        "classifier only —\nno live writes to Neo4j\n(Semantic API endpoint:\ncontract revision)",
+        "compute", dashed=True, fs=9.5, sub_fs=7.5)
+    box(ax, 69, 76, 19, 15, "Trigger policy",
+        "when to interrupt —\nthe question the design\ndoes not settle (6.2.7)",
+        "compute", dashed=True, fs=9.5, sub_fs=7.5)
+    box(ax, 93, 76, 16, 15, "Push delivery",
+        "WebSocket: the user\nnever asked\n(Decision E)",
+        dashed=True, fs=9.5, sub_fs=7.5)
+    box(ax, 112, 76, 11, 15, "Client", None, "external", dashed=True, fs=9.5)
+
+    for x0, x1 in ((18, 23), (38, 43), (64, 69), (88, 93), (109, 112)):
+        arrow(ax, (x0, 83.5), (x1, 83.5), dashed=True, color="#5f5f5f")
+
+    # --- lower lane: built, verified and measured in 6.1 ------------------
+    ax.text(62, 47.5,
+            "BUILT, VERIFIED AND MEASURED IN SECTION 6.1 — reused unchanged (Table 6.9)",
+            ha="center", va="bottom", fontsize=9.5, color="#2f5c8a",
+            fontweight="bold", zorder=6,
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none"))
+
+    box(ax, 1, 28, 17, 15, "Listening session",
+        "stage 12 simulator:\nscripted, --seed / --speed", "external",
+        fs=9.5, sub_fs=7.5)
+    box(ax, 23, 28, 15, 15, "behavioral-events",
+        "Kafka topic\n(stages 7, 11)", "broker", fs=9.5, sub_fs=7.5)
+    box(ax, 43, 28, 21, 15, "Three consumer groups",
+        "Flink profile job ·\nraw-state daemon ·\nrefresh daemon", "compute",
+        fs=9.5, sub_fs=7.5)
+    box(ax, 69, 28, 19, 15, "Redis + PostgreSQL",
+        "session:{id}:events\n:profile · :recs\n(Decision C)", "store",
+        fs=9.5, sub_fs=7.5)
+    box(ax, 93, 28, 16, 15, "session_api",
+        "read-only, Redis only\nrequest/response\n(stage 16)", fs=9.5, sub_fs=7.5)
+    box(ax, 112, 28, 11, 15, "Client", None, "external", fs=9.5)
+
+    for x0, x1 in ((18, 35.5), (38, 43), (64, 69), (88, 93), (109, 112)):
+        arrow(ax, (x0, 35.5), (x1, 35.5))
+
+    # --- the whole of 8.3's coupling to the platform: two arrows ----------
+    arrow(ax, (49, 76), (31, 43), None, dashed=True, color="#6b4a86")
+    ax.text(2.0, 62.0,
+            "the recognised track enters\nas an ordinary behavioural event —\nno new ingestion path",
+            ha="left", va="center", fontsize=7.8, color="#6b4a86", zorder=6,
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.9))
+
+    arrow(ax, (78.5, 43), (78.5, 76), None, dashed=True, color="#4a7a3c")
+    ax.text(81.0, 62.0,
+            "reads :profile and :recs,\nalready written and measured\n(Sections 6.1.8–6.1.10)",
+            ha="left", va="center", fontsize=7.8, color="#4a7a3c",
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.9))
+
+    # --- legend ----------------------------------------------------------
+    box(ax, 3, 13, 8, 6.5, "", None, "service")
+    ax.text(12.5, 16.25, "built and verified in Section 6.1", ha="left",
+            va="center", fontsize=8.5)
+    box(ax, 3, 4, 8, 6.5, "", None, "service", dashed=True)
+    ax.text(12.5, 7.25, "proposed — not implemented", ha="left",
+            va="center", fontsize=8.5)
+
+    ax.text(122, 10.0,
+            "The two vertical arrows are the whole of 8.3's coupling to the platform: it produces ordinary behavioural events\n"
+            "and reads derived session state. That is why the lower lane needs no change, and why nothing on the upper lane\n"
+            "can be given a measured result in this chapter.",
+            ha="right", va="center", fontsize=8, color="#333333", style="italic")
+
+    ax.set_title("Figure 6.9 — Use case 8.3 as designed: what already exists, and what would have to be built",
+                 fontsize=11.5, pad=12)
+    save(fig, "fig-6-9-uc83-design.png")
+
+
 if __name__ == "__main__":
     fig_runtime()
     fig_cold_warm()
     fig_warm_path()
+    fig_uc83_design()

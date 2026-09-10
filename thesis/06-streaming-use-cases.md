@@ -1,6 +1,6 @@
 # 6. Streaming Use Cases: 8.2 and 8.3
 
-Chapter 5 built the batch/reactive Recommender Engine over a static catalog. This chapter documents the streaming half of the use-case taxonomy: 8.2 (streaming, reactive), implemented and evaluated in full, and 8.3 (streaming, proactive), which remains unimplemented and is described here only as scope.
+Chapter 5 built the batch/reactive Recommender Engine over a static catalog. This chapter documents the streaming half of the use-case taxonomy: 8.2 (streaming, reactive), implemented and evaluated in full, and 8.3 (streaming, proactive), which remains unimplemented and is set out here as a design rather than a result.
 
 The two are independent modules (they share no runtime state and no code path with each other), but both build on the same shared platform, extended for this chapter with the streaming capabilities the batch use case did not need.
 
@@ -283,8 +283,94 @@ Of the 215 automated tests in the repository, all of which pass, 162 belong to t
 
 ## 6.2 Use Case 8.3 — Streaming, Proactive
 
-> **[DRAFT NOTE]** Not implemented. This section is a scope placeholder to be written only if 8.3 is built; the results in Section 6.1 stand independently of it.
+The third row of the taxonomy in Section 4.5 is streaming and proactive: a suggestion the system offers from what is currently playing, without the listener having asked for anything. It is not implemented. What follows is its design, the platform surface it would stand on, and what Section 6.1's measurements already determine about it. It reports no results of its own, and Section 6.2.2 explains why that separation is a methodological commitment rather than a hedge.
 
-System-inferred suggestions from a live-played track, with no explicit user query: the distinction from 8.2 is that the user did not ask, which is also where push delivery would properly belong (Section 6.1.2). The intended implementation simulates a live audio stream via a Creative-Commons clip served through the Freesound API rather than capturing live hardware input, and reuses Auto-tagging as a classifier-only building block inside the Semantic API, with no live persistence to Neo4j during the session. Every platform capability it would need already exists and is verified (Table 6.1); it would reuse the same event topic, the same raw-state consumer and the same session cache as 8.2, per the platform-ownership decision described in Section 6.1.3.
+### 6.2.1 Scope: What Proactive Actually Changes
 
-> **[DRAFT NOTE]** Explicit professor confirmation on the Freesound simulated-stream approach for 8.3 is still pending as of this draft, flag this openly in the thesis if it remains unconfirmed at submission time, rather than presenting it as settled.
+Section 6.1.2 fixed the distinction the whole taxonomy rests on. Use cases 8.2 and 8.3 differ by whether the user asked, not by whether the transport pushes or pulls. 8.2 answers an explicit query, which is why its delivery is request/response even though the architecture chapter had specified a WebSocket. 8.3 makes an inference the listener never requested, which is where push delivery properly belongs, and where the taxonomy's second axis finally does some work.
+
+What that changes is smaller than its position in the taxonomy suggests, and the smallness is the finding rather than a disappointment. It changes the trigger and the input modality; it does not change the pipeline. Use case 8.2's recommendation path already runs unbidden: two daemons consume the event topic continuously and rewrite a Redis key on their own schedule, and the session API's entire role is to hand over what has already been computed (Section 6.1.6). Recommendations for a live session are, today, produced proactively and delivered reactively. Use case 8.3 is what happens when the decision to speak moves from the client to the system, and when the signal provoking it is audio arriving in real time rather than a behavioural event naming a track the catalog already holds.
+
+Two consequences follow, running in opposite directions. The first is that 8.3 is cheaper to build than its billing implies, because the machinery that maintains a session's evolving taste is finished, measured, and platform-owned by an explicit decision taken before 8.2 needed it (Section 6.1.3). The second is that what remains is precisely the part this dataset is least equipped to settle, which Section 6.2.7 returns to.
+
+### 6.2.2 Why This Section Reports No Results
+
+Section 6.1.7 committed the evaluation of 8.2 to four methodological rules, and one of them governs this section by construction: every pass/fail rule was pre-registered in code before the run it judges. A use case that has not been built cannot be handed a verdict after the fact without breaking that rule, and breaking it here would retroactively cheapen the results it was adopted to protect.
+
+So no number in this section is an 8.3 measurement. Section 6.2.6 does cite measured values, and every one of them is 8.2's, taken from Tables 6.3 to 6.7 and reported there against a live run. They appear because 8.3 would execute on the same substrate, which makes them inherited bounds rather than predictions: the claim is not that 8.3 would behave a certain way, but that 8.3 could not behave better than a component already measured beneath it. That is a weaker claim than a result and a stronger one than an estimate, and it is the strongest form available to an unimplemented design.
+
+Nothing in Section 6.1 depends on this section. The eight metrics, the eight scenarios and the 162 streaming tests stand whether or not 8.3 is ever built.
+
+### 6.2.3 The Proposed Design
+
+The input is a simulated live stream rather than captured hardware audio: a Creative Commons clip retrieved through the Freesound API (Table 3.1) and replayed as though it were arriving in real time. Simulation is the deliberate choice, for the same reason the behavioural-event simulator of Section 6.1.3 replaced real users: a scripted source can be seeded and replayed, and the determinism result of Metric 6 exists only because every input to 8.2 was reproducible. Hardware capture would trade that away for a realism the evaluation cannot use. This remains a design choice that has never been exercised, and Section 6.2.5 records it as such.
+
+Audio would enter through `media-stream`, the second Kafka topic. It has existed since the first streaming platform stage and has never carried a message, because the L1 architecture separated media from behavioural events before either had a producer, and only the behavioural half has since acquired one. Use case 8.3 would be the first thing to write to it, which is the sense in which the topic split has so far been a design commitment rather than a demonstrated one.
+
+From there the clip would be embedded with CLAP on the live path and classified. Auto-tagging is reused strictly as a classifier: it identifies what is playing and writes nothing to Neo4j during the session. The knowledge graph stays a batch-enriched artifact, exactly as Chapter 5 built it, and the live path only reads it. This is a deliberate narrowing rather than an omission, and it keeps the property that makes the graph trustworthy as a signal, which is that its contents were derived once, deterministically, from the whole catalog.
+
+The recognised track then enters the pipeline as an ordinary behavioural event. There is no second ingestion path and no new state: the classifier's output is a track identity, which is exactly what the existing event schema already carries. Everything downstream of that point is the system Section 6.1 measured. Delivery is where 8.3 diverges again, pushing a suggestion over a WebSocket rather than waiting to be asked.
+
+![Figure 6.9 — Use case 8.3 as designed. The lower lane is the pipeline built and measured in Section 6.1, reused without modification. The upper lane is proposed and unimplemented. The two vertical arrows are the whole of the coupling between them: 8.3 produces ordinary behavioural events and reads derived session state.](figures/fig-6-9-uc83-design.png){width=6.4in}
+
+### 6.2.4 What 8.3 Would Reuse Unchanged
+
+Table 6.1 stated that 8.3 would reuse every platform stage behind 8.2 unchanged. Table 6.9 makes that specific, because a claim of reuse is worth only as much as the evidence that the reused thing works.
+
+| Platform component | What 8.3 would use it for | Evidence it works |
+|---|---|---|
+| `behavioral-events` topic and ingestion service | The classified track enters as an ordinary event | Sections 6.1.3, 6.1.6 |
+| Raw-state consumer and daemon | Session event history in Redis and PostgreSQL | Section 6.1.6: backlog drained once, restart replayed zero events; Table 6.6 for its failure behaviour |
+| Flink session-profile job | The evolving taste centroid the suggestion is drawn from | Metric 4: coherence 0.8707 recent against 0.6186 opening |
+| Recommendation refresh loop | Candidate generation from the session profile | Metrics 1 and 3: adaptation in one refresh, warm path in one |
+| Scoring function (`platform/scoring/ranking.py`) | Ranking, shared with 8.1 since Chapter 5 | Metric 6: byte-identical across two runs |
+| Semantic API | Graph and catalog reads on the ranking path | Chapter 5; frozen in `contracts/semantic-api-v1.json` |
+| Redis session keyspace and its derived TTL | Profile, recommendations and their expiry | Table 6.7 |
+| Event simulator | Reproducible sessions, seeded and speed-controlled | Every scenario in Sections 6.1.8 to 6.1.10 |
+
+: Table 6.9 — Platform components 8.3 would reuse without modification, and where each was verified.
+
+The right-hand column is what an unimplemented use case can legitimately claim. None of it is evidence about 8.3, and all of it is evidence about the ground 8.3 would stand on.
+
+### 6.2.5 What Would Have to Be Built
+
+The honest complement is shorter than Table 6.9 and considerably harder.
+
+| Missing piece | Why it does not exist yet | Constraint it would inherit |
+|---|---|---|
+| Freesound client and `media-stream` producer | Nothing has ever produced to the media topic | Determinism requires a seeded, replayable clip source |
+| Live-path CLAP embedding | Embedding is a batch enrichment step today | Adds a hop ahead of H1 in Table 6.3's decomposition |
+| Classifier endpoint on the Semantic API | Auto-tagging exists as an architectural sibling, not as code | First addition since the OpenAPI freeze; `contracts/` prescribes diffing the export and updating it in the same change |
+| Push transport | Deliberately withheld from 8.2 (Section 6.1.2) | Must signal staleness, per Section 6.2.6 |
+| Trigger policy | No principled basis exists on this dataset | Section 6.2.7 |
+| `eval/8_3` and its metric specification | No implementation to evaluate | Pre-registered before any run, per Section 6.1.7 |
+
+: Table 6.10 — What use case 8.3 would require beyond the existing platform.
+
+One reuse in Table 6.9 carries a caveat worth stating rather than discovering later. The session profile weights events by kind, and its weight table is shaped for behavioural signals: a completed play, a like, an early skip against a late one. A live audio stream produces none of those. "Currently playing" is a weaker and more ambiguous signal than "played to completion", and it arrives continuously rather than at track boundaries. The centroid arithmetic transfers unchanged; the weight table does not, and choosing new weights would be a design decision of the same kind Section 6.1.4 documented for 8.2, requiring the same justification.
+
+Two further items are bookkeeping rather than engineering, but they are triggered by 8.3 specifically. The `contracts/` directory holds only the frozen Semantic API export, on the stated rule that the shared recommendation response shape gets written down once a second independent consumer exists. Use case 8.3 is that consumer, and starting it is what makes the recommendation contract worth freezing.
+
+### 6.2.6 What Section 6.1's Measurements Already Bound
+
+Because 8.3 would run on the measured substrate, four of Section 6.1's results are constraints on it rather than facts about something else. Two are favourable and two are not, and the unfavourable pair is the more interesting, because in each case a property that 8.2 could tolerate becomes one that 8.3 could not.
+
+**The profile is between two and three seconds behind the events it summarises, and a proactive system chooses the moment it speaks.** Table 6.3 puts the windowed profile lag at 2.1 seconds at the median, against 7 milliseconds to ingest an event and 24 milliseconds to compute a refresh. In 8.2 this is invisible: the listener asks, and the state is already there when they do. Use case 8.3 has no such luck, because it picks its own moment, and the moment a proactive recommender most wants to speak is a transition between tracks. That is exactly where a summary two to three seconds stale is most likely to describe the track that just ended rather than the one that just began. The lag is a property of the sliding-window design, not a defect, and Section 6.1.8 already named it as the number a latency-sensitive deployment would have to revisit. A proactive use case is that deployment.
+
+**Adaptation itself is fast enough, and that is measured rather than assumed.** Every K in the reactivity sweep crossed the pre-registered threshold at its first post-pivot refresh, and all eight sessions reached the session-derived warm path after exactly one cold-start refresh, in about five seconds. A trigger that fires on a detected change in listening would have current recommendations behind it within a single refresh. Whatever is hard about 8.3, keeping up with the listener is not.
+
+**A silently dropped event corrupts what the system would say without delaying when it says it.** Metric 7 is the sharpest inherited result in the chapter. Under heavy late delivery the profile was measurably corrupted, with a maximum coherence delta of 0.5574, while the adaptation refresh index stayed at 7 in all three arms: the recency decay dominates, so a pivot is detected from the newest events regardless of how much older history was lost. For 8.2 that combination is reassuring, because responsiveness survives. For 8.3 it inverts. A system that speaks on time from a corrupted profile is worse than one that stays quiet, since an unsolicited wrong suggestion costs more than an absent one, and the metric that establishes the timing is blind to that cost precisely because 8.2 never speaks unbidden.
+
+**A frozen recommendation is undetectable by a client, and push removes the user's ability to bound the damage.** The Semantic API outage arm was indistinguishable from the control: no events lost, every request answered 200, and every refresh failing silently behind a recommendation key that carries no timestamp of any kind. Section 6.1.11 lists this as a limitation. Under proactive delivery it is closer to a precondition, because the asymmetry between the two use cases is exactly the asymmetry between answering and volunteering. When the user asks, a stale answer is still an answer to a question they chose to put; the request bounds the exposure. When the system initiates, nothing bounds it, and a push transport over a frozen key would keep making confident unsolicited claims for as long as the dependency stayed down. The same reasoning applies to the six events lost during the Redis outage, where the containment handler committed the offset past each failed message and left a hole in the session history that nothing downstream can detect. The fix Section 6.1.11 sketches, giving the recommendation key a sibling metadata key of the kind the profile already has, is optional for 8.2 and load-bearing for 8.3.
+
+The derived-state TTL result completes the picture. Derived keys now expire within roughly half a minute of the raw state they summarise, the measured spread being between 21 seconds before and 23 seconds after. A request/response client meeting an expired key gets an empty answer to its own question. A push client meets nothing at all, and the design would have to decide explicitly whether an expired session ends in silence or in a final stale utterance. That is a design question this chapter can pose precisely because the TTL behaviour was measured.
+
+### 6.2.7 The Question the Design Does Not Settle
+
+Everything above is answerable from what exists. One thing is not, and it is the thing that makes 8.3 a distinct use case rather than a different transport: when should the system speak.
+
+Both evaluation packs in this thesis refuse accuracy metrics for the same stated reason. There is no ground truth for this dataset and there are no real users, so precision, recall and NDCG would require relevance labels that do not exist (Sections 5.5.1 and 6.1.7). Whether an unsolicited suggestion is welcome at a given moment is a relevance judgement of exactly that kind, and a stricter one, because it asks not merely whether a recommendation is good but whether it was worth interrupting for. A trigger policy tuned without that signal would be tuned against nothing, and reporting a number for it would be the precise failure both packs were designed to avoid.
+
+This is the honest reason 8.3 is scoped out, and it is a better reason than time. The platform is ready, the pipeline is measured, and the remaining question is one the available data cannot answer. Building a trigger policy anyway would produce a system that emits suggestions on a schedule chosen arbitrarily and defended by nothing, and the thesis would have to say so.
+
+What could still be pre-registered, if 8.3 were built, is worth naming, because the boundary is not where it first appears. Time from track onset to first suggestion, classifier latency as a new hop in Table 6.3's decomposition, suggestion rate per session, how often a suggestion is superseded before a listener could act on it, and whether a client can detect staleness are all systems and behaviour measures, all label-free, and all answerable by the same kind of harness Section 6.1.7 describes. The single measure that would matter most, whether the interruption was welcome, is the one that would require a user study rather than a metric. That is the shape of the future work, and it is a different kind of work from anything in this thesis.
