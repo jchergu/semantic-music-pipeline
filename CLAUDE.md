@@ -816,44 +816,53 @@ by rendering the built `.docx` to PDF: 64 pages, abstract on 3, chapters 1-7
 opening pages 4, 6, 7, 10, 14, 30 and 61, references on 63. Chapter 6 runs
 pages 30-60, roughly half the document.
 
-### Thesis consistency pass — NEXT SESSION, not started
+### Thesis consistency pass — done 2026-09-13
 
-A **thesis session**, contained, no code. Chapters 5 and 6 have moved a long
-way since the front and back matter were last touched, and five sites now
-state things that are no longer true. None of them was caused by the §6.2
-work; they are collected here so one session can close them all.
+A **thesis session**, contained, no code — closed the five stale sites
+this section previously queued. 8.3 was not started in this session, per
+the instruction; the taxonomy row stays "Not started".
 
-Do **not** start 8.3 in that session. §6.2 is deliberately design-only and
-the taxonomy row above stays "Not started".
+1. `thesis/00-frontmatter.md` — abstract rewritten to cover 8.2 (also
+   implemented and verified, not just designed) and 8.3 (design/feasibility
+   only). Its `[DRAFT NOTE]` at the old `:8` is closed.
+2. `thesis/07-conclusion.md` §7.1 — written from scratch (was entirely a
+   draft note): the 3-layer architecture, 8.1 and 8.2 both built and
+   measured, 8.3 as a design, the 215-test / 162-streaming split (reusing
+   §6.1.12's own sentence), and how this meets the §1.2 objectives.
+3. `thesis/07-conclusion.md` §7.2 — the Spark/Flink/Airflow bullet split:
+   Flink is exercised (stage 13), Spark and Airflow are not.
+4. `thesis/01-introduction.md:25` — the bracketed Chapter 6 hedge resolved:
+   "reports the design and empirical results of use case 8.2... and sets
+   out use case 8.3... as a design and feasibility analysis, not yet
+   implemented or measured."
+5. `README.md` — all four stale sites fixed: the status table (8.2 →
+   Complete), the Kafka/Redis/Flink narrative, the build-order description
+   (8.2's real stages 7-16, not "stages 5-6"), and the stack section.
 
-1. `thesis/00-frontmatter.md:10` — the abstract still says the thesis "reports
-   the design of the full architecture and the implementation and empirical
-   verification of the batch/reactive mode", i.e. 8.1 only. 8.2 is complete,
-   evaluated over eight metrics and written up in §6.1. Its `[DRAFT NOTE]` at
-   `:8` asks for 200-300 words and can be closed in the same edit.
-2. `thesis/07-conclusion.md:5` — §7.1 is *entirely* a draft note, and now sits
-   alone on its own fresh page thanks to the page-break rule, so it is
-   conspicuous. It also cites "32/32 tests", superseded twice: the repo runs
-   215, and §6.1.12 already asserts the 53 + 162 split.
-3. `thesis/07-conclusion.md:13` — "Spark, Flink, and Airflow… are not exercised
-   at this dataset scale" is flatly contradicted by stage 13, which runs a live
-   PyFlink job that Metrics 4 and 7 measure. Spark and Airflow are still
-   unexercised, so this splits rather than deletes. (The bullet above it, "no
-   user/behavioral data exists in the 8.1 prototype", is scoped to 8.1 and
-   stays correct.)
-4. `thesis/01-introduction.md:25` — "Chapter 6 [reports results / discusses 8.2
-   and 8.3, depending on what's completed by submission]". A bracketed hedge
-   that **ships into the built `.docx` as-is**; it is not tagged as a draft
-   note, so a `grep 'DRAFT NOTE'` will not catch it. The answer is now known:
-   §6.1 reports 8.2's results, §6.2 sets out 8.3 as a design.
-5. `README.md` — **four** stale sites, not just the table: `:13` still lists
-   8.2 as "Not started"; `:45` says Kafka/Redis are "reserved for 8.2"; `:73`
-   says 8.2 and 8.3 "will each get their own stages 5-6"; `:182` says the Kafka
-   path is "reserved for 8.2/8.3, not touched by 8.1". 8.2 finished at stage 16.
+Two more sites were fixed that weren't on the original list, because the
+edits above would otherwise have left the same files self-contradicting:
+`thesis/07-conclusion.md` §7.3's "re-introducing Spark/Flink/Airflow"
+future-work bullet (now excludes Flink, consistent with the §7.2 fix
+right above it), and `README.md`'s Tests section, which still said "32
+tests" a few paragraphs below the newly-added "215 tests" line — updated
+to 215, with the streaming-related count and a pointer to this file's
+Commands section for the full breakdown, plus the missing
+`-r platform/streaming/requirements.txt` in the install command.
 
-After 1-4, `grep -rn 'DRAFT NOTE' thesis/` should return only
-`08-references.md:3` (a real pre-submission task: apply the department's
-citation style). Rebuild with `make -C thesis` and re-check the page count.
+**This section's own closing claim was wrong by one, caught during the
+session rather than after**: `thesis/01-introduction.md:11` carries a
+separate, unrelated `[DRAFT NOTE]` (§1.1 Motivation — expand on
+commercial/academic motivation), never on the 5-item list above and not
+closed here — deliberately left open as a larger, separate writing task
+(the user chose this over closing it in the same session, when asked).
+`grep -rn 'DRAFT NOTE' thesis/` now correctly returns **two** hits, not
+the one this section originally predicted: `01-introduction.md:11` and
+`08-references.md:3` (citation formatting, a real pre-submission task).
+
+Verified: `make -C thesis` builds cleanly; converting the output to PDF
+and diffing against a pre-edit baseline build confirmed content only grew
+by the expected amount (51 → 52 pages, matching the new §7.1 prose) and
+no chapter heading went missing. Commit `4f8aa99`.
 
 ## Stack (all open-source, self-hostable)
 
