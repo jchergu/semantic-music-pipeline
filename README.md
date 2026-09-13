@@ -10,17 +10,28 @@ another:
 | Use case | Mode | Type | Status |
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — see below |
-| 8.2 | Streaming | Reactive | Not started |
-| 8.3 | Streaming | Proactive | Not started |
+| 8.2 | Streaming | Reactive | **Complete** — see below |
+| 8.3 | Streaming | Proactive | Not started (design only, see CLAUDE.md) |
 
 **8.1 status: build order complete.** 411 tracks ingested, embedded, and
-graphed; 4,110 recommendations generated; 32/32 automated tests passing.
-See [`reports/results.html`](reports/results.html) for the full results
+graphed; 4,110 recommendations generated. See
+[`reports/results.html`](reports/results.html) for the full results
 writeup (architecture, embedding visualization, worked recommendation
 example) — open it directly in a browser, no server required — and
 [`docs/results-evaluation.md`](docs/results-evaluation.md) for the
 quantitative/qualitative evaluation of recommendation quality that sits on
 top of it.
+
+**8.2 status: build order complete.** A Kafka/Flink/Redis pipeline
+maintains a live per-session semantic profile and continuously refreshes
+recommendations, served read-only over `platform/session_api/`. Evaluated
+across eight pre-registered metrics in `eval/8_2/` (reactivity, latency,
+coherence, catalog coverage, determinism, late-event handling, and two
+failure-injection scenarios). See `CLAUDE.md`'s stage docs table and
+`thesis/06-streaming-use-cases.md` §6.1 for the full write-up.
+
+215 automated tests pass across the whole repository (162 of them
+streaming-related, covering platform stages 7-16 and `eval/8_2`).
 
 ## Architecture
 
@@ -41,10 +52,14 @@ case:
 never queries Postgres, Milvus, or Neo4j directly for track content. See
 `reports/results.html` for a diagram.
 
-Kafka and Redis are provisioned in the Docker stack but intentionally left
-unwired by the platform and by 8.1 — they're reserved for 8.2 (streaming,
-reactive) and 8.3 (streaming, proactive), which are independent modules:
-they share the platform (L1/L2/L3) but not each other, and not 8.1.
+Kafka, Redis, and Flink are provisioned in the Docker stack and are wired
+and used by 8.2 (streaming, reactive): behavioral events flow through the
+`behavioral-events` Kafka topic, a PyFlink job maintains a live per-session
+semantic profile centroid, and Redis holds session state and derived
+recommendations. None of this is touched by 8.1, which stays purely batch.
+8.3 (streaming, proactive) is not started, but would reuse this same
+platform surface — 8.2 and 8.3 are independent of each other, not of the
+platform.
 
 `contracts/` holds versioned interface artifacts shared between the
 platform and its use cases (OpenAPI export, Kafka topic schemas, the
@@ -70,10 +85,14 @@ consumer (8.2) exists and that contract stops being implicit. See
 | 5 | Recommender Engine | `usecases/8_1_batch_reactive/recommender/` | [`usecases/8_1_batch_reactive/docs/uc81-recommender.md`](usecases/8_1_batch_reactive/docs/uc81-recommender.md) |
 | 6 | End-to-end test | `usecases/8_1_batch_reactive/tests/test_uc81_e2e.py` | [`usecases/8_1_batch_reactive/docs/uc81-e2e.md`](usecases/8_1_batch_reactive/docs/uc81-e2e.md) |
 
-8.2 and 8.3 will each get their own stages 5-6 (or however many they need)
-under `usecases/8_2_streaming_reactive/` and
-`usecases/8_3_streaming_proactive/` respectively, reusing platform stages
-1-4 unchanged.
+8.2 needed platform stages 7-12 first (Kafka, Flink provisioning, Redis,
+Postgres sessions/events schema, event ingestion, event simulator), then
+built its own stages 13-16 (session profile centroid, recommendation
+refresh loop, `eval/8_2` harness, refresh daemons + session API) — see
+CLAUDE.md for the full stage-by-stage build order and docs. 8.3 is not
+started; it will get its own stages under
+`usecases/8_3_streaming_proactive/`, reusing the shared platform (stages
+1-12) unchanged.
 
 ## Dataset
 
@@ -147,15 +166,19 @@ interpreter directly with `-m` sidesteps that.
 
 ```bash
 platform/enrichment/.venv/bin/python -m pip install -r usecases/8_1_batch_reactive/recommender/requirements.txt \
+    -r platform/streaming/requirements.txt \
     fastapi==0.115.0 "uvicorn[standard]==0.32.0" httpx==0.27.2
 platform/enrichment/.venv/bin/python -m pytest -v
 ```
 
-Runs all 32 tests — platform stages 2-4 plus 8.1's stages 5-6 — against
-the live stack. The Semantic API test fixture launches its own subprocess
-on a free port, so nothing needs to be started manually first. To run only
-the platform tests (no use case): `pytest tests/ -v`. To run only 8.1's
-own tests: `pytest usecases/8_1_batch_reactive/tests/ -v`.
+Runs all 215 tests — platform stages 2-4 and 7-16, 8.1's stages 5-6, and
+the `eval/8_1`/`eval/8_2` evaluation packs (162 of the 215 are
+streaming-related) — against the live stack. See CLAUDE.md's Commands
+section for the full per-stage test breakdown. The Semantic API test
+fixture launches its own subprocess on a free port, so nothing needs to be
+started manually first. To run only the platform tests (no use case):
+`pytest tests/ -v`. To run only 8.1's own tests:
+`pytest usecases/8_1_batch_reactive/tests/ -v`.
 
 ## Reports
 
@@ -174,10 +197,13 @@ helper) plus feeding data into `reports/results.html`:
 
 ## Stack
 
-PostgreSQL, MinIO, Milvus, Neo4j, FastAPI, LAION-CLAP, Docker Compose.
-Besides track metadata and 8.1's own `recommendations` table, PostgreSQL
-now also holds `sessions`/`events` durability for a platform-owned
-consumer. Kafka and Redis have real (but narrow) platform-owned code
-paths too — including a dedicated event ingestion HTTP service producing
-onto Kafka — all reserved for 8.2/8.3, not touched by 8.1 (see
-Architecture). Flink is present but unused by anything yet.
+PostgreSQL, MinIO, Milvus, Neo4j, FastAPI, LAION-CLAP, Kafka, Redis,
+Flink, Docker Compose. Besides track metadata and 8.1's own
+`recommendations` table, PostgreSQL now also holds `sessions`/`events`
+durability for a platform-owned consumer. Kafka, Redis, and Flink are
+wired and used end-to-end by 8.2 (streaming, reactive): a dedicated event
+ingestion HTTP service produces onto Kafka, a PyFlink job consumes it to
+maintain a live per-session profile centroid, and Redis serves as the
+session cache read by `platform/session_api/`. None of this is touched
+by 8.1, which stays purely batch (see Architecture). 8.3 (streaming,
+proactive) is not started and would reuse the same components.
