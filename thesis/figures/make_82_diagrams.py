@@ -1,4 +1,4 @@
-"""Generate the architecture/sequence diagrams for thesis chapter 6.1 (use case 8.2).
+"""Generate the architecture/sequence diagrams for thesis chapters 4 and 6.
 
 Drawn with matplotlib rather than Graphviz so the thesis figures need no
 tooling beyond `platform/enrichment/.venv`, which already carries matplotlib
@@ -6,18 +6,23 @@ for the eval packs. Run from the repository root:
 
     platform/enrichment/.venv/bin/python thesis/figures/make_82_diagrams.py
 
-Writes fig-6-1-runtime.png, fig-6-2-cold-warm.png, fig-6-3-warm-path.png and
-fig-6-9-uc83-design.png into this directory. The measurement figures in chapter
-6.1 are NOT generated here -- they are eval/8_2/figures/*.png, referenced in
-place so the thesis cites the evaluation pack's own output rather than a copy
-of it.
+Writes fig-4-1-architecture.png, fig-6-1-runtime.png, fig-6-2-cold-warm.png,
+fig-6-3-warm-path.png and fig-6-9-uc83-design.png into this directory. The
+measurement figures in chapter 6.1 are NOT generated here -- they are
+eval/8_2/figures/*.png, referenced in place so the thesis cites the
+evaluation pack's own output rather than a copy of it.
 
-Figure 6.9 belongs to section 6.2 (use case 8.3), which is design-only. It
-lives in this file rather than in a new one precisely because everything here
-is *drawn* from hardcoded coordinates rather than plotted from data, so a
-diagram for an unimplemented use case costs nothing and claims nothing --
-unlike make_81_figures.py, which cannot produce a figure without a completed
-evaluation run.
+Figure 4.1 (Chapter 4's three-layer architecture overview) and Figure 6.9
+(Chapter 6.2, use case 8.3's design) both live in this file rather than in
+one of their own, for the same reason: everything here is *drawn* from
+hardcoded coordinates rather than plotted from data, so a cross-chapter or
+unimplemented-use-case diagram costs nothing and claims nothing -- unlike
+make_81_figures.py, which cannot produce a figure without a completed
+evaluation run. Figure 4.1 replaces a hand-drawn PNG that had drifted out of
+sync with the built system (OWL/Protégé/Jena, "ChromaDB for MVP",
+LightGCN+CF, `media.*`/`events.*` topic names, the pre-rename title); this
+version is regenerated from the same source of truth as every other diagram
+here, so it can't drift the same way again.
 """
 from pathlib import Path
 
@@ -376,7 +381,104 @@ def fig_uc83_design():
     save(fig, "fig-6-9-uc83-design.png")
 
 
+# --------------------------------------------------------------------------
+# Figure 4.1 -- the three-layer architecture (Chapter 4)
+# --------------------------------------------------------------------------
+def fig_architecture():
+    fig, ax = canvas(16.0, 10.4, xlim=(0, 128), ylim=(0, 108))
+
+    ax.text(64, 105.5,
+            "Data-Driven Context-Aware Pipelining for Multimodal Music Systems",
+            ha="center", va="top", fontsize=11, fontweight="bold", color="#333333")
+
+    # --- Layer 1: Data Preparation ----------------------------------------
+    ax.text(2, 99.5, "LAYER 1 -- DATA PREPARATION", ha="left", va="bottom",
+            fontsize=9, fontweight="bold", color="#a8792a")
+
+    box(ax, 2, 84, 18, 13, "media-stream", "Kafka topic", "broker", fs=9.5)
+    box(ax, 22, 84, 20, 13, "behavioral-events", "Kafka topic", "broker", fs=9.5)
+    box(ax, 46, 84, 24, 13, "Ingestion / Preparation",
+        "cleaning, dedup,\nmodality-specific\nfeature extraction", fs=9, sub_fs=7.5)
+    box(ax, 74, 84, 16, 13, "MinIO / S3", "raw media\n(object store)", "store", fs=9, sub_fs=7.5)
+    box(ax, 92, 84, 17, 13, "Parquet / Delta",
+        "feature store\n(columnar)", "store", fs=9, sub_fs=7.5)
+    box(ax, 111, 84, 15, 13, "PostgreSQL",
+        "system of\nrecord", "store", fs=9, sub_fs=7.5)
+
+    arrow(ax, (20, 90.5), (22, 90.5))
+    arrow(ax, (42, 90.5), (46, 90.5))
+    arrow(ax, (70, 90.5), (74, 90.5))
+    arrow(ax, (90, 90.5), (92, 90.5))
+    arrow(ax, (109, 90.5), (111, 90.5))
+    ax.text(101, 81.5, "joined on a common MusicBrainz recording ID",
+            ha="center", va="top", fontsize=7.5, color="#4a7a3c")
+
+    # --- Layer 2: Semantic Enrichment --------------------------------------
+    ax.text(2, 76.5, "LAYER 2 -- SEMANTIC ENRICHMENT", ha="left", va="bottom",
+            fontsize=9, fontweight="bold", color="#6b4a86")
+
+    box(ax, 6, 58, 26, 13, "Spark",
+        "nightly batch\nenrichment", "compute", fs=9.5)
+    box(ax, 36, 58, 28, 13, "Kafka + Flink",
+        "real-time streaming\nenrichment (stateful,\nwindowed)", "compute", fs=9.5, sub_fs=7.5)
+    box(ax, 78, 58, 22, 13, "CLAP embeddings",
+        "audio-text joint\nembedding model", "compute", fs=9.5, sub_fs=7.5)
+
+    # L1 stores feed both enrichment paths (batch and streaming) and the
+    # embedding computation; the two Kafka topics feed the streaming path
+    # directly too, since Layer 2 is stateful over the live event stream.
+    arrow(ax, (54, 84), (19, 71), None, rad=-0.18)
+    arrow(ax, (60, 84), (50, 71), None, rad=0.12)
+    arrow(ax, (100, 84), (89, 71), None, rad=0.1)
+
+    box(ax, 8, 40, 20, 13, "Neo4j",
+        "knowledge graph\n(artist / genre /\nrelations)", "store", fs=9.5, sub_fs=7.5)
+    box(ax, 32, 40, 20, 13, "Milvus",
+        "vector index\n(similarity search)", "store", fs=9.5, sub_fs=7.5)
+
+    # Structural enrichment (batch or streaming) projects the KG; only the
+    # embedding step feeds the vector index -- these do not cross.
+    arrow(ax, (19, 58), (17, 53), None, rad=0.05, color="#6b4a86")
+    arrow(ax, (42, 58), (26, 53), None, rad=-0.22, color="#6b4a86")
+    arrow(ax, (85, 58), (46, 53), None, rad=0.22, color="#6b4a86")
+    ax.text(60, 37, "joined on the same MusicBrainz / internal track ID",
+            ha="center", va="top", fontsize=7.5, color="#4a7a3c")
+
+    # --- Layer 3: Semantic API / Application -------------------------------
+    ax.text(2, 33, "LAYER 3 -- SEMANTIC API / APPLICATION", ha="left", va="bottom",
+            fontsize=9, fontweight="bold", color="#2f5c8a")
+
+    box(ax, 40, 18, 30, 12, "Semantic API",
+        "FastAPI, read-only,\nshared by every\nconsumer below", fs=10, sub_fs=8)
+    arrow(ax, (18, 40), (48, 30), None, rad=-0.25, color="#4a7a3c")
+    arrow(ax, (42, 40), (57, 30), None, rad=-0.1, color="#4a7a3c")
+
+    box(ax, 2, 2, 26, 12, "Recommender\nEngine  ★", None, fs=9.5)
+    box(ax, 32, 2, 22, 12, "Similarity\nSearch", None, fs=9.5)
+    box(ax, 58, 2, 20, 12, "Auto-tagging", None, fs=9.5)
+    box(ax, 82, 2, 24, 12, "Playlist\nGeneration", None, fs=9.5)
+    arrow(ax, (45, 18), (15, 14), None, rad=0.28)
+    arrow(ax, (48, 18), (43, 14), None, rad=0.06)
+    arrow(ax, (62, 18), (68, 14), None, rad=-0.06)
+    arrow(ax, (65, 18), (94, 14), None, rad=-0.28)
+
+    ax.text(126, 6,
+            "Recommender Engine (★) is one\nsibling consumer among several --\nnot the API's specification.",
+            ha="right", va="center", fontsize=7.8, color="#333333", style="italic")
+
+    # --- legend (top-right, beside the LAYER 1 label) -----------------------
+    legend_items = [("service", "service"), ("broker", "Kafka topic"),
+                    ("store", "store"), ("compute", "compute / enrichment")]
+    for i, (style, label) in enumerate(legend_items):
+        lx = 52 + i * 19
+        box(ax, lx, 100.3, 3, 3, "", None, style)
+        ax.text(lx + 4, 101.8, label, ha="left", va="center", fontsize=7.8)
+
+    save(fig, "fig-4-1-architecture.png")
+
+
 if __name__ == "__main__":
+    fig_architecture()
     fig_runtime()
     fig_cold_warm()
     fig_warm_path()

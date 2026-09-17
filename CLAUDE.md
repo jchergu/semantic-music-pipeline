@@ -864,6 +864,98 @@ and diffing against a pre-edit baseline build confirmed content only grew
 by the expected amount (51 → 52 pages, matching the new §7.1 prose) and
 no chapter heading went missing. Commit `4f8aa99`.
 
+### Thesis page-target expansion — done 2026-09-17
+
+A **thesis session**, like the two above — closed the two remaining
+`[DRAFT NOTE]`s the 2026-09-13 consistency pass had deliberately left open
+(`01-introduction.md`'s §1.1 Motivation, `08-references.md`'s citation
+formatting) and, per an explicit page-count request (60-70 pages, up from
+52), substantially expanded the four thinnest chapters rather than only
+closing the two notes — closing them alone would have landed around
+55-57 pages, short of the target.
+
+**§1.1 Motivation** (previously an unwritten draft note) now argues both
+halves of the case this file's own framing has always assumed but never
+spelled out in the thesis text itself: commercial (personalization as core,
+revenue-relevant infrastructure — Netflix's own architecture writeups,
+McKinsey's 2021 personalization report) and academic (collaborative
+filtering's cold-start and popularity-bias limits, and why a shared semantic
+layer specifically addresses them, per Oramas et al. and the
+context-aware-recommendation taxonomy already cited elsewhere in Chapter 3).
+
+**Chapter 3 (State of the Art)** grew from 859 to 2,842 words and from 8 to
+11 subsections — the largest single addition, per the user's own choice of
+lever. Two subsections were previously entirely absent despite being
+directly relevant to what the pipeline actually does: **Vector Databases and
+Approximate Nearest-Neighbor Search** (Milvus, FAISS, HNSW — Milvus is
+central to the architecture and had no supporting literature at all before
+this pass) and **Session-Based and Streaming Recommendation** (GRU4Rec,
+SR-GNN, Chang et al.'s streaming recommender formulation — exactly the
+problem class Chapter 6 measures, previously uncited). Two more new
+subsections tie the thesis's own methodological commitments to real
+literature rather than asserting them uncited: **Evaluating Recommender
+Systems Without Ground Truth** (Herlocker et al. 2004, Kaminskas & Bridge
+2016 — the "beyond-accuracy" framing `eval/8_1` and `eval/8_2` both already
+use) and **Reproducibility in Data-Intensive Pipelines** (Pineau et al.'s
+NeurIPS 2019 Reproducibility Program report, contrasted with this thesis's
+own stricter systems-level repeatability discipline — Section 5.5.4's
+exactly-zero noise floor). The Knowledge Graphs and Stream Processing
+subsections were also substantially deepened (9 and 3 new citations
+respectively), including two DISI-Bologna-adjacent papers (S-PIC4CHU) found
+in the user's own `~/Desktop/thesis/material` folder rather than via web
+search alone.
+
+**Citations**: every citation added or already present in the new list was
+verified against a real, checkable source before being cited — arXiv
+abstract pages, ACM/IEEE DOIs, or (for three papers sourced from the user's
+local material folder) the PDF's own first page, read directly rather than
+trusted from a web-search snippet. One pre-existing reference,
+"MusicSem... arXiv:2602.17769," was dropped rather than carried into the new
+numbered list: its stated year (2025) is inconsistent with its arXiv id
+(2602 = Feb 2026), and it did not surface in verification research; it was
+never actually cited in-text either, so nothing else needed to change when
+it was removed. The reference list itself was converted to numbered IEEE
+style per the user's explicit choice (39 entries, up from 8 unformatted
+ones), which meant converting every in-text citation across Chapters 1, 3,
+4 and 7 from parenthetical author-year to bracket numbers — mechanical but
+touching every chapter that cites anything. A grep-based cross-check (every
+`[N]` in the body has exactly one matching numbered entry, and vice versa)
+confirmed 1-39 used contiguously with no orphans in either direction.
+
+**Figure 4.1** was redrawn from scratch as a matplotlib script
+(`fig_architecture()`, added to `thesis/figures/make_82_diagrams.py`
+alongside Figure 6.9, per the same "drawn from hardcoded coordinates, costs
+nothing to host cross-chapter" rationale that file's docstring already
+gives), replacing a hand-drawn PNG whose labels had drifted from the built
+system (OWL/Protégé/Jena, "ChromaDB for MVP", LightGCN+CF, `media.*`/
+`events.*` topic names, the pre-rename title). The new figure is generated,
+not hand-drawn, specifically so it can't drift out of sync the same way
+again. Its caption was also corrected: the old caption's "cylinders are
+stores, rectangles are services" described a shape convention this
+matplotlib helper library (`box()`, `arrow()`) has never actually drawn —
+every shape is a rounded rectangle, distinguished by fill colour only — so
+the caption now describes the real convention instead.
+
+**Also closed**: two small chapters (Problem Statement: 145 → 563 words;
+System Architecture: 927 → 1,270 words) were expanded with elaboration and
+KG/vector-store rationale tied to the new Chapter 3 citations; Chapter 7's
+conclusion grew from 635 to 1,043 words, adding an explicit
+contributions-relative-to-related-work paragraph and a threats-to-validity
+paragraph (single-dataset scope, no user study, repeatability-not-determinism)
+to its existing limitations list.
+
+**Verified**: `make -C thesis` builds cleanly; converting to PDF and
+measuring page count directly (`pdfinfo`) confirmed **61 pages**, up from
+52, comfortably inside the requested 60-70 range; per-chapter opening pages
+were checked to confirm growth was isolated to the eight edited files and
+no chapter heading went missing. Total thesis word count: 18,867 → 23,482.
+`thesis/figures/make_82_diagrams.py` still runs clean and regenerates all
+five figures (the four pre-existing ones unchanged in content, plus the new
+Figure 4.1). `grep -rn 'DRAFT NOTE' thesis/` now returns **zero** hits
+repo-wide, since the two this session closed were the only two open. No
+8.2/8.3 code, and no file outside `thesis/` and `thesis/figures/`, was
+touched.
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code
