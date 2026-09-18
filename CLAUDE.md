@@ -956,6 +956,155 @@ repo-wide, since the two this session closed were the only two open. No
 8.2/8.3 code, and no file outside `thesis/` and `thesis/figures/`, was
 touched.
 
+### Chapter 5 software-architecture section — done 2026-09-17
+
+A same-day follow-on thesis session, closing the one remaining gap Session 4
+(2026-09-08/09) flagged and left open on purpose: "the software-architecture
+diagram (internal modules, sequence diagrams, API contracts) still belongs
+in Chapter 5... and does not exist yet." That gap is distinct from Figure
+4.1 (the pipeline-architecture diagram the page-target session above
+redrew) — Figure 4.1 is about the platform's three layers, this is about
+one Layer-3 consumer's own internals.
+
+New **§5.6 Software Architecture**, appended after §5.5 (not inserted
+earlier in the chapter) specifically so it doesn't renumber any of
+§5.1-§5.5's own cross-references, several of which the page-target session
+above had just added from other chapters (`Section 5.5.4`, `Section 5.3.1`).
+Three subsections, built from a direct read of the actual code
+(`usecases/8_1_batch_reactive/recommender/{recommend,trigger_handler,
+context_builder}.py`, `platform/scoring/ranking.py`,
+`platform/semantic_api/main.py`, `contracts/semantic-api-v1.json`), not
+inferred from the surrounding prose:
+
+- **5.6.1 Internal Module Structure** (Figure 5.5) — the four-module split
+  and the one rule it follows: everything about a track's *content* goes
+  through the Semantic API; only `trigger_handler.py`'s work-item
+  bookkeeping (which track IDs to iterate over) reads Postgres directly,
+  because the Semantic API deliberately has no "list tracks" endpoint.
+- **5.6.2 Request Sequence** (Figure 5.6) — the fourteen-step sequence one
+  seed-track recommendation actually drives: one Postgres read, four HTTP
+  calls to the Semantic API, one pure scoring call, one Postgres write.
+  Caught and corrected before finalizing: a first draft claimed the
+  per-seed failure containment in `recommend.py`'s `run()` produces "a small
+  number of skips" in practice — false against this chapter's own already-
+  recorded result of 411/411 seeds, zero skips (§5.4). Fixed to state the
+  containment exists as a mechanism the real run never needed to exercise.
+- **5.6.3 API Contracts** (Table 5.6) — the Semantic API's six endpoints
+  from `contracts/semantic-api-v1.json`, which four of them 8.1 actually
+  calls, and why freezing the contract is what makes `context_builder.py`'s
+  "never touch the stores directly" rule enforceable rather than
+  aspirational.
+
+Both figures are matplotlib, added to `thesis/figures/make_82_diagrams.py`
+alongside Figure 4.1 and 6.9 (same file, same "drawn from hardcoded
+coordinates" rationale) — `fig_uc81_modules()` and `fig_uc81_sequence()`,
+writing `fig-5-5-uc81-modules.png` and `fig-5-6-uc81-sequence.png`. The
+first draft of the modules diagram had an arrow from `recommend.py` to
+`scoring/ranking.py` visually crossing through the `context_builder.py` and
+Semantic API boxes, and a label sitting directly on top of another arrow
+(looked like strikethrough text) — both caught by rendering and viewing the
+PNG before writing it into the chapter, not assumed correct from the code.
+Fixed by moving `scoring/ranking.py` to sit under the Semantic API column
+instead of under `context_builder.py`, so the connecting arrow never has to
+cross a box it isn't pointing at.
+
+**Figure and table numbering caught a real collision before it shipped.**
+Chapter 5 already had Figures 5.1-5.4 (three from `make_81_figures.py`'s
+data plots, plus 5.4 referencing the eval pack's own
+`diversity_histogram.png` in place) and Tables 5.1-5.5 — a first draft
+numbered the two new figures 5.4/5.5 and the new table 5.2, silently
+colliding with the diversity histogram and the stage-3-enrichment table
+already at those numbers. Caught by grepping every existing `Figure 5.`/
+`Table 5.` reference in the chapter before finalizing, not by proofreading
+prose. Corrected to Figures 5.5/5.6 and Table 5.6, the next free numbers in
+each sequence.
+
+**Build note**: the first rebuild attempt hit the Makefile's LibreOffice-lock
+guard for a real reason, not a stale artifact — `build/thesis.docx` was open
+in a live `soffice.bin --writer` process at the time (confirmed via
+`pgrep`), and the session waited for it to be closed rather than removing
+the lock file or killing the process. A second attempt then hit `make`'s own
+staleness check reporting "nothing to be done", because closing LibreOffice
+appears to have touched the `.docx`'s mtime forward past the already-edited
+source files' — resolved with `make clean && make`, safe here since
+`build/` is gitignored, disposable output.
+
+Verified: clean rebuild, converted to PDF, page count **64** (up from 61),
+comfortably inside the 60-70 target the page-target session above hit
+first. All chapter headings present and in the right order. Every
+`Figure 5.N`/`Table 5.N` in the chapter confirmed unique via grep. Both new
+figures visually inspected after each fix, not just regenerated and
+assumed correct.
+
+### Diagram quality pass — done 2026-09-17
+
+A third same-day thesis session, prompted by the user actually looking at
+the rendered figures and flagging arrows that looked unnatural and objects
+that overlapped, plus an explicit design request: storage should be drawn
+as cylinders, not the same rounded rectangle every other component uses.
+Covers all seven diagrams in `thesis/figures/make_82_diagrams.py` (Figures
+4.1, 5.5, 5.6, 6.1, 6.2, 6.3, 6.9), not just the two this file's own
+sessions had most recently added — the two pre-existing bugs found below
+(Figure 6.3's unprotected labels, Figure 6.1's converging read-arrows) had
+shipped in earlier sessions and were never caught because nobody had
+looked at the rendered PNGs critically after the fact.
+
+**New `cylinder()` primitive**, alongside the existing `box()`: two
+ellipses (top lid, bottom cap) plus straight sides, built from
+`matplotlib.patches.Ellipse`/`Arc`/`Rectangle` rather than `box()`'s single
+`FancyBboxPatch`. Every `"store"`-styled component across all seven figures
+was converted from `box(..., "store", ...)` to `cylinder(...)` — Postgres,
+Milvus, Neo4j, Redis (all three keys), MinIO/S3, Parquet/Delta, and the two
+`tracks`/`recommendations` tables in Figure 5.5 — so storage is now
+visually distinct by shape, not only by the existing green fill colour.
+Figure 5.6 (the sequence diagram) deliberately keeps Postgres as a plain
+actor-header rectangle: UML sequence-diagram lifelines use one uniform
+header shape for every participant regardless of what it represents, so
+giving just one lifeline a different shape there would be inconsistent
+with that convention, not more informative.
+
+**A real, fixable text-overflow bug surfaced by the conversion itself**:
+`cylinder()`'s two end caps eat into the vertical space a `box()` of the
+same nominal height doesn't have to reserve, and three-line subtitles that
+fit comfortably in a `box()` started colliding with their own title text
+once redrawn as a cylinder (worst case: Figure 6.1's "Redis + PostgreSQL",
+where the title and first subtitle line rendered on top of each other).
+Fixed on three fronts, in order of how far they reached: flattened the cap
+height formula (`ry`) to reclaim body space for every cylinder; reduced
+subtitle font size specifically on the three tightest three-line cases
+(Figure 6.1's Redis+PostgreSQL, Figure 6.3's two session-state cylinders);
+and, where that still wasn't enough (Figure 6.1 again), merged two
+subtitle lines into one to remove a line rather than keep shrinking text.
+Figure 6.9's own three-line "Redis + PostgreSQL" cylinder and Figure 4.1's
+three-line Neo4j cylinder needed none of this — already-smaller subtitle
+font sizes on those two happened to leave enough headroom.
+
+**Two pre-existing bugs, not introduced by the cylinder work**, caught by
+actually looking at the rendered PNGs rather than trusting the code:
+
+- **Figure 6.3**: the "candidate set A" / "candidate set B" labels were
+  plain `ax.text()` calls with no background, unlike every other label in
+  this file (which get one automatically through `arrow()`'s own `label`
+  parameter) — so the curved arrows they annotate visibly cut through the
+  text. Fixed by adding the same white background box.
+- **Figure 6.1**: the two dashed arrows for `refresh_daemon`'s reads
+  (profile and events) had curvature (`rad`) large enough to bow into the
+  store column they weren't pointing at, and their `arrow()`-default
+  midpoint labels landed almost exactly on top of the row "write" labels,
+  which all share the same corridor x-coordinate by construction. Fixed by
+  straightening both arrows to `rad=0` (the corridor between the daemon and
+  store columns was already clear; curvature only risked crossing into a
+  cylinder), spreading their entry points across `refresh_daemon`'s right
+  edge instead of converging on nearly the same point, and moving both
+  labels to a custom position a quarter of the way along each line rather
+  than accepting the shared midpoint.
+
+Verified the same way as every fix in this session: regenerate, view the
+actual PNG, and only move on once nothing overlaps — not by reasoning about
+coordinates alone, which is what let both pre-existing bugs ship in the
+first place. Rebuilt the thesis afterward: page count unchanged at **64**
+(only the embedded images changed, not any text or figure dimensions).
+
 ## Stack (all open-source, self-hostable)
 
 **Provisioned and used** — running in `docker-compose.yml`, with real code

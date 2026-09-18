@@ -29,7 +29,7 @@ from pathlib import Path
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+from matplotlib.patches import Arc, Ellipse, FancyArrowPatch, FancyBboxPatch, Rectangle
 
 OUT_DIR = Path(__file__).resolve().parent
 
@@ -74,6 +74,38 @@ def box(ax, x, y, w, h, title, subtitle=None, style="service", fs=10, sub_fs=8,
     return (x, y, w, h)
 
 
+def cylinder(ax, x, y, w, h, title, subtitle=None, style="store", fs=10, sub_fs=8):
+    """Draw a database cylinder, anchored at its lower-left corner.
+
+    Reserved for actual storage systems (Postgres, Milvus, Neo4j, Redis,
+    object/feature stores) so a reader can tell "stores data" from "does
+    work" at a glance, independently of the colour legend. Built from two
+    ellipses (top lid, bottom cap) plus straight sides, rather than
+    FancyBboxPatch's rounded rectangle that every other component uses.
+    """
+    style_kw = dict(STYLES[style])
+    ec, fc, lw = style_kw["ec"], style_kw["fc"], style_kw["lw"]
+    ry = min(h * 0.12, w * 0.10, 2.0)
+    cx = x + w / 2
+    ax.add_patch(Rectangle((x, y + ry), w, h - 2 * ry, fc=fc, ec="none", zorder=2))
+    ax.add_patch(Ellipse((cx, y + ry), w, 2 * ry, fc=fc, ec="none", zorder=1.8))
+    ax.add_patch(Arc((cx, y + ry), w, 2 * ry, theta1=180, theta2=360,
+                      ec=ec, lw=lw, zorder=2.3))
+    ax.plot([x, x], [y + ry, y + h - ry], color=ec, lw=lw, zorder=2.3)
+    ax.plot([x + w, x + w], [y + ry, y + h - ry], color=ec, lw=lw, zorder=2.3)
+    ax.add_patch(Ellipse((cx, y + h - ry), w, 2 * ry, fc=fc, ec=ec, lw=lw, zorder=3))
+    body_lo, body_hi = y + ry, y + h - 2 * ry
+    if subtitle:
+        ax.text(cx, body_lo + (body_hi - body_lo) * 0.68, title, ha="center", va="center",
+                fontsize=fs, fontweight="bold", zorder=4)
+        ax.text(cx, body_lo + (body_hi - body_lo) * 0.28, subtitle, ha="center", va="center",
+                fontsize=sub_fs, color="#333333", zorder=4, linespacing=1.35)
+    else:
+        ax.text(cx, (body_lo + body_hi) / 2, title, ha="center", va="center",
+                fontsize=fs, fontweight="bold", zorder=4, linespacing=1.35)
+    return (x, y, w, h)
+
+
 def arrow(ax, xy_from, xy_to, label=None, dashed=False, color="#333333",
           rad=0.0, fs=8, lx=0.0, ly=0.0, ha="center"):
     ax.add_patch(
@@ -91,7 +123,7 @@ def arrow(ax, xy_from, xy_to, label=None, dashed=False, color="#333333",
         my = (xy_from[1] + xy_to[1]) / 2 + ly
         ax.text(mx, my, label, ha=ha, va="center", fontsize=fs,
                 color=color, zorder=5, linespacing=1.3,
-                bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.85))
+                bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=1.0))
 
 
 def canvas(w_in, h_in, xlim=(0, 100), ylim=(0, 100)):
@@ -140,34 +172,45 @@ def fig_runtime():
         arrow(ax, (48, y), (53, y))
 
     # --- session state ---------------------------------------------------
-    box(ax, 84, 71, 18, 13, "Redis",
-        "session:{id}:profile\nsession:{id}:profile_meta", "store")
-    box(ax, 84, 50, 18, 13, "Redis + PostgreSQL",
-        "session:{id}:events\nevents table\n(system of record)", "store", fs=9.5)
-    box(ax, 84, 29, 18, 13, "Redis",
-        "session:{id}:recs\nsession:{id}:refresh_meta", "store")
+    cylinder(ax, 84, 71, 18, 13, "Redis",
+             "session:{id}:profile\nsession:{id}:profile_meta")
+    cylinder(ax, 84, 50, 18, 13, "Redis + PostgreSQL",
+             "session:{id}:events\nevents table (system of record)", fs=9.5, sub_fs=7.3)
+    cylinder(ax, 84, 29, 18, 13, "Redis",
+             "session:{id}:recs\nsession:{id}:refresh_meta")
     for y in (79.5, 58.5, 37.5):
         arrow(ax, (77, y), (84, y), "write", ly=2.6, fs=7.5)
 
-    # refresh_daemon's two reads, bowed through the corridor
-    arrow(ax, (84, 73.5), (77, 40.5), None, dashed=True, color="#3d6b31", rad=0.32)
-    arrow(ax, (84, 52.5), (77, 38.5), None, dashed=True, color="#3d6b31", rad=0.28)
-    ax.text(80.4, 47.0, "read", ha="center", va="center", fontsize=7.5, color="#3d6b31",
-            bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.9))
+    # refresh_daemon's two reads. Straight (rad=0), not bowed: the corridor
+    # between the daemon column (x<=77) and the store column (x>=84) is
+    # already clear, so any curvature only risks pushing the line into a
+    # cylinder it isn't pointing at. Entry points into refresh_daemon are
+    # spread top vs. bottom of its right edge rather than converging on
+    # nearly the same point. Labels are placed a quarter of the way along
+    # each line (not at its midpoint, arrow()'s default) specifically to
+    # avoid landing on top of the row "write" labels, which all sit at the
+    # corridor's x-midpoint (80.5) by construction.
+    arrow(ax, (84, 75), (77, 41.5), None, dashed=True, color="#3d6b31")
+    ax.text(82.25, 66.6, "read", ha="center", va="center", fontsize=7.5, color="#3d6b31",
+            zorder=5, bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=1.0))
+    arrow(ax, (84, 54), (77, 30), None, dashed=True, color="#3d6b31")
+    ax.text(82.25, 48.0, "read", ha="center", va="center", fontsize=7.5, color="#3d6b31",
+            zorder=5, bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=1.0))
 
     # --- Semantic API ----------------------------------------------------
     box(ax, 53, 6, 24, 13, "Semantic API",
         "FastAPI :8000, read-only\n(stage 4, shared with 8.1)")
-    box(ax, 82, 6, 21, 13, "PostgreSQL · Milvus · Neo4j",
-        "catalog, embeddings, graph", "store", fs=8.5, sub_fs=8)
+    cylinder(ax, 82, 6, 21, 13, "PostgreSQL · Milvus · Neo4j",
+             "catalog, embeddings, graph", fs=8.5, sub_fs=8)
     arrow(ax, (77, 10), (82, 10))
     arrow(ax, (58, 29), (58, 19), None, dashed=True)
     ax.text(59.5, 24.0, "HTTP: genre siblings,\nsame artist", ha="left", va="center",
-            fontsize=7.5, color="#333333")
+            fontsize=7.5, color="#333333",
+            bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=1.0))
     arrow(ax, (72, 29), (89, 19), None, dashed=True, rad=-0.22)
     ax.text(85.5, 24.0, "Milvus ANN over the profile\nvector (alias recs-refresh)",
             ha="center", va="center", fontsize=7.5, color="#333333",
-            bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.9))
+            bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=1.0))
 
     # --- delivery --------------------------------------------------------
     box(ax, 104, 48, 15, 15, "session_api",
@@ -254,10 +297,10 @@ def fig_cold_warm():
 def fig_warm_path():
     fig, ax = canvas(13.0, 6.2, xlim=(0, 100), ylim=(0, 72))
 
-    box(ax, 1, 52, 20, 13, "session:{id}:profile",
-        "recency-decayed weighted\ncentroid of session track\nembeddings (512-d)", "store", fs=9.5)
-    box(ax, 1, 30, 20, 13, "session:{id}:events",
-        "raw event log:\nplayed tracks, and the\nmost recent track", "store", fs=9.5)
+    cylinder(ax, 1, 52, 20, 13, "session:{id}:profile",
+             "recency-decayed weighted\ncentroid of session track\nembeddings (512-d)", fs=9.5, sub_fs=7.3)
+    cylinder(ax, 1, 30, 20, 13, "session:{id}:events",
+             "raw event log:\nplayed tracks, and the\nmost recent track", fs=9.5, sub_fs=7.3)
 
     box(ax, 29, 52, 24, 13, "Milvus ANN search",
         "over the profile vector,\nexpr excludes every\ntrack already played", "compute", fs=9.5)
@@ -269,8 +312,8 @@ def fig_warm_path():
     box(ax, 58, 27, 26, 19, "ranking.score_recommendations()",
         "score = similarity + 0.05 genre sibling\n+ 0.15 same artist\n\nunchanged from 8.1 (Decision D)",
         fs=9, sub_fs=8)
-    box(ax, 87, 29, 12, 15, "session:{id}:recs",
-        "top-10,\nself-contained rows", "store", fs=8.5, sub_fs=7.5)
+    cylinder(ax, 87, 29, 12, 15, "session:{id}:recs",
+             "top-10,\nself-contained rows", fs=8.5, sub_fs=7.5)
 
     arrow(ax, (21, 58), (29, 58))
     arrow(ax, (21, 36), (29, 36))
@@ -279,8 +322,10 @@ def fig_warm_path():
     arrow(ax, (53, 14), (58, 31), rad=0.18)
     arrow(ax, (84, 36.5), (87, 36.5))
 
-    ax.text(55.5, 51.0, "candidate set A", ha="center", va="center", fontsize=8, color="#333333")
-    ax.text(57.0, 20.0, "candidate set B", ha="left", va="center", fontsize=8, color="#333333")
+    ax.text(55.5, 51.0, "candidate set A", ha="center", va="center", fontsize=8, color="#333333",
+            zorder=5, bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=1.0))
+    ax.text(57.0, 20.0, "candidate set B", ha="left", va="center", fontsize=8, color="#333333",
+            zorder=5, bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=1.0))
 
     ax.text(50, 3.0,
             "The warm path is the only part of 8.2 that is genuinely new: the acoustic signal comes from the session's own centroid\n"
@@ -339,9 +384,9 @@ def fig_uc83_design():
     box(ax, 43, 28, 21, 15, "Three consumer groups",
         "Flink profile job ·\nraw-state daemon ·\nrefresh daemon", "compute",
         fs=9.5, sub_fs=7.5)
-    box(ax, 69, 28, 19, 15, "Redis + PostgreSQL",
-        "session:{id}:events\n:profile · :recs\n(Decision C)", "store",
-        fs=9.5, sub_fs=7.5)
+    cylinder(ax, 69, 28, 19, 15, "Redis + PostgreSQL",
+             "session:{id}:events\n:profile · :recs\n(Decision C)",
+             fs=9.5, sub_fs=7.5)
     box(ax, 93, 28, 16, 15, "session_api",
         "read-only, Redis only\nrequest/response\n(stage 16)", fs=9.5, sub_fs=7.5)
     box(ax, 112, 28, 11, 15, "Client", None, "external", fs=9.5)
@@ -354,13 +399,13 @@ def fig_uc83_design():
     ax.text(2.0, 62.0,
             "the recognised track enters\nas an ordinary behavioural event —\nno new ingestion path",
             ha="left", va="center", fontsize=7.8, color="#6b4a86", zorder=6,
-            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.9))
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=1.0))
 
     arrow(ax, (78.5, 43), (78.5, 76), None, dashed=True, color="#4a7a3c")
     ax.text(81.0, 62.0,
             "reads :profile and :recs,\nalready written and measured\n(Sections 6.1.8–6.1.10)",
             ha="left", va="center", fontsize=7.8, color="#4a7a3c",
-            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.9))
+            bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=1.0))
 
     # --- legend ----------------------------------------------------------
     box(ax, 3, 13, 8, 6.5, "", None, "service")
@@ -399,11 +444,11 @@ def fig_architecture():
     box(ax, 22, 84, 20, 13, "behavioral-events", "Kafka topic", "broker", fs=9.5)
     box(ax, 46, 84, 24, 13, "Ingestion / Preparation",
         "cleaning, dedup,\nmodality-specific\nfeature extraction", fs=9, sub_fs=7.5)
-    box(ax, 74, 84, 16, 13, "MinIO / S3", "raw media\n(object store)", "store", fs=9, sub_fs=7.5)
-    box(ax, 92, 84, 17, 13, "Parquet / Delta",
-        "feature store\n(columnar)", "store", fs=9, sub_fs=7.5)
-    box(ax, 111, 84, 15, 13, "PostgreSQL",
-        "system of\nrecord", "store", fs=9, sub_fs=7.5)
+    cylinder(ax, 74, 84, 16, 13, "MinIO / S3", "raw media\n(object store)", fs=9, sub_fs=7.5)
+    cylinder(ax, 92, 84, 17, 13, "Parquet / Delta",
+             "feature store\n(columnar)", fs=9, sub_fs=7.5)
+    cylinder(ax, 111, 84, 15, 13, "PostgreSQL",
+             "system of\nrecord", fs=9, sub_fs=7.5)
 
     arrow(ax, (20, 90.5), (22, 90.5))
     arrow(ax, (42, 90.5), (46, 90.5))
@@ -427,20 +472,20 @@ def fig_architecture():
     # L1 stores feed both enrichment paths (batch and streaming) and the
     # embedding computation; the two Kafka topics feed the streaming path
     # directly too, since Layer 2 is stateful over the live event stream.
-    arrow(ax, (54, 84), (19, 71), None, rad=-0.18)
-    arrow(ax, (60, 84), (50, 71), None, rad=0.12)
-    arrow(ax, (100, 84), (89, 71), None, rad=0.1)
+    arrow(ax, (54, 84), (19, 71))
+    arrow(ax, (60, 84), (50, 71))
+    arrow(ax, (100, 84), (89, 71))
 
-    box(ax, 8, 40, 20, 13, "Neo4j",
-        "knowledge graph\n(artist / genre /\nrelations)", "store", fs=9.5, sub_fs=7.5)
-    box(ax, 32, 40, 20, 13, "Milvus",
-        "vector index\n(similarity search)", "store", fs=9.5, sub_fs=7.5)
+    cylinder(ax, 8, 40, 20, 13, "Neo4j",
+             "knowledge graph\n(artist / genre /\nrelations)", fs=9.5, sub_fs=7.5)
+    cylinder(ax, 32, 40, 20, 13, "Milvus",
+             "vector index\n(similarity search)", fs=9.5, sub_fs=7.5)
 
     # Structural enrichment (batch or streaming) projects the KG; only the
     # embedding step feeds the vector index -- these do not cross.
-    arrow(ax, (19, 58), (17, 53), None, rad=0.05, color="#6b4a86")
-    arrow(ax, (42, 58), (26, 53), None, rad=-0.22, color="#6b4a86")
-    arrow(ax, (85, 58), (46, 53), None, rad=0.22, color="#6b4a86")
+    arrow(ax, (19, 58), (17, 53), None, color="#6b4a86")
+    arrow(ax, (42, 58), (26, 53), None, color="#6b4a86")
+    arrow(ax, (85, 58), (46, 53), None, color="#6b4a86")
     ax.text(60, 37, "joined on the same MusicBrainz / internal track ID",
             ha="center", va="top", fontsize=7.5, color="#4a7a3c")
 
@@ -450,17 +495,17 @@ def fig_architecture():
 
     box(ax, 40, 18, 30, 12, "Semantic API",
         "FastAPI, read-only,\nshared by every\nconsumer below", fs=10, sub_fs=8)
-    arrow(ax, (18, 40), (48, 30), None, rad=-0.25, color="#4a7a3c")
-    arrow(ax, (42, 40), (57, 30), None, rad=-0.1, color="#4a7a3c")
+    arrow(ax, (18, 40), (48, 30), None, color="#4a7a3c")
+    arrow(ax, (42, 40), (57, 30), None, color="#4a7a3c")
 
     box(ax, 2, 2, 26, 12, "Recommender\nEngine  ★", None, fs=9.5)
     box(ax, 32, 2, 22, 12, "Similarity\nSearch", None, fs=9.5)
     box(ax, 58, 2, 20, 12, "Auto-tagging", None, fs=9.5)
     box(ax, 82, 2, 24, 12, "Playlist\nGeneration", None, fs=9.5)
-    arrow(ax, (45, 18), (15, 14), None, rad=0.28)
-    arrow(ax, (48, 18), (43, 14), None, rad=0.06)
-    arrow(ax, (62, 18), (68, 14), None, rad=-0.06)
-    arrow(ax, (65, 18), (94, 14), None, rad=-0.28)
+    arrow(ax, (45, 18), (15, 14))
+    arrow(ax, (48, 18), (43, 14))
+    arrow(ax, (62, 18), (68, 14))
+    arrow(ax, (65, 18), (94, 14))
 
     ax.text(126, 6,
             "Recommender Engine (★) is one\nsibling consumer among several --\nnot the API's specification.",
@@ -471,14 +516,128 @@ def fig_architecture():
                     ("store", "store"), ("compute", "compute / enrichment")]
     for i, (style, label) in enumerate(legend_items):
         lx = 52 + i * 19
-        box(ax, lx, 100.3, 3, 3, "", None, style)
+        if style == "store":
+            cylinder(ax, lx, 100.3, 3, 3, "")
+        else:
+            box(ax, lx, 100.3, 3, 3, "", None, style)
         ax.text(lx + 4, 101.8, label, ha="left", va="center", fontsize=7.8)
 
     save(fig, "fig-4-1-architecture.png")
 
 
+# --------------------------------------------------------------------------
+# Figure 5.5 -- 8.1's internal module structure (Chapter 5, Section 5.6.1)
+# --------------------------------------------------------------------------
+def fig_uc81_modules():
+    fig, ax = canvas(14.5, 8.6, xlim=(0, 116), ylim=(0, 84))
+
+    box(ax, 40, 62, 30, 15, "recommend.py",
+        "batch entrypoint /\norchestrator (stage 5)", fs=10, sub_fs=8)
+
+    box(ax, 2, 34, 26, 16, "trigger_handler.py",
+        "resolves seed track\nID(s) -- the one module\nthat reads Postgres\ndirectly", "compute", fs=9, sub_fs=7.3)
+    box(ax, 32, 34, 26, 16, "context_builder.py",
+        "gathers similarity /\ngraph / artist candidates\n-- HTTP only, never\nPostgres/Milvus/Neo4j", "compute", fs=9, sub_fs=7.3)
+    box(ax, 62, 34, 26, 16, "Semantic API",
+        "6 read-only endpoints\n(contracts/semantic-api-v1\n.json, frozen)", fs=9, sub_fs=7.3)
+    box(ax, 62, 6, 26, 16, "scoring/ranking.py",
+        "pure function, no I/O --\nshared with 8.2's refresh\nloop (Decision D)", "compute", fs=9, sub_fs=7.3)
+
+    cylinder(ax, 96, 34, 18, 16, "tracks", "Postgres\n(read)", fs=9.5, sub_fs=7.5)
+    cylinder(ax, 96, 62, 18, 16, "recommendations", "Postgres\n(written)", fs=8.5, sub_fs=7.5)
+
+    # recommend.py calls all three modules directly -- ranking sits under the
+    # Semantic API column so this arrow never has to cross context_builder;
+    # it swings around the Semantic API box's right side instead of cutting
+    # through it, since a straight line from recommend.py to scoring/ranking.py
+    # would otherwise pass directly through the Semantic API box.
+    arrow(ax, (48, 62), (18, 50))
+    arrow(ax, (58, 62), (45, 50))
+    arrow(ax, (70, 65), (86, 20), None, rad=-0.4, color="#6b4a86")
+
+    # trigger_handler is the one module that bypasses the Semantic API --
+    # routed up through the gap above the middle row (a straight or
+    # low-dipping line would cut through context_builder.py, Semantic API
+    # and/or scoring/ranking.py, all of which sit between the two endpoints)
+    arrow(ax, (28, 50), (96, 50),
+          "the one exception:\ndirect SQL read (tracks.id only)",
+          rad=-0.13, color="#4a7a3c", fs=7.6, lx=8, ly=11)
+
+    # context_builder talks only to the Semantic API
+    arrow(ax, (58, 42), (62, 42))
+    ax.text(60, 45.5, "HTTP", ha="center", va="bottom", fontsize=7.3, color="#333333")
+
+    # recommend.py writes the ranked output
+    arrow(ax, (70, 69.5), (96, 69.5), None, color="#4a7a3c")
+    ax.text(83, 73, "writes top-k,\ntagged with run_id", ha="center", va="bottom",
+            fontsize=7.3, color="#4a7a3c")
+
+    ax.set_title("Figure 5.5 — 8.1's Recommender Engine: internal module structure",
+                 fontsize=11.5, pad=12)
+    save(fig, "fig-5-5-uc81-modules.png")
+
+
+# --------------------------------------------------------------------------
+# Figure 5.6 -- one seed-track recommendation, request sequence
+# (Chapter 5, Section 5.6.2)
+# --------------------------------------------------------------------------
+def fig_uc81_sequence():
+    fig, ax = canvas(15.5, 10.5, xlim=(0, 138), ylim=(0, 100))
+
+    actors = [
+        ("recommend.py", 8),
+        ("trigger_handler", 32),
+        ("context_builder", 56),
+        ("Semantic API", 84),
+        ("scoring/ranking", 108),
+        ("Postgres", 124),
+    ]
+    top_y, bottom_y = 94, 4
+    for name, x in actors:
+        box(ax, x - 10, top_y, 20, 6, name, None, fs=8.5)
+        ax.plot([x, x], [top_y, bottom_y], color="#999999", lw=1.0, linestyle=(0, (2, 2)), zorder=1)
+
+    def msg(y, x_from, x_to, label, dashed=False, fs=7.6):
+        color = "#333333"
+        arrow(ax, (x_from, y), (x_to, y), None, dashed=dashed, color=color, fs=fs)
+        mx = (x_from + x_to) / 2
+        ha = "center"
+        ax.text(mx, y + 1.2, label, ha=ha, va="bottom", fontsize=fs, color=color)
+
+    y = 83
+    step = 5.7
+    steps = [
+        (8, 32, "1. get_seed_track_ids()", False),
+        (32, 124, "2. SELECT id FROM tracks", False),
+        (124, 32, "3. [seed_track_id, ...]", True),
+        (32, 8, "4. seed_track_id(s)", True),
+        (8, 56, "5. build_context(seed_track_id)", False),
+        (56, 84, "6. GET /tracks/{id}", False),
+        (56, 84, "7. GET /tracks/{id}/similar?k=candidate_k", False),
+        (56, 84, "8. GET /tracks/{id}/graph", False),
+        (56, 84, "9. GET /artists/{name}/tracks", False),
+        (84, 56, "10. TrackContext", True),
+        (56, 8, "11. TrackContext", True),
+        (8, 108, "12. score_recommendations(...)", False),
+        (108, 8, "13. ranked list (top_k)", True),
+        (8, 124, "14. INSERT INTO recommendations", False),
+    ]
+    for x_from, x_to, label, dashed in steps:
+        msg(y, x_from, x_to, label, dashed=dashed)
+        y -= step
+
+    ax.text(136, 90.5, "solid = call\ndashed = return",
+            ha="right", va="top", fontsize=7.8, color="#5f5f5f", style="italic")
+
+    ax.set_title("Figure 5.6 — One seed-track recommendation: request sequence",
+                 fontsize=11.5, pad=12)
+    save(fig, "fig-5-6-uc81-sequence.png")
+
+
 if __name__ == "__main__":
     fig_architecture()
+    fig_uc81_modules()
+    fig_uc81_sequence()
     fig_runtime()
     fig_cold_warm()
     fig_warm_path()

@@ -226,3 +226,36 @@ Five limitations bound what this section claims, over and above the caveats alre
 - **The canonical numbers describe a reconstruction, not a re-executed batch run.** The reconstruction is validated bit-exact against the real recommender, which is the strongest available evidence, but the corrected pipeline has not been run over the full catalog to repopulate the stored table.
 - **The genre cap remains, and it is the largest single limitation in the pipeline this chapter builds.** Nearly three quarters of the rows that genuinely share a genre with their seed never receive the boost designed for them, and the fix of Section 5.5.3 does not change that.
 - **One dataset, one scale, one machine.** 411 tracks, 77 genres, a single local stack, and latency figures taken from one measurement pass. Nothing here establishes how any of these metrics behaves at a catalog size where the 200–500-track constraint of Section 5.1 no longer holds.
+
+## 5.6 Software Architecture
+
+Section 5.3's stage-by-stage narrative describes what each stage does; this section describes how stage 5's own Recommender Engine is put together internally — its module boundaries, the request sequence one recommendation triggers, and the API contract those modules assume — a level of detail the pipeline-wide architecture diagram (Figure 4.1) does not carry, since that figure is about the platform's three layers, not about the internals of a single Layer-3 consumer.
+
+### 5.6.1 Internal Module Structure
+
+![Figure 5.5 — 8.1's Recommender Engine: internal module structure. `recommend.py` orchestrates three collaborators: `trigger_handler.py`, `context_builder.py`, and the shared `platform/scoring/ranking.py`. `context_builder.py` reaches the enriched catalog exclusively over HTTP, through the Semantic API's frozen contract; `trigger_handler.py` is the one deliberate exception, reading `tracks.id` directly from Postgres to enumerate batch work items, since the Semantic API has no "list tracks" endpoint by design.](figures/fig-5-5-uc81-modules.png){width=6.2in}
+
+Four modules divide the work, and the division follows one rule consistently: everything about a track's *content* goes through the Semantic API, and only work-item bookkeeping — which IDs to iterate over — reads Postgres directly. `trigger_handler.py` resolves the seed track ID(s) for one batch invocation, either a single explicitly-given ID or every row in `tracks`, and is the sole exception to the HTTP-only rule, precisely because enumerating existing IDs is closer to a batch job's own bookkeeping than to a semantic read (Section 4.1 states the same access-pattern reasoning for why storage is split by concern elsewhere in this pipeline). `context_builder.py` then gathers, over HTTP alone, the three raw candidate sources a seed track needs: CLAP similarity, genre-sibling neighbors, and same-artist tracks — it never touches Postgres, Milvus, or Neo4j directly, so a future change to any of those stores' internals cannot silently break this module as long as the Semantic API's response shapes hold. `platform/scoring/ranking.py` merges and scores those three sources; it is a pure function with no I/O of its own, independently unit-testable against synthetic candidate dictionaries, and it is the exact module extracted to the platform (Section 3.5) so that 8.2's streaming refresh loop could reuse it verbatim rather than reimplementing the same scoring logic. `recommend.py` is the orchestrator that calls the other three in sequence and persists the result, tagged with a `run_id` so that one batch invocation's output is queryable as a single unit in the `recommendations` table (Section 5.4).
+
+### 5.6.2 Request Sequence
+
+![Figure 5.6 — One seed-track recommendation, request sequence. Fourteen steps span a single call to `recommend.run()`: one Postgres read to resolve the seed, four HTTP calls to the Semantic API to gather candidates, one pure scoring call, and one Postgres write. Solid arrows are calls, dashed arrows are returns.](figures/fig-5-6-uc81-sequence.png){width=6.4in}
+
+The sequence is linear and synchronous by design — an appropriate choice for a batch job whose own evaluation (Section 5.5.2) reports total wall-clock cost, not per-request latency under concurrent load, which a synchronous per-seed loop is not trying to optimize for. Steps 1–4 resolve which track is being recommended for; steps 5–11 are `context_builder.build_context()`'s four HTTP round trips to the Semantic API (`GET /tracks/{id}` for the seed's own metadata, `/tracks/{id}/similar` for CLAP candidates, `/tracks/{id}/graph` for genre and artist identity, and `/artists/{name}/tracks` for the same-artist candidate pool) — four separate calls rather than one composite endpoint, because the Semantic API's fixed six-endpoint surface (Section 5.6.3) predates this specific caller and was not designed around its particular access pattern; steps 12–13 are the one call into the pure ranking function; step 14 is the single Postgres write that closes the loop. No step in this sequence is retried or parallelized — a failure at any HTTP call surfaces as an exception the batch loop catches per-seed (`recommend.py`'s `run()`), logging a skip and continuing rather than aborting the whole run. This per-seed containment is a mechanism the actual batch run never needed to exercise: the real 411-seed invocation completed 411/411, zero skips (Section 5.4).
+
+### 5.6.3 API Contracts
+
+Table 5.6 lists the Semantic API's complete surface, frozen in `contracts/semantic-api-v1.json` since 2026-08-28, ahead of 8.2 becoming its second independent consumer. 8.1's Recommender Engine calls four of the six; the other two exist for sibling Layer-3 applications this thesis does not implement (Section 4.3).
+
+  | **Endpoint** | **Purpose** | **Called by 8.1?** |
+  |---|---|---|
+  | `GET /health` | Liveness check | No |
+  | `GET /tracks/{id}` | Seed track metadata (title, artist, genre tags) | Yes — `context_builder.py` |
+  | `GET /tracks/{id}/similar` | CLAP cosine-similarity candidates (Milvus) | Yes — `context_builder.py` |
+  | `GET /tracks/{id}/graph` | Artist identity and genre-sibling neighbors (Neo4j) | Yes — `context_builder.py` |
+  | `GET /artists/{name}/tracks` | Every track by a given artist | Yes — `context_builder.py` |
+  | `GET /genres/{name}/tracks` | Every track under a given genre | No — reserved for sibling applications |
+
+: Table 5.6 — The Semantic API's frozen surface and 8.1's use of it.
+
+Freezing this surface (rather than letting it evolve implicitly alongside whichever use case happens to be under active development) is what makes `context_builder.py`'s "never touch the stores directly" rule enforceable rather than aspirational: `contracts/README.md` requires diffing any future `app.openapi()` export against the frozen file before changing an existing endpoint's response shape, specifically naming the fields 8.1 depends on (`similar`'s `title`/`artist_name`/`track_id`/`score`; `graph`'s `artist`/`related_by_genre`; `artists/{name}/tracks`'s `track_id`/`title`). A silent rename or type change on any of those fields would break `context_builder.py` or `ranking.py` without either module's own code changing — the kind of failure a frozen, diffable contract is meant to catch before it reaches a caller, rather than after.
