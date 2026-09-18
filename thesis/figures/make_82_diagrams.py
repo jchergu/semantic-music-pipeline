@@ -318,8 +318,8 @@ def fig_warm_path():
     arrow(ax, (21, 58), (29, 58))
     arrow(ax, (21, 36), (29, 36))
     arrow(ax, (41, 30), (41, 21), None, dashed=True)
-    arrow(ax, (53, 58), (58, 42), rad=-0.18)
-    arrow(ax, (53, 14), (58, 31), rad=0.18)
+    arrow(ax, (53, 58), (58, 42))
+    arrow(ax, (53, 14), (58, 31))
     arrow(ax, (84, 36.5), (87, 36.5))
 
     ax.text(55.5, 51.0, "candidate set A", ha="center", va="center", fontsize=8, color="#333333",
