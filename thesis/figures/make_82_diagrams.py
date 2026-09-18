@@ -529,48 +529,50 @@ def fig_architecture():
 # Figure 5.5 -- 8.1's internal module structure (Chapter 5, Section 5.6.1)
 # --------------------------------------------------------------------------
 def fig_uc81_modules():
-    fig, ax = canvas(14.5, 8.6, xlim=(0, 116), ylim=(0, 84))
+    fig, ax = canvas(14.5, 6.4, xlim=(0, 116), ylim=(26, 84))
 
-    box(ax, 40, 62, 30, 15, "recommend.py",
+    # Two rows, four columns, each store paired with its one and only
+    # caller's column: tracks with trigger_handler.py (the one module that
+    # reads it), recommendations with recommend.py (the only writer).
+    # scoring/ranking.py has no relationship to Semantic API in this
+    # diagram -- it is placed in the top row next to recommend.py (its only
+    # caller) purely because nothing else constrains where it goes, which
+    # turns recommend.py -> scoring/ranking.py into a same-row, same-height
+    # straight line instead of a detour around Semantic API below it.
+    cylinder(ax, 2, 62, 18, 16, "recommendations", "Postgres\n(written)", fs=8.5, sub_fs=7.5)
+    box(ax, 37, 62, 30, 15, "recommend.py",
         "batch entrypoint /\norchestrator (stage 5)", fs=10, sub_fs=8)
-
-    box(ax, 2, 34, 26, 16, "trigger_handler.py",
-        "resolves seed track\nID(s) -- the one module\nthat reads Postgres\ndirectly", "compute", fs=9, sub_fs=7.3)
-    box(ax, 32, 34, 26, 16, "context_builder.py",
-        "gathers similarity /\ngraph / artist candidates\n-- HTTP only, never\nPostgres/Milvus/Neo4j", "compute", fs=9, sub_fs=7.3)
-    box(ax, 62, 34, 26, 16, "Semantic API",
-        "6 read-only endpoints\n(contracts/semantic-api-v1\n.json, frozen)", fs=9, sub_fs=7.3)
-    box(ax, 62, 6, 26, 16, "scoring/ranking.py",
+    box(ax, 84, 62, 26, 16, "scoring/ranking.py",
         "pure function, no I/O --\nshared with 8.2's refresh\nloop (Decision D)", "compute", fs=9, sub_fs=7.3)
 
-    cylinder(ax, 96, 34, 18, 16, "tracks", "Postgres\n(read)", fs=9.5, sub_fs=7.5)
-    cylinder(ax, 96, 62, 18, 16, "recommendations", "Postgres\n(written)", fs=8.5, sub_fs=7.5)
+    cylinder(ax, 2, 34, 18, 16, "tracks", "Postgres\n(read)", fs=9.5, sub_fs=7.5)
+    box(ax, 24, 34, 26, 16, "trigger_handler.py",
+        "resolves seed track\nID(s) -- the one module\nthat reads Postgres\ndirectly", "compute", fs=9, sub_fs=7.3)
+    box(ax, 54, 34, 26, 16, "context_builder.py",
+        "gathers similarity /\ngraph / artist candidates\n-- HTTP only, never\nPostgres/Milvus/Neo4j", "compute", fs=9, sub_fs=7.3)
+    box(ax, 84, 34, 26, 16, "Semantic API",
+        "6 read-only endpoints\n(contracts/semantic-api-v1\n.json, frozen)", fs=9, sub_fs=7.3)
 
-    # recommend.py calls all three modules directly -- ranking sits under the
-    # Semantic API column so this arrow never has to cross context_builder;
-    # it swings around the Semantic API box's right side instead of cutting
-    # through it, since a straight line from recommend.py to scoring/ranking.py
-    # would otherwise pass directly through the Semantic API box.
-    arrow(ax, (48, 62), (18, 50))
-    arrow(ax, (58, 62), (45, 50))
-    arrow(ax, (70, 65), (86, 20), None, rad=-0.4, color="#6b4a86")
+    # recommend.py calls all three modules directly -- every arrow below is
+    # a straight line within its own row or straight down into the row
+    # beneath, none crossing a third box, since each source/target pair now
+    # sits in adjacent or vertically-aligned columns.
+    arrow(ax, (48, 62), (35, 50))
+    arrow(ax, (56, 62), (64, 50))
+    arrow(ax, (67, 68), (84, 68), None, color="#6b4a86")
 
-    # trigger_handler is the one module that bypasses the Semantic API --
-    # routed up through the gap above the middle row (a straight or
-    # low-dipping line would cut through context_builder.py, Semantic API
-    # and/or scoring/ranking.py, all of which sit between the two endpoints)
-    arrow(ax, (28, 50), (96, 50),
-          "the one exception:\ndirect SQL read (tracks.id only)",
-          rad=-0.13, color="#4a7a3c", fs=7.6, lx=8, ly=11)
+    arrow(ax, (37, 68), (20, 68), None, color="#4a7a3c")
+    ax.text(28.5, 71.5, "writes top-k,\ntagged with run_id", ha="center", va="bottom",
+            fontsize=7.3, color="#4a7a3c")
+
+    # trigger_handler is the one module that bypasses the Semantic API
+    arrow(ax, (24, 42), (20, 42), None, color="#4a7a3c")
+    ax.text(22, 32.5, "the one exception:\ndirect SQL read (tracks.id only)",
+            ha="center", va="top", fontsize=7.6, color="#4a7a3c")
 
     # context_builder talks only to the Semantic API
-    arrow(ax, (58, 42), (62, 42))
-    ax.text(60, 45.5, "HTTP", ha="center", va="bottom", fontsize=7.3, color="#333333")
-
-    # recommend.py writes the ranked output
-    arrow(ax, (70, 69.5), (96, 69.5), None, color="#4a7a3c")
-    ax.text(83, 73, "writes top-k,\ntagged with run_id", ha="center", va="bottom",
-            fontsize=7.3, color="#4a7a3c")
+    arrow(ax, (80, 42), (84, 42))
+    ax.text(82, 45.5, "HTTP", ha="center", va="bottom", fontsize=7.3, color="#333333")
 
     ax.set_title("Figure 5.5 — 8.1's Recommender Engine: internal module structure",
                  fontsize=11.5, pad=12)
