@@ -584,15 +584,21 @@ def fig_uc81_modules():
 # (Chapter 5, Section 5.6.2)
 # --------------------------------------------------------------------------
 def fig_uc81_sequence():
-    fig, ax = canvas(15.5, 10.5, xlim=(0, 138), ylim=(0, 100))
+    fig, ax = canvas(16.0, 10.5, xlim=(0, 148), ylim=(0, 100))
 
+    # Uniform 24-unit spacing for every actor -- each header box is 20 wide,
+    # so this leaves a 4-unit gap between adjacent boxes. The previous
+    # version used uneven spacing (last gap only 16) which let the
+    # scoring/ranking and Postgres boxes overlap, and started its first
+    # actor at x=8 (box left edge at -2), which the canvas silently clipped.
+    RECOMMEND, TRIGGER, CONTEXT, SEMANTIC_API, SCORING, POSTGRES = 12, 36, 60, 84, 108, 132
     actors = [
-        ("recommend.py", 8),
-        ("trigger_handler", 32),
-        ("context_builder", 56),
-        ("Semantic API", 84),
-        ("scoring/ranking", 108),
-        ("Postgres", 124),
+        ("recommend.py", RECOMMEND),
+        ("trigger_handler", TRIGGER),
+        ("context_builder", CONTEXT),
+        ("Semantic API", SEMANTIC_API),
+        ("scoring/ranking", SCORING),
+        ("Postgres", POSTGRES),
     ]
     top_y, bottom_y = 94, 4
     for name, x in actors:
@@ -609,26 +615,26 @@ def fig_uc81_sequence():
     y = 83
     step = 5.7
     steps = [
-        (8, 32, "1. get_seed_track_ids()", False),
-        (32, 124, "2. SELECT id FROM tracks", False),
-        (124, 32, "3. [seed_track_id, ...]", True),
-        (32, 8, "4. seed_track_id(s)", True),
-        (8, 56, "5. build_context(seed_track_id)", False),
-        (56, 84, "6. GET /tracks/{id}", False),
-        (56, 84, "7. GET /tracks/{id}/similar?k=candidate_k", False),
-        (56, 84, "8. GET /tracks/{id}/graph", False),
-        (56, 84, "9. GET /artists/{name}/tracks", False),
-        (84, 56, "10. TrackContext", True),
-        (56, 8, "11. TrackContext", True),
-        (8, 108, "12. score_recommendations(...)", False),
-        (108, 8, "13. ranked list (top_k)", True),
-        (8, 124, "14. INSERT INTO recommendations", False),
+        (RECOMMEND, TRIGGER, "1. get_seed_track_ids()", False),
+        (TRIGGER, POSTGRES, "2. SELECT id FROM tracks", False),
+        (POSTGRES, TRIGGER, "3. [seed_track_id, ...]", True),
+        (TRIGGER, RECOMMEND, "4. seed_track_id(s)", True),
+        (RECOMMEND, CONTEXT, "5. build_context(seed_track_id)", False),
+        (CONTEXT, SEMANTIC_API, "6. GET /tracks/{id}", False),
+        (CONTEXT, SEMANTIC_API, "7. GET /tracks/{id}/similar?k=candidate_k", False),
+        (CONTEXT, SEMANTIC_API, "8. GET /tracks/{id}/graph", False),
+        (CONTEXT, SEMANTIC_API, "9. GET /artists/{name}/tracks", False),
+        (SEMANTIC_API, CONTEXT, "10. TrackContext", True),
+        (CONTEXT, RECOMMEND, "11. TrackContext", True),
+        (RECOMMEND, SCORING, "12. score_recommendations(...)", False),
+        (SCORING, RECOMMEND, "13. ranked list (top_k)", True),
+        (RECOMMEND, POSTGRES, "14. INSERT INTO recommendations", False),
     ]
     for x_from, x_to, label, dashed in steps:
         msg(y, x_from, x_to, label, dashed=dashed)
         y -= step
 
-    ax.text(136, 90.5, "solid = call\ndashed = return",
+    ax.text(146, 90.5, "solid = call\ndashed = return",
             ha="right", va="top", fontsize=7.8, color="#5f5f5f", style="italic")
 
     ax.set_title("Figure 5.6 — One seed-track recommendation: request sequence",
