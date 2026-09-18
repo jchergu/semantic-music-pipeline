@@ -12,7 +12,7 @@ The environment is defined in a single Docker Compose configuration provisioning
 
 ## 5.3 Pipeline Stages
 
-### 5.3.1 Stage 2 — Seed Dataset Ingestion
+### 5.3.1 Stage 2: Seed Dataset Ingestion
 
 The seed dataset was sourced from the Jamendo API rather than the Free Music Archive originally listed as a candidate in the state-of-the-art survey, a disk-budget decision: Jamendo serves tracks individually via a free API key, so download footprint scales with what is actually kept (approximately 2.3 GB for the 411 tracks retained), whereas FMA is distributed as one archive per split, with even the smallest split requiring a roughly 7.2 GB download before any subsetting is possible.
 
@@ -31,14 +31,14 @@ The AcoustID-to-MusicBrainz match rate reached 49.4% (203 of 411 tracks), an exp
 
   Distinct genre tags                   77
 
-  AcoustID -> MusicBrainz match rate   49.4% (203 / 411)
+  AcoustID -> MusicBrainz match rate    49.4% (203 / 411)
   -------------------------------------------------------------------------
 
-: Table 5.1 — Stage 2 seed dataset, as ingested.
+: Table 5.1: Stage 2 seed dataset, as ingested.
 
 Verified by five automated tests: dataset size within the confirmed seed range, absence of duplicate source identifiers, presence of a fingerprint for every row, referential parity between the relational store and object storage, and duration plausibility bounds.
 
-### 5.3.2 Stage 3 — Semantic Enrichment
+### 5.3.2 Stage 3: Semantic Enrichment
 
 A 512-dimensional CLAP audio embedding is computed for every track (LAION-CLAP 1.1.6, non-fusion configuration, the pretrained 630k-AudioSet checkpoint, CPU-only) and indexed in Milvus using an IVF_FLAT index under the cosine similarity metric. Independently, a (:Artist)-[:PERFORMED]->(:Track)-[:HAS_GENRE]->(:Genre) subgraph is materialized in Neo4j directly from the relational metadata already present after Stage 2: this is a structural projection of existing data into a graph representation, not a step that infers new information. The enrichment job is idempotent, guarded by a per-track enriched timestamp, so partial or interrupted runs can be resumed safely rather than reprocessed from scratch.
 
@@ -58,11 +58,11 @@ All 411 tracks were enriched with zero failures; wall-clock time was approximate
   Wall-clock (411-track batch, CPU-only)   ~4 min (~0.6 s/track)
   ----------------------------------------------------------------------------
 
-: Table 5.2 — Stage 3 semantic enrichment over the full catalog.
+: Table 5.2: Stage 3 semantic enrichment over the full catalog.
 
 Verified by six automated tests confirming row-count and identifier parity between the relational store, the vector index, and the graph, in both directions.
 
-### 5.3.3 Stage 4 — Semantic API
+### 5.3.3 Stage 4: Semantic API
 
 A single, read-only FastAPI service exposes six endpoints over the three Layer-1/Layer-2 stores: health, single-track metadata, similarity search, a per-track graph view (artist, genres, genre-sibling tracks), artist-scoped track listing, and genre-scoped track listing. A shared connection lifecycle (a pooled PostgreSQL connection pool, one persistent Milvus collection handle, and one Neo4j driver) is opened once at process startup and closed at shutdown, exposed to route handlers via dependency injection rather than being managed ad hoc per request.
 
@@ -70,7 +70,7 @@ The API deliberately exposes no catalog-enumeration endpoint (no "list all track
 
 Verified by eight automated tests plus manual endpoint verification against the live 411-track dataset, covering health reporting, metadata retrieval, 404 handling for unknown identifiers, similarity-search correctness (exact k, self-exclusion, descending order), and artist/genre lookup correctness.
 
-### 5.3.4 Stage 5 — Recommender Engine
+### 5.3.4 Stage 5: Recommender Engine
 
 The Recommender Engine adopts a seed-track trigger model rather than a fabricated user/session identity: a trigger is a single existing track identifier, standing in for "this track was just played or selected", matching a "fans also like" or "up next" style of recommendation. This was a deliberate choice: no user or behavioral data exists anywhere in the pipeline at this stage (Kafka is provisioned but unwired, and behavioral-event topics are explicitly scoped to the streaming use cases), so a user-personalized design at this stage would have required fabricating a data model the rest of the pipeline does not yet have.
 
@@ -92,11 +92,11 @@ Across the full batch of 411 seed tracks, 4,110 recommendation rows were generat
 
 These three numbers describe that batch run exactly as it was executed at this stage, **before** the genre-query fix reported in Section 5.5.3, and Figure 5.1 plots that same original run. The evaluation in Section 5.5 reports the corrected pipeline, whose 4,110 scores span 0.1790 to 1.1789 with a mean of 0.7941. The difference is confined to the third and fourth decimal (the fix changed which candidates the genre boost reached, not the scale on which they are scored), and both readings are labelled here so that the pair is not read as a discrepancy.
 
-![Figure 5.1 — Score distribution across the 411-seed batch run, as originally executed in this stage and before the genre-query fix of Section 5.5.3. The shaded region holds the 203 rows (4.94%) scoring above 1.0, where the additive boosts stack on a similarity score that is not re-normalized back into [0,1].](figures/fig-5-1-score-distribution.png){width=6.0in}
+![Figure 5.1: Score distribution across the 411-seed batch run, as originally executed in this stage and before the genre-query fix of Section 5.5.3. The shaded region holds the 203 rows (4.94%) scoring above 1.0, where the additive boosts stack on a similarity score that is not re-normalized back into [0,1].](figures/fig-5-1-score-distribution.png){width=6.0in}
 
 Verified by seven unit tests against the pure ranking function (synthetic candidates, no live services) and one integration test running the batch entrypoint against the live stack end-to-end.
 
-### 5.3.5 Stage 6 — End-to-End Verification
+### 5.3.5 Stage 6: End-to-End Verification
 
 A dedicated end-to-end suite traces three "golden" tracks through every layer of the pipeline in a single test run (relational store and object storage, vector index and graph, Semantic API, and Recommender Engine), asserting data consistency at each hop. This complements, rather than duplicates, the twenty-seven stage-specific tests from Stages 2-5, each of which already verifies its own stage's output is internally consistent; what none of them individually prove is that one piece of data remains consistent as it flows through all five stages together. Stage 6 closes that specific gap.
 
@@ -111,20 +111,20 @@ Final verification state at the close of the build order: 32 of 32 tests passing
   --------------------------------------------------------------------------------------------------------------------------
   **Stage**                           **Outcome**
   ----------------------------------- --------------------------------------------------------------------------------------
-  1 — Environment                     Docker Compose: Postgres, MinIO, Neo4j, Milvus, Kafka, Redis
+  1: Environment                      Docker Compose: Postgres, MinIO, Neo4j, Milvus, Kafka, Redis
 
-  2 — Ingestion                       411 tracks (Jamendo -> Postgres/MinIO), 5/5 tests
+  2: Ingestion                        411 tracks (Jamendo -> Postgres/MinIO), 5/5 tests
 
-  3 — Enrichment                      411/411 embedded (CLAP) + graphed (Neo4j), 6/6 tests
+  3: Enrichment                       411/411 embedded (CLAP) + graphed (Neo4j), 6/6 tests
 
-  4 — Semantic API                    6 endpoints, FastAPI, 8/8 tests
+  4: Semantic API                     6 endpoints, FastAPI, 8/8 tests
 
-  5 — Recommender Engine              411/411 seeds, 4,110 recommendations, 8/8 tests
+  5: Recommender Engine               411/411 seeds, 4,110 recommendations, 8/8 tests
 
-  6 — End-to-end                      3 golden tracks traced across all layers, 5/5 tests, 1 integration bug found & fixed
+  6: End-to-end                       3 golden tracks traced across all layers, 5/5 tests, 1 integration bug found & fixed
   --------------------------------------------------------------------------------------------------------------------------
 
-: Table 5.3 — Use case 8.1, stage by stage.
+: Table 5.3: Use case 8.1, stage by stage.
 
 Fifty-three of the repository's 215 automated tests belong to use case 8.1: the thirty-three the six build stages carry today, plus the twenty in the evaluation pack of Section 5.5, which did not exist when this stage closed. The remaining 162 belong to the streaming stages and their own evaluation packs, and are reported in Section 6.1.12. Kafka and Redis remain provisioned but intentionally unwired at this stage, reserved for the streaming use cases described in Chapter 6.
 
@@ -146,19 +146,19 @@ Four commitments determine what the numbers in this section can and cannot be as
 
 ### 5.5.2 Results, Metric by Metric
 
-**Metric 1 — signal contribution.** Every one of the 4,110 rows reached the ranking function through the similarity pool: the graph signals are additive boosts on a similarity score, never an independent route into the list. Within that, 3,055 rows (74.33%) carry no boost at all, 454 (11.05%) carry the same-artist boost, 440 (10.71%) the genre-sibling boost, and 161 (3.92%) both (Figure 5.3). The four classes are mutually exclusive and sum to 4,110 exactly. Read against the ranking design of Section 5.3.4, this says that acoustic similarity decides roughly three recommendations in four unaided, and the graph re-ranks the remaining quarter, which is the intended division of labour between a continuous signal and two coarse membership signals, now measured rather than assumed.
+**Metric 1: signal contribution.** Every one of the 4,110 rows reached the ranking function through the similarity pool: the graph signals are additive boosts on a similarity score, never an independent route into the list. Within that, 3,055 rows (74.33%) carry no boost at all, 454 (11.05%) carry the same-artist boost, 440 (10.71%) the genre-sibling boost, and 161 (3.92%) both (Figure 5.3). The four classes are mutually exclusive and sum to 4,110 exactly. Read against the ranking design of Section 5.3.4, this says that acoustic similarity decides roughly three recommendations in four unaided, and the graph re-ranks the remaining quarter, which is the intended division of labour between a continuous signal and two coarse membership signals, now measured rather than assumed.
 
-![Figure 5.3 — Which signals explain each of the 4,110 recommendation rows. All four classes are additions to a similarity score: every row entered the ranking through the similarity pool, so the graph signals re-rank candidates rather than contributing candidates of their own.](figures/fig-5-3-signal-contribution.png){width=6.0in}
+![Figure 5.3: Which signals explain each of the 4,110 recommendation rows. All four classes are additions to a similarity score: every row entered the ranking through the similarity pool, so the graph signals re-rank candidates rather than contributing candidates of their own.](figures/fig-5-3-signal-contribution.png){width=6.0in}
 
 The same metric quantifies a gap between the boost as designed and the boost as delivered. Of the 4,110 rows, **2,184 genuinely share a genre tag with their seed, and 1,583 of those (72.48%) never received the genre boost.** The cause is a cap: the graph endpoint returns at most ten genre siblings per track, and a genre holding 185 tracks cannot deliver its siblings through it. This is a real, confirmed pipeline behavior rather than a reconstruction artifact, and it is not addressed by the fix in Section 5.5.3, which changed *which* ten siblings are selected and not how many can fit.
 
-**Metric 2 — catalog coverage.** 400 of the 411 tracks appear in at least one recommendation list (97.32%), and the eleven that never appear are the whole of the uncovered catalog. The distribution behind that figure is skewed rather than flat: a Gini coefficient of 0.3898, with the most-recommended single track appearing 41 times across the batch. Coverage this high at this scale is a property of the dataset as much as of the ranker (411 tracks and 4,110 slots leave little room for a track to be missed), so it is reported as a description of the run, not as evidence that the ranker distributes well.
+**Metric 2: catalog coverage.** 400 of the 411 tracks appear in at least one recommendation list (97.32%), and the eleven that never appear are the whole of the uncovered catalog. The distribution behind that figure is skewed rather than flat: a Gini coefficient of 0.3898, with the most-recommended single track appearing 41 times across the batch. Coverage this high at this scale is a property of the dataset as much as of the ranker (411 tracks and 4,110 slots leave little room for a track to be missed), so it is reported as a description of the run, not as evidence that the ranker distributes well.
 
-**Metric 3 — intra-list diversity.** Measured as the mean pairwise CLAP cosine *distance* within each seed's top-10, across all 411 seeds with none skipped: mean 0.2569, median 0.2349, with a p10 of 0.1447 and a p90 of 0.4046 (Figure 5.4). A list of ten tracks selected primarily by acoustic nearest-neighbour search *should* be acoustically tight, so a low number here is the expected behavior of the design rather than a defect; what the spread shows is that the tightness is not uniform, and that some seeds sit in a much denser region of the embedding space than others.
+**Metric 3: intra-list diversity.** Measured as the mean pairwise CLAP cosine *distance* within each seed's top-10, across all 411 seeds with none skipped: mean 0.2569, median 0.2349, with a p10 of 0.1447 and a p90 of 0.4046 (Figure 5.4). A list of ten tracks selected primarily by acoustic nearest-neighbour search *should* be acoustically tight, so a low number here is the expected behavior of the design rather than a defect; what the spread shows is that the tightness is not uniform, and that some seeds sit in a much denser region of the embedding space than others.
 
-![Figure 5.4 — Distribution of intra-list diversity across the 411 seeds, from the evaluation pack's own output. Mean pairwise CLAP cosine distance within each seed's top-10.](../eval/8_1/figures/diversity_histogram.png){width=6.0in}
+![Figure 5.4: Distribution of intra-list diversity across the 411 seeds, from the evaluation pack's own output. Mean pairwise CLAP cosine distance within each seed's top-10.](../eval/8_1/figures/diversity_histogram.png){width=6.0in}
 
-**Metric 4 — latency per stage.** No per-stage timing was recorded during the original batch run, so this was measured fresh against the live stack over all 411 seeds. It is kept in its own output file, deliberately outside the pack's byte-identical-across-runs claim, because a wall-clock measurement is not reproducible in that sense and reporting it as though it were would weaken a claim that otherwise holds literally.
+**Metric 4: latency per stage.** No per-stage timing was recorded during the original batch run, so this was measured fresh against the live stack over all 411 seeds. It is kept in its own output file, deliberately outside the pack's byte-identical-across-runs claim, because a wall-clock measurement is not reproducible in that sense and reporting it as though it were would weaken a claim that otherwise holds literally.
 
 | Stage | p50 (ms) | p95 (ms) | mean (ms) |
 |---|---|---|---|
@@ -167,15 +167,15 @@ The same metric quantifies a gap between the boost as designed and the boost as 
 | Ranking | 0.220 | 0.499 | 0.224 |
 | Total per seed | 8.125 | 13.552 | 9.712 |
 
-: Table 5.4 — Per-stage latency over 411 seeds, measured against the live stack.
+: Table 5.4: Per-stage latency over 411 seeds, measured against the live stack.
 
 The shape is the finding. **The ranking function is not the cost; the stores are.** Merging and scoring three candidate lists takes 0.22 ms at the median, against 7.9 ms for the two store round-trips that supply them, and the graph is marginally the more expensive of the two rather than dramatically cheaper than the vector index. A single seed's full recommendation costs about 8 ms end to end. These are per-stage timings taken in their own measurement pass; they are not a decomposition of the original batch run's wall-clock time, which was never instrumented. What they do establish is that the scoring function itself is close to free, which is what makes it reusable in Chapter 6 on every event of a live session without becoming the bottleneck.
 
-**Metric 5 — knowledge graph connectivity.** The graph holds 411 `:Track`, 201 `:Artist` and 77 `:Genre` nodes. Tracks carry a mean of 1.859 genre edges (median 2, maximum 3). The two graph signals are shaped very differently: artists hold a mean of 2.045 tracks with a median of 1 and a maximum of 20, while genres hold a mean of 9.922 tracks with a median of 3 and a maximum of **185**. That heavy skew is what makes the ten-sibling cap of Metric 1 bite: the mean is inflated by a handful of very large genres, and it is exactly those genres whose siblings cannot fit. It is also the empirical justification, measured after the fact, for the boost magnitudes chosen in Section 5.3.4: shared authorship really is the rarer and more precise signal.
+**Metric 5: knowledge graph connectivity.** The graph holds 411 `:Track`, 201 `:Artist` and 77 `:Genre` nodes. Tracks carry a mean of 1.859 genre edges (median 2, maximum 3). The two graph signals are shaped very differently: artists hold a mean of 2.045 tracks with a median of 1 and a maximum of 20, while genres hold a mean of 9.922 tracks with a median of 3 and a maximum of **185**. That heavy skew is what makes the ten-sibling cap of Metric 1 bite: the mean is inflated by a handful of very large genres, and it is exactly those genres whose siblings cannot fit. It is also the empirical justification, measured after the fact, for the boost magnitudes chosen in Section 5.3.4: shared authorship really is the rarer and more precise signal.
 
 The same metric reports that **59 of the 411 seeds have no genre siblings at all**. For roughly one seed in seven, the genre boost cannot fire under any query, ordered or not.
 
-**Metric 6 — failure and edge cases.** Every seed received the full top-10: zero seeds with fewer than ten recommendations, against an expected top-k of ten. The recommender has no degenerate seeds on this catalog.
+**Metric 6: failure and edge cases.** Every seed received the full top-10: zero seeds with fewer than ten recommendations, against an expected top-k of ten. The recommender has no degenerate seeds on this catalog.
 
 ### 5.5.3 A Finding the Test Suite Could Not Have Produced
 
@@ -193,11 +193,11 @@ The fix orders candidates by shared-genre count descending, with the track ident
 | Mean intra-list diversity | 0.2562 | 0.2569 |
 | Seeds with fewer than 10 recommendations | 0 | 0 |
 
-: Table 5.5 — The `related_by_genre` ordering fix, before and after. Every pair is the same metric key read from the two result files.
+: Table 5.5: The `related_by_genre` ordering fix, before and after. Every pair is the same metric key read from the two result files.
 
 **The two headline numbers disagree about the size of the fix, and both are reported.** The most-recommended track's appearance count falls from 67 to 41, a drop of 38.8% in the worst single-track concentration. The Gini coefficient moves from 0.3942 to 0.3898, a change of 0.0044, about 1.1% of its pre-fix value. They disagree because they measure different things: Gini describes the whole distribution, and the fix acted almost entirely on its head. Figure 5.2 shows precisely that, with the two curves separating sharply over the first thirty ranks and lying on top of each other thereafter. Presenting the peak drop alone would oversell the fix; presenting the Gini shift alone would bury it.
 
-![Figure 5.2 — Popularity concentration before and after the ordering fix. The two curves are indistinguishable beyond roughly rank 30, which is why the inset re-plots the first fifty ranks: the fix acted on the head of the distribution, not on its body.](figures/fig-5-2-concentration.png){width=6.0in}
+![Figure 5.2: Popularity concentration before and after the ordering fix. The two curves are indistinguishable beyond roughly rank 30, which is why the inset re-plots the first fifty ranks: the fix acted on the head of the distribution, not on its body.](figures/fig-5-2-concentration.png){width=6.0in}
 
 The scope of the change is wider than those summary statistics suggest. Of the 4,110 rows, **1,741 differ** between the two runs; of the 411 seeds, 217 saw a change in *which* tracks they recommend, 60 saw the same tracks reordered, and 134 were untouched. Eleven of those 134 "untouched" seeds nonetheless carry a score difference of exactly ±0.05, one candidate whose genre-sibling status flipped without its rank changing. That the classification counts them as unaffected is a limitation of a classification defined over track identifiers, and it is recorded in the pack's output rather than corrected after the fact.
 
@@ -229,19 +229,19 @@ Five limitations bound what this section claims, over and above the caveats alre
 
 ## 5.6 Software Architecture
 
-Section 5.3's stage-by-stage narrative describes what each stage does; this section describes how stage 5's own Recommender Engine is put together internally — its module boundaries, the request sequence one recommendation triggers, and the API contract those modules assume — a level of detail the pipeline-wide architecture diagram (Figure 4.1) does not carry, since that figure is about the platform's three layers, not about the internals of a single Layer-3 consumer.
+Section 5.3's stage-by-stage narrative describes what each stage does; this section describes how stage 5's own Recommender Engine is put together internally (its module boundaries, the request sequence one recommendation triggers, and the API contract those modules assume), a level of detail the pipeline-wide architecture diagram (Figure 4.1) does not carry, since that figure is about the platform's three layers, not about the internals of a single Layer-3 consumer.
 
 ### 5.6.1 Internal Module Structure
 
-![Figure 5.5 — 8.1's Recommender Engine: internal module structure. `recommend.py` orchestrates three collaborators: `trigger_handler.py`, `context_builder.py`, and the shared `platform/scoring/ranking.py`. `context_builder.py` reaches the enriched catalog exclusively over HTTP, through the Semantic API's frozen contract; `trigger_handler.py` is the one deliberate exception, reading `tracks.id` directly from Postgres to enumerate batch work items, since the Semantic API has no "list tracks" endpoint by design.](figures/fig-5-5-uc81-modules.png){width=6.2in}
+![Figure 5.5: 8.1's Recommender Engine: internal module structure. `recommend.py` orchestrates three collaborators: `trigger_handler.py`, `context_builder.py`, and the shared `platform/scoring/ranking.py`. `context_builder.py` reaches the enriched catalog exclusively over HTTP, through the Semantic API's frozen contract; `trigger_handler.py` is the one deliberate exception, reading `tracks.id` directly from Postgres to enumerate batch work items, since the Semantic API has no "list tracks" endpoint by design.](figures/fig-5-5-uc81-modules.png){width=6.2in}
 
-Four modules divide the work, and the division follows one rule consistently: everything about a track's *content* goes through the Semantic API, and only work-item bookkeeping — which IDs to iterate over — reads Postgres directly. `trigger_handler.py` resolves the seed track ID(s) for one batch invocation, either a single explicitly-given ID or every row in `tracks`, and is the sole exception to the HTTP-only rule, precisely because enumerating existing IDs is closer to a batch job's own bookkeeping than to a semantic read (Section 4.1 states the same access-pattern reasoning for why storage is split by concern elsewhere in this pipeline). `context_builder.py` then gathers, over HTTP alone, the three raw candidate sources a seed track needs: CLAP similarity, genre-sibling neighbors, and same-artist tracks — it never touches Postgres, Milvus, or Neo4j directly, so a future change to any of those stores' internals cannot silently break this module as long as the Semantic API's response shapes hold. `platform/scoring/ranking.py` merges and scores those three sources; it is a pure function with no I/O of its own, independently unit-testable against synthetic candidate dictionaries, and it is the exact module extracted to the platform (Section 3.5) so that 8.2's streaming refresh loop could reuse it verbatim rather than reimplementing the same scoring logic. `recommend.py` is the orchestrator that calls the other three in sequence and persists the result, tagged with a `run_id` so that one batch invocation's output is queryable as a single unit in the `recommendations` table (Section 5.4).
+Four modules divide the work, and the division follows one rule consistently: everything about a track's *content* goes through the Semantic API, and only work-item bookkeeping (which IDs to iterate over) reads Postgres directly. `trigger_handler.py` resolves the seed track ID(s) for one batch invocation, either a single explicitly-given ID or every row in `tracks`, and is the sole exception to the HTTP-only rule, precisely because enumerating existing IDs is closer to a batch job's own bookkeeping than to a semantic read (Section 4.1 states the same access-pattern reasoning for why storage is split by concern elsewhere in this pipeline). `context_builder.py` then gathers, over HTTP alone, the three raw candidate sources a seed track needs: CLAP similarity, genre-sibling neighbors, and same-artist tracks. It never touches Postgres, Milvus, or Neo4j directly, so a future change to any of those stores' internals cannot silently break this module as long as the Semantic API's response shapes hold. `platform/scoring/ranking.py` merges and scores those three sources; it is a pure function with no I/O of its own, independently unit-testable against synthetic candidate dictionaries, and it is the exact module extracted to the platform (Section 3.5) so that 8.2's streaming refresh loop could reuse it verbatim rather than reimplementing the same scoring logic. `recommend.py` is the orchestrator that calls the other three in sequence and persists the result, tagged with a `run_id` so that one batch invocation's output is queryable as a single unit in the `recommendations` table (Section 5.4).
 
 ### 5.6.2 Request Sequence
 
-![Figure 5.6 — One seed-track recommendation, request sequence. Fourteen steps span a single call to `recommend.run()`: one Postgres read to resolve the seed, four HTTP calls to the Semantic API to gather candidates, one pure scoring call, and one Postgres write. Solid arrows are calls, dashed arrows are returns.](figures/fig-5-6-uc81-sequence.png){width=6.4in}
+![Figure 5.6: One seed-track recommendation, request sequence. Fourteen steps span a single call to `recommend.run()`: one Postgres read to resolve the seed, four HTTP calls to the Semantic API to gather candidates, one pure scoring call, and one Postgres write. Solid arrows are calls, dashed arrows are returns.](figures/fig-5-6-uc81-sequence.png){width=6.4in}
 
-The sequence is linear and synchronous by design — an appropriate choice for a batch job whose own evaluation (Section 5.5.2) reports total wall-clock cost, not per-request latency under concurrent load, which a synchronous per-seed loop is not trying to optimize for. Steps 1–4 resolve which track is being recommended for; steps 5–11 are `context_builder.build_context()`'s four HTTP round trips to the Semantic API (`GET /tracks/{id}` for the seed's own metadata, `/tracks/{id}/similar` for CLAP candidates, `/tracks/{id}/graph` for genre and artist identity, and `/artists/{name}/tracks` for the same-artist candidate pool) — four separate calls rather than one composite endpoint, because the Semantic API's fixed six-endpoint surface (Section 5.6.3) predates this specific caller and was not designed around its particular access pattern; steps 12–13 are the one call into the pure ranking function; step 14 is the single Postgres write that closes the loop. No step in this sequence is retried or parallelized — a failure at any HTTP call surfaces as an exception the batch loop catches per-seed (`recommend.py`'s `run()`), logging a skip and continuing rather than aborting the whole run. This per-seed containment is a mechanism the actual batch run never needed to exercise: the real 411-seed invocation completed 411/411, zero skips (Section 5.4).
+The sequence is linear and synchronous by design: an appropriate choice for a batch job whose own evaluation (Section 5.5.2) reports total wall-clock cost, not per-request latency under concurrent load, which a synchronous per-seed loop is not trying to optimize for. Steps 1–4 resolve which track is being recommended for; steps 5–11 are `context_builder.build_context()`'s four HTTP round trips to the Semantic API (`GET /tracks/{id}` for the seed's own metadata, `/tracks/{id}/similar` for CLAP candidates, `/tracks/{id}/graph` for genre and artist identity, and `/artists/{name}/tracks` for the same-artist candidate pool): four separate calls rather than one composite endpoint, because the Semantic API's fixed six-endpoint surface (Section 5.6.3) predates this specific caller and was not designed around its particular access pattern; steps 12–13 are the one call into the pure ranking function; step 14 is the single Postgres write that closes the loop. No step in this sequence is retried or parallelized: a failure at any HTTP call surfaces as an exception the batch loop catches per-seed (`recommend.py`'s `run()`), logging a skip and continuing rather than aborting the whole run. This per-seed containment is a mechanism the actual batch run never needed to exercise: the real 411-seed invocation completed 411/411, zero skips (Section 5.4).
 
 ### 5.6.3 API Contracts
 
@@ -250,12 +250,12 @@ Table 5.6 lists the Semantic API's complete surface, frozen in `contracts/semant
   | **Endpoint** | **Purpose** | **Called by 8.1?** |
   |---|---|---|
   | `GET /health` | Liveness check | No |
-  | `GET /tracks/{id}` | Seed track metadata (title, artist, genre tags) | Yes — `context_builder.py` |
-  | `GET /tracks/{id}/similar` | CLAP cosine-similarity candidates (Milvus) | Yes — `context_builder.py` |
-  | `GET /tracks/{id}/graph` | Artist identity and genre-sibling neighbors (Neo4j) | Yes — `context_builder.py` |
-  | `GET /artists/{name}/tracks` | Every track by a given artist | Yes — `context_builder.py` |
-  | `GET /genres/{name}/tracks` | Every track under a given genre | No — reserved for sibling applications |
+  | `GET /tracks/{id}` | Seed track metadata (title, artist, genre tags) | Yes: `context_builder.py` |
+  | `GET /tracks/{id}/similar` | CLAP cosine-similarity candidates (Milvus) | Yes: `context_builder.py` |
+  | `GET /tracks/{id}/graph` | Artist identity and genre-sibling neighbors (Neo4j) | Yes: `context_builder.py` |
+  | `GET /artists/{name}/tracks` | Every track by a given artist | Yes: `context_builder.py` |
+  | `GET /genres/{name}/tracks` | Every track under a given genre | No (reserved for sibling applications) |
 
-: Table 5.6 — The Semantic API's frozen surface and 8.1's use of it.
+: Table 5.6: The Semantic API's frozen surface and 8.1's use of it.
 
-Freezing this surface (rather than letting it evolve implicitly alongside whichever use case happens to be under active development) is what makes `context_builder.py`'s "never touch the stores directly" rule enforceable rather than aspirational: `contracts/README.md` requires diffing any future `app.openapi()` export against the frozen file before changing an existing endpoint's response shape, specifically naming the fields 8.1 depends on (`similar`'s `title`/`artist_name`/`track_id`/`score`; `graph`'s `artist`/`related_by_genre`; `artists/{name}/tracks`'s `track_id`/`title`). A silent rename or type change on any of those fields would break `context_builder.py` or `ranking.py` without either module's own code changing — the kind of failure a frozen, diffable contract is meant to catch before it reaches a caller, rather than after.
+Freezing this surface (rather than letting it evolve implicitly alongside whichever use case happens to be under active development) is what makes `context_builder.py`'s "never touch the stores directly" rule enforceable rather than aspirational: `contracts/README.md` requires diffing any future `app.openapi()` export against the frozen file before changing an existing endpoint's response shape, specifically naming the fields 8.1 depends on (`similar`'s `title`/`artist_name`/`track_id`/`score`; `graph`'s `artist`/`related_by_genre`; `artists/{name}/tracks`'s `track_id`/`title`). A silent rename or type change on any of those fields would break `context_builder.py` or `ranking.py` without either module's own code changing. This is the kind of failure a frozen, diffable contract is meant to catch before it reaches a caller, rather than after.

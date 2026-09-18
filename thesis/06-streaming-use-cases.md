@@ -4,7 +4,7 @@ Chapter 5 built the batch/reactive Recommender Engine over a static catalog. Thi
 
 The two are independent modules (they share no runtime state and no code path with each other), but both build on the same shared platform, extended for this chapter with the streaming capabilities the batch use case did not need.
 
-## 6.1 Use Case 8.2 — Streaming, Reactive
+## 6.1 Use Case 8.2: Streaming, Reactive
 
 ### 6.1.1 Scope: What Actually Changes Relative to 8.1
 
@@ -41,7 +41,7 @@ Kafka and Redis were provisioned in the Docker Compose environment from the firs
 | 11 | Event ingestion service | A separate FastAPI service, `POST /events` → the `behavioral-events` topic |
 | 12 | Event simulator | Deterministic, scripted listening sessions replayed against the live catalog, with `--seed` and `--speed` |
 
-: Table 6.1 — Platform stages required before 8.2 could begin.
+: Table 6.1: Platform stages required before 8.2 could begin.
 
 Two design decisions in this list shape everything that follows.
 
@@ -53,9 +53,9 @@ The simulator deserves a note of its own, because the evaluation in Sections 6.1
 
 Figure 6.1 shows the resulting runtime: one topic, three independent consumer groups, and a strict separation between the components that compute state and the one that serves it.
 
-![Figure 6.1 — Use case 8.2 at runtime. One behavioural-event topic feeds three independent Kafka consumer groups: the Flink job (derived profile), the raw-state daemon (raw events, Redis and PostgreSQL) and the refresh daemon (derived recommendations). The session API on the far right computes nothing: it serves keys the other two have already written.](figures/fig-6-1-runtime.png){width=6.4in}
+![Figure 6.1: Use case 8.2 at runtime. One behavioural-event topic feeds three independent Kafka consumer groups: the Flink job (derived profile), the raw-state daemon (raw events, Redis and PostgreSQL) and the refresh daemon (derived recommendations). The session API on the far right computes nothing: it serves keys the other two have already written.](figures/fig-6-1-runtime.png){width=6.4in}
 
-### 6.1.4 Stage 13 — The Session Profile Centroid
+### 6.1.4 Stage 13: The Session Profile Centroid
 
 The session profile is 8.2's first piece of genuinely new business logic: a live "what is this session about" signal, computed as a weighted, recency-decayed centroid of the CLAP embeddings of the tracks the session has engaged with, written to Redis and rewritten as the session continues.
 
@@ -72,7 +72,7 @@ Two properties of that pipeline are load-bearing rather than incidental. **The w
 | `skip`, other | −0.3 |
 | `skip`, before 5000 ms | −1.0 |
 
-: Table 6.2 — Behavioral event weights in the session profile centroid. Recency decay is exponential with a half-life of three *events* (a count, not a duration): the most recent event in a window carries full weight, an event *k* positions earlier is scaled by 0.5^(k/3).
+: Table 6.2: Behavioral event weights in the session profile centroid. Recency decay is exponential with a half-life of three *events* (a count, not a duration): the most recent event in a window carries full weight, an event *k* positions earlier is scaled by 0.5^(k/3).
 
 Because weights can be negative, the centroid normalizes by the sum of the *absolute* weights rather than the signed sum: dividing by a signed sum that is small or negative would flip or inflate the result in exactly the cases the negative weights exist to express.
 
@@ -80,7 +80,7 @@ Verification was analytical and then live. The three-consecutive-early-skips scr
 
 One implementation constraint is worth reporting because it has a cost. The Flink Python workers can reach neither Milvus nor the repository's own modules: the job image carries no `pymilvus`, and the platform package is not mounted into the container. Track embeddings are therefore pre-loaded into Redis by a one-off host-side script and read from there by the workers, and the weight table and centroid arithmetic are **duplicated** inside the job rather than imported from the tested reference implementation. The duplication is guarded by a cross-check test on the Redis key format and by both copies having been written against the same specification and validated against the same analytical figures, but it remains duplication, and it is listed as such in Section 6.1.11.
 
-### 6.1.5 Stage 14 — The Recommendation Refresh Loop
+### 6.1.5 Stage 14: The Recommendation Refresh Loop
 
 The refresh loop is what turns a session profile into recommendations. It is an independent Kafka consumer group on the same `behavioral-events` topic, and on each event it makes two decisions: whether to refresh at all, and if so, by which of two paths.
 
@@ -88,17 +88,17 @@ The refresh loop is what turns a session profile into recommendations. It is an 
 
 **Which path.** Below two raw events, or before the Flink job has written a profile for this session, there is nothing session-shaped to recommend from. Rather than returning nothing, the loop falls back to exactly 8.1's batch path (the context builder and the ranking function from Sections 5.3.4), seeded by the session's first track. The batch use case is, in effect, the streaming use case's cold start. Once a profile exists, the loop switches to the warm path shown in Figure 6.3.
 
-![Figure 6.2 — The cold-start-to-warm handoff. Two independently scheduled consumer groups race: the Flink job must accumulate enough event time to fire its first window, while the refresh loop runs on its own debounce. Until a profile exists the loop serves 8.1's batch path; from the first fire onward it serves the session centroid.](figures/fig-6-2-cold-warm.png){width=6.4in}
+![Figure 6.2: The cold-start-to-warm handoff. Two independently scheduled consumer groups race: the Flink job must accumulate enough event time to fire its first window, while the refresh loop runs on its own debounce. Until a profile exists the loop serves 8.1's batch path; from the first fire onward it serves the session centroid.](figures/fig-6-2-cold-warm.png){width=6.4in}
 
 The handoff in Figure 6.2 is a **race, not a threshold**. No event count or timer triggers the switch. The refresh loop simply uses the profile if one is there, and the profile appears whenever the Flink job's watermark has advanced far enough: two independently scheduled consumer groups, on the same topic, with no coordination between them. This is a deliberate consequence of the ownership split described in Section 6.1.3, and Section 6.1.8 measures where the race actually lands.
 
-![Figure 6.3 — What one warm refresh computes. The acoustic candidate set comes from a Milvus search over the session's own profile vector with every already-played track excluded; the graph candidate sets come from the Semantic API, anchored on the most recent track. Scoring is 8.1's function, unchanged.](figures/fig-6-3-warm-path.png){width=6.4in}
+![Figure 6.3: What one warm refresh computes. The acoustic candidate set comes from a Milvus search over the session's own profile vector with every already-played track excluded; the graph candidate sets come from the Semantic API, anchored on the most recent track. Scoring is 8.1's function, unchanged.](figures/fig-6-3-warm-path.png){width=6.4in}
 
 The warm path (Figure 6.3) differs from 8.1 in exactly one place, and reuses everything else. The acoustic signal is a Milvus nearest-neighbour search over the *profile vector* rather than over a seed track's embedding, which is why the refresh loop opens its own Milvus connection under its own alias, since the Semantic API deliberately exposes no search-by-raw-vector endpoint. That search excludes every track already played in the session at the query level. The genre-sibling and same-artist candidate sets still come from the Semantic API over HTTP, anchored on the session's most recent track (its "active context"), and are then filtered against the played set a *second* time, because Neo4j has no knowledge of session play history and would otherwise readmit an already-played track through the boost path that the vector search had just excluded.
 
 Two behaviours are logged explicitly rather than hidden. A session that has exhausted the novel candidates a 411-track catalog can supply returns fewer than ten recommendations, and says so, rather than padding the list. And the loop tolerates the absence of any ordering guarantee against the raw-state consumer: if the in-hand event is not yet reflected in the session's cached event list, it is merged locally for this computation instead of waiting for the other consumer to catch up.
 
-### 6.1.6 Stage 16 — Delivery: Two Daemons and a Session API
+### 6.1.6 Stage 16: Delivery: Two Daemons and a Session API
 
 Everything described so far computes; nothing yet runs continuously or is reachable by a client. Three processes close that gap.
 
@@ -136,32 +136,32 @@ Two constraints imposed by Flink itself shaped the harness. Because the watermar
 
 The first three metrics run off a single scenario: a session that plays *K* coherent chillout tracks and then pivots hard to rock, swept over K ∈ {3, 5, 8, 12}.
 
-**Metric 1 — reactivity.** The question is how quickly the recommendation set turns over after the listener's taste visibly changes, measured as the Jaccard similarity of each post-pivot recommendation set against the last pre-pivot one. The pre-registered adaptation threshold is Jaccard < 0.3.
+**Metric 1: reactivity.** The question is how quickly the recommendation set turns over after the listener's taste visibly changes, measured as the Jaccard similarity of each post-pivot recommendation set against the last pre-pivot one. The pre-registered adaptation threshold is Jaccard < 0.3.
 
-![Figure 6.4 — Reactivity after a chillout-to-rock pivot, for four pre-pivot session lengths. Every curve is already below the pre-registered threshold at its first post-pivot refresh, and stays near zero afterwards.](../eval/8_2/figures/reactivity_curves.png){width=6.0in}
+![Figure 6.4: Reactivity after a chillout-to-rock pivot, for four pre-pivot session lengths. Every curve is already below the pre-registered threshold at its first post-pivot refresh, and stays near zero afterwards.](../eval/8_2/figures/reactivity_curves.png){width=6.0in}
 
 Adaptation is immediate, in the strongest sense the metric can express: **every K crosses the threshold at its first post-pivot refresh**, one to two events after the pivot, and remains at or near zero for the rest of the session (Figure 6.4). The reported crossing indices (refresh 4, 5, 7 and 10 for K = 3, 5, 8 and 12) increase with K only because a longer pre-pivot phase means more refreshes happen *before* the pivot; the number of refreshes needed *after* it is one in every case. This is the expected consequence of a three-event recency half-life, and it confirms that the recency decay does what the design intended rather than merely being present in the code.
 
 The result comes with an honesty caveat the pack records in its own output. The specification asserted that each K independently reseeds its track sample, so that the four runs are independent. Measured, they are not: a seeded sequential sample draws from one stream, so the K = 3 track set is a prefix of K = 5, which is a prefix of K = 8, and so on. The nesting is arguably the better design for this particular metric (only the pre-pivot *length* varies while the opening sequence is held fixed), but the four points are not independent samples, and the specification's stated reason for accepting the sweep was factually wrong. Both facts are recorded in the results file rather than corrected silently.
 
-**Metric 2 — latency per hop.** Three hops are timed separately: the ingestion POST (H1), the lag between an event and the profile computed from it (H2), and the compute cost of one refresh (H3).
+**Metric 2: latency per hop.** Three hops are timed separately: the ingestion POST (H1), the lag between an event and the profile computed from it (H2), and the compute cost of one refresh (H3).
 
 | Hop | n | p50 (s) | p95 (s) | p99 (s) |
 |---|---|---|---|---|
-| H1 — ingest POST | 296 | 0.0072 | 0.0086 | 0.0105 |
-| H2 — profile compute lag | 138 | 2.1207 | 2.5597 | 2.6516 |
-| H3 — refresh compute | 116 | 0.0244 | 0.0327 | 0.0908 |
+| H1: ingest POST | 296 | 0.0072 | 0.0086 | 0.0105 |
+| H2: profile compute lag | 138 | 2.1207 | 2.5597 | 2.6516 |
+| H3: refresh compute | 116 | 0.0244 | 0.0327 | 0.0908 |
 | Event arrival → recommendations updated | 116 | 0.0302 | 0.0394 | 0.0987 |
 
-: Table 6.3 — Latency per hop, wall-clock, pooled across all eight scenarios.
+: Table 6.3: Latency per hop, wall-clock, pooled across all eight scenarios.
 
-![Figure 6.5 — Latency per hop on a logarithmic scale. The windowed profile computation dominates the pipeline by two orders of magnitude; the request path either side of it is in the tens of milliseconds.](../eval/8_2/figures/latency_breakdown.png){width=5.6in}
+![Figure 6.5: Latency per hop on a logarithmic scale. The windowed profile computation dominates the pipeline by two orders of magnitude; the request path either side of it is in the tens of milliseconds.](../eval/8_2/figures/latency_breakdown.png){width=5.6in}
 
 The shape of Table 6.3 is the finding, not the absolute values. **H2 dominates by two orders of magnitude** (Figure 6.5), and it is the only hop that waits on a windowed job rather than performing a single operation. Ingestion is 7 ms at the median and a refresh computes in 24 ms (including a Milvus search and two HTTP calls to the Semantic API), so the parts of the pipeline that respond to an event are effectively free relative to the part that *summarizes* the session. This is a direct, quantified cost of the sliding-window design, and it is the number that would have to be revisited before any latency-sensitive deployment: the profile is inherently two to three seconds behind the events it describes, by construction and not by defect.
 
 The debounce statistics confirm that both branches of the refresh policy are real. At replay speed 60, the median refresh had three events behind it (the *count* branch firing first), while at speed 30 the median was two, with the five-second *interval* branch firing first. Pooling the two speeds would have averaged that distinction away entirely.
 
-**Metric 3 — the cold-start-to-warm handoff.** Every one of the eight sessions in the pack reached the warm path, in all cases after exactly **one** cold-start refresh.
+**Metric 3: the cold-start-to-warm handoff.** Every one of the eight sessions in the pack reached the warm path, in all cases after exactly **one** cold-start refresh.
 
 | Session | Reached warm | Cold-start refreshes | Seconds to first warm | Handoff Jaccard | Same ranking |
 |---|---|---|---|---|---|
@@ -174,7 +174,7 @@ The debounce statistics confirm that both branches of the refresh policy are rea
 | determinism replicate 2 | yes | 1 | 5.3 | 0.818 | no |
 | jittered (late events) | yes | 1 | 8.1 | 0.538 | no |
 
-: Table 6.4 — Cold-start to warm-path transition, per session. "Same ranking" asks whether the first warm refresh returned the previous set in the same order.
+: Table 6.4: Cold-start to warm-path transition, per session. "Same ranking" asks whether the first warm refresh returned the previous set in the same order.
 
 Two readings of this table are wrong and are guarded against in the data itself. First, the eight rows are **not eight independent observations**: seven of the eight sessions open on the same cold-start seed track, for the sample-nesting reason described under Metric 1, so the recurring 0.818 is one observation repeated rather than a stable average: the pack reports two independent observations, not eight. Second, the long session's handoff Jaccard of **1.000 does not mean nothing changed**: the metric is defined over sets, and the first warm refresh returned the same ten tracks in a *different order*, with the previous top track falling to sixth place. Rather than redefining a pre-registered metric after seeing its result, the pack reports an additional flag alongside it, and that flag is false for every session in the table, including the seven at 0.818.
 
@@ -184,21 +184,21 @@ The transition itself is fast in absolute terms: five seconds and a single batch
 
 The remaining four metrics use a forty-track, four-genre session and three replicates of the pivot scenario.
 
-**Metric 4 — semantic coherence over session time.** Does the profile actually track the *recent* session rather than averaging the whole of it? Measured as the cosine similarity between each profile vector and the mean embedding of the last five minutes of session time, against the same for the first five minutes.
+**Metric 4: semantic coherence over session time.** Does the profile actually track the *recent* session rather than averaging the whole of it? Measured as the cosine similarity between each profile vector and the mean embedding of the last five minutes of session time, against the same for the first five minutes.
 
-![Figure 6.6 — Semantic coherence over a 40-track, four-genre session. The profile stays close to the recent listening window throughout, while its similarity to the session's opening window decays as the session moves through genres.](../eval/8_2/figures/coherence_long_session.png){width=6.0in}
+![Figure 6.6: Semantic coherence over a 40-track, four-genre session. The profile stays close to the recent listening window throughout, while its similarity to the session's opening window decays as the session moves through genres.](../eval/8_2/figures/coherence_long_session.png){width=6.0in}
 
 Mean cosine against the recent window was **0.8707**, against the opening window **0.6186**, with 35 of 39 samples (90%) closer to the recent window (Figure 6.6). This is the first direct evidence for the recency decay claimed by the design in Section 6.1.4, previously asserted by a code comment and an analytical check, now measured over a long, genre-switching session.
 
 Choosing the replay speed for this metric exposed a constraint the specification had not anticipated, and it constrains what any future measurement of this kind can claim. Profile writes arrive in **bursts**: a track completion advances session time by most of a track's duration, which advances the watermark past seven or eight thirty-second slides at once, and the job fires them milliseconds apart over a single overwritten Redis key. The resolvable ceiling is therefore **one vector per watermark-advancing event, not one per window fire**, at any polling rate whatsoever. Reported against that ceiling, the harness captured 39 of 41 resolvable writes (95%); reported naively against the analytic window-fire count it would have read as about 13% and looked like a sampling failure.
 
-**Metric 5 — catalog coverage and attractor collapse.** The risk this metric exists to detect is a recommender that converges on a small pool of tracks and then re-serves it for the rest of the session. Over forty refreshes in the long session, the system recommended **168 distinct tracks (40.88% of the 411-track catalog)**, with 35 of those 40 refreshes contributing at least one track never recommended before, and the last new track arriving at refresh 38 of 40 (Figure 6.7). The flat tail is two refreshes, or 5%. There is no attractor collapse: the recommendation pool was still moving when the session ended.
+**Metric 5: catalog coverage and attractor collapse.** The risk this metric exists to detect is a recommender that converges on a small pool of tracks and then re-serves it for the rest of the session. Over forty refreshes in the long session, the system recommended **168 distinct tracks (40.88% of the 411-track catalog)**, with 35 of those 40 refreshes contributing at least one track never recommended before, and the last new track arriving at refresh 38 of 40 (Figure 6.7). The flat tail is two refreshes, or 5%. There is no attractor collapse: the recommendation pool was still moving when the session ended.
 
-![Figure 6.7 — Cumulative distinct tracks recommended over a 40-refresh session. New tracks continue to enter almost to the end of the session; the flat tail is two refreshes.](../eval/8_2/figures/coverage_curve.png){width=6.0in}
+![Figure 6.7: Cumulative distinct tracks recommended over a 40-refresh session. New tracks continue to enter almost to the end of the session; the flat tail is two refreshes.](../eval/8_2/figures/coverage_curve.png){width=6.0in}
 
-**Metric 6 — determinism.** Two runs of the same scenario, same seed, same speed, no jitter. The pre-registered rule required equal refresh counts, byte-identical recommendation snapshots at every refresh, and a maximum score delta of exactly 0.0, the last of these justified by the 8.1 evaluation having measured this scoring path's repeated-run noise floor at exactly zero across 41,100 matched pairs. The result is **PASS on all three checks**: 11 refreshes each, all 11 snapshots identical, maximum score delta exactly 0.0. A failure was a genuinely possible outcome here (the system under test contains two independently scheduled consumer groups, a wall-clock debounce and an approximate vector index), and the claim is bounded accordingly: two runs, one K, one speed, on an idle machine.
+**Metric 6: determinism.** Two runs of the same scenario, same seed, same speed, no jitter. The pre-registered rule required equal refresh counts, byte-identical recommendation snapshots at every refresh, and a maximum score delta of exactly 0.0, the last of these justified by the 8.1 evaluation having measured this scoring path's repeated-run noise floor at exactly zero across 41,100 matched pairs. The result is **PASS on all three checks**: 11 refreshes each, all 11 snapshots identical, maximum score delta exactly 0.0. A failure was a genuinely possible outcome here (the system under test contains two independently scheduled consumer groups, a wall-clock debounce and an approximate vector index), and the claim is bounded accordingly: two runs, one K, one speed, on an idle machine.
 
-**Metric 7 — late events.** Section 6.1.4 justified event-time windows and a five-second out-of-orderness bound. The audit that preceded this metric established, live, what happens to an event that arrives past that bound: the Flink job has no configured allowed lateness and no side output, so the event is **silently and permanently dropped**, not delayed, not diverted, and never rejoined into a later window. This metric asks the next question: is that drop visible in the recommendations?
+**Metric 7: late events.** Section 6.1.4 justified event-time windows and a five-second out-of-orderness bound. The audit that preceded this metric established, live, what happens to an event that arrives past that bound: the Flink job has no configured allowed lateness and no side output, so the event is **silently and permanently dropped**, not delayed, not diverted, and never rejoined into a later window. This metric asks the next question: is that drop visible in the recommendations?
 
 | Arm | Jitter | Events delivered late | Max lateness (s) | Refreshes | Adaptation refresh index |
 |---|---|---|---|---|---|
@@ -206,9 +206,9 @@ Choosing the replay speed for this metric exposed a constraint the specification
 | baseline B | 0.0 | 0 / 32 | 0.0 | 11 | 7 |
 | jittered | 1.0 | **20 / 32** | 648.9 | 12 | 7 |
 
-: Table 6.5 — Late-event arms. The two baselines are content-identical replicates; the difference between them is the noise floor the jittered arm's effect must exceed.
+: Table 6.5: Late-event arms. The two baselines are content-identical replicates; the difference between them is the noise floor the jittered arm's effect must exceed.
 
-![Figure 6.8 — Profile coherence under late delivery. The two jitter-free replicates are indistinguishable from each other; the jittered arm's profile diverges sharply where dropped events leave the window under-populated.](../eval/8_2/figures/late_event_coherence.png){width=6.0in}
+![Figure 6.8: Profile coherence under late delivery. The two jitter-free replicates are indistinguishable from each other; the jittered arm's profile diverges sharply where dropped events leave the window under-populated.](../eval/8_2/figures/late_event_coherence.png){width=6.0in}
 
 The dose was heavy (20 of 32 events delivered past the bound, the worst by nearly eleven minutes), and the metric measured that dose explicitly, since without it a null result would be indistinguishable from "nothing was actually dropped". Three of four measures cleared the zero noise floor: refresh count 11 → 12, maximum reactivity Jaccard delta 0.2500, and maximum coherence delta **0.5574** (Figure 6.8). The profile is measurably corrupted and the recommendation sets genuinely differ.
 
@@ -222,12 +222,12 @@ It is also measured differently from Metrics 1–7. Those run against harness-ow
 
 | Arm | Events lost | Recovers without restart | Can the client tell? | Effects beyond control |
 |---|---|---|---|---|
-| control | 0 | — | no | — |
-| Redis outage | **6** | yes | yes — HTTP 500, during the outage only | events lost, client status, staleness |
+| control | 0 | n/a | no | n/a |
+| Redis outage | **6** | yes | yes: HTTP 500, during the outage only | events lost, client status, staleness |
 | Semantic API outage | 0 | yes | **no** | **none** |
-| TTL expiry | 0 | yes | yes — reported as expired raw state | staleness |
+| TTL expiry | 0 | yes | yes: reported as expired raw state | staleness |
 
-: Table 6.6 — Failure injection arms. A "pass" verdict means the failure was measured soundly, not that the system behaved well.
+: Table 6.6: Failure injection arms. A "pass" verdict means the failure was measured soundly, not that the system behaved well.
 
 **The Redis outage loses events, and the mechanism is a design flaw worth naming.** Six events accepted by the ingestion service never reached the durable PostgreSQL log. Both daemons caught the connection error, counted it, and **committed the offset past the message**, the per-event containment introduced in Section 6.1.6 so that a daemon would not die on one poison message. That handler is right for a poison message and wrong for a dependency outage, and the two are indistinguishable to it. There is no retry, and because the offset advanced, a restart cannot recover the lost events. Both daemons did recover on their own once Redis returned, and a client saw errors only during the outage window.
 
@@ -242,7 +242,7 @@ The same outage also killed the Flink job permanently: its window function write
 | pre-fix code | *expired* | −1 | −1 | −1 | −1 |
 | post-fix code | 1082 | 1104 | 1104 | 1077 | 1081 |
 
-: Table 6.7 — Remaining TTL in seconds, read directly from Redis. −1 is Redis for "exists, never expires".
+: Table 6.7: Remaining TTL in seconds, read directly from Redis. −1 is Redis for "exists, never expires".
 
 The fix applies one derived TTL constant to all four keys. Its effect is stated as a **bound rather than a reversal**, because the obvious claim (that derived state now expires before raw state) is false: raw events refresh their TTL on every event, while derived state refreshes only on a refresh or a window close, and a window can close on either side of a session's last event. Measured across 32 derived keys in eight sessions, the derived-minus-raw TTL lands in **[−21 s, +23 s]**. Derived state now expires within about half a minute of its session instead of never.
 
@@ -269,19 +269,19 @@ Beyond the caveats already stated in place, six limitations bound what this chap
 
 | Stage | Outcome |
 |---|---|
-| 7–12 — Streaming platform | Kafka topics and wiring, Flink cluster, Redis session cache, PostgreSQL events schema, ingestion service, deterministic simulator |
-| 13 — Session profile centroid | PyFlink job, 5 min / 30 s event-time sliding windows, signed and recency-decayed centroid; live-verified at cosine ≈ −0.98 against a rejected region |
-| 14 — Recommendation refresh loop | Debounced (5 s / 3 events), 8.1's batch path as cold start, profile-vector Milvus search as warm path, played tracks excluded twice |
-| 16 — Delivery | Two offset-committing daemons and a read-only session API over Redis; backlog drained once, restart replayed zero events |
-| 15B–15D — Evaluation | Eight metrics, all pre-registered; late-event audit, active harness, failure injection, derived-state TTL fix |
+| 7–12: Streaming platform | Kafka topics and wiring, Flink cluster, Redis session cache, PostgreSQL events schema, ingestion service, deterministic simulator |
+| 13: Session profile centroid | PyFlink job, 5 min / 30 s event-time sliding windows, signed and recency-decayed centroid; live-verified at cosine ≈ −0.98 against a rejected region |
+| 14: Recommendation refresh loop | Debounced (5 s / 3 events), 8.1's batch path as cold start, profile-vector Milvus search as warm path, played tracks excluded twice |
+| 16: Delivery | Two offset-committing daemons and a read-only session API over Redis; backlog drained once, restart replayed zero events |
+| 15B–15D: Evaluation | Eight metrics, all pre-registered; late-event audit, active harness, failure injection, derived-state TTL fix |
 
-: Table 6.8 — Use case 8.2, stage by stage.
+: Table 6.8: Use case 8.2, stage by stage.
 
 The pipeline adapts to a taste change at the first refresh after it, in one to two events; a refresh costs 24 ms at the median while the windowed profile behind it lags 2.1 seconds; every session reached the session-derived warm path after exactly one batch-path refresh; the profile demonstrably tracks recent rather than whole-session listening; the recommender covered 41% of the catalog over one long session without collapsing onto a fixed pool; and two identical runs produced byte-identical output. Against failures, the system loses events on a cache outage through a containment handler that cannot distinguish a poison message from a dependency being down, and cannot signal staleness at all when its enrichment dependency is unavailable, both of which are reported here as findings rather than as changelog entries, because they are properties of the design and not accidents of the run.
 
 Of the 215 automated tests in the repository, all of which pass, 162 belong to the streaming stages and their evaluation packs.
 
-## 6.2 Use Case 8.3 — Streaming, Proactive
+## 6.2 Use Case 8.3: Streaming, Proactive
 
 The third row of the taxonomy in Section 4.5 is streaming and proactive: a suggestion the system offers from what is currently playing, without the listener having asked for anything. It is not implemented. What follows is its design, the platform surface it would stand on, and what Section 6.1's measurements already determine about it. It reports no results of its own, and Section 6.2.2 explains why that separation is a methodological commitment rather than a hedge.
 
@@ -311,7 +311,7 @@ From there the clip would be embedded with CLAP on the live path and classified.
 
 The recognised track then enters the pipeline as an ordinary behavioural event. There is no second ingestion path and no new state: the classifier's output is a track identity, which is exactly what the existing event schema already carries. Everything downstream of that point is the system Section 6.1 measured. Delivery is where 8.3 diverges again, pushing a suggestion over a WebSocket rather than waiting to be asked.
 
-![Figure 6.9 — Use case 8.3 as designed. The lower lane is the pipeline built and measured in Section 6.1, reused without modification. The upper lane is proposed and unimplemented. The two vertical arrows are the whole of the coupling between them: 8.3 produces ordinary behavioural events and reads derived session state.](figures/fig-6-9-uc83-design.png){width=6.4in}
+![Figure 6.9: Use case 8.3 as designed. The lower lane is the pipeline built and measured in Section 6.1, reused without modification. The upper lane is proposed and unimplemented. The two vertical arrows are the whole of the coupling between them: 8.3 produces ordinary behavioural events and reads derived session state.](figures/fig-6-9-uc83-design.png){width=6.4in}
 
 ### 6.2.4 What 8.3 Would Reuse Unchanged
 
@@ -328,7 +328,7 @@ Table 6.1 stated that 8.3 would reuse every platform stage behind 8.2 unchanged.
 | Redis session keyspace and its derived TTL | Profile, recommendations and their expiry | Table 6.7 |
 | Event simulator | Reproducible sessions, seeded and speed-controlled | Every scenario in Sections 6.1.8 to 6.1.10 |
 
-: Table 6.9 — Platform components 8.3 would reuse without modification, and where each was verified.
+: Table 6.9: Platform components 8.3 would reuse without modification, and where each was verified.
 
 The right-hand column is what an unimplemented use case can legitimately claim. None of it is evidence about 8.3, and all of it is evidence about the ground 8.3 would stand on.
 
@@ -345,7 +345,7 @@ The honest complement is shorter than Table 6.9 and considerably harder.
 | Trigger policy | No principled basis exists on this dataset | Section 6.2.7 |
 | `eval/8_3` and its metric specification | No implementation to evaluate | Pre-registered before any run, per Section 6.1.7 |
 
-: Table 6.10 — What use case 8.3 would require beyond the existing platform.
+: Table 6.10: What use case 8.3 would require beyond the existing platform.
 
 One reuse in Table 6.9 carries a caveat worth stating rather than discovering later. The session profile weights events by kind, and its weight table is shaped for behavioural signals: a completed play, a like, an early skip against a late one. A live audio stream produces none of those. "Currently playing" is a weaker and more ambiguous signal than "played to completion", and it arrives continuously rather than at track boundaries. The centroid arithmetic transfers unchanged; the weight table does not, and choosing new weights would be a design decision of the same kind Section 6.1.4 documented for 8.2, requiring the same justification.
 
