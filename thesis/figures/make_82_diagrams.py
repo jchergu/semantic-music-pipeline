@@ -716,15 +716,27 @@ def fig_semantic_gap():
     ax.text(cx, hy0 + hh - 3, "Joint embedding\nspace", ha="center", va="top",
             fontsize=10.5, fontweight="bold", linespacing=1.3)
 
-    dot_y = hy0 + 9
-    label_y = dot_y - 3.5
-    modalities = [("text", hx0 + 5), ("audio", hx0 + 12), ("image", hx0 + 19), ("video", hx0 + 26)]
-    for name, x in modalities:
-        ax.scatter([x], [dot_y], s=55, color="#4a2f6a", zorder=5)
-        ax.text(x, label_y, name, ha="center", fontsize=8, color="#4a2f6a")
+    # Scattered, not aligned in a row -- a real embedding space is a point
+    # cloud, not a sorted list -- and linked pairwise like a small graph to
+    # read as "these all land near each other", the property the surrounding
+    # prose is actually about.
+    points = {"text": (hx0 + 5, hy0 + 13), "audio": (hx0 + 17, hy0 + 16),
+              "image": (hx0 + 23, hy0 + 6), "video": (hx0 + 10, hy0 + 5)}
+    label_offset = {"text": (-1.8, 1.3), "audio": (1.8, 1.3), "image": (2.2, 0.3), "video": (-0.5, -2.0)}
+    edges = [("text", "audio"), ("audio", "image"), ("image", "video"), ("video", "text"), ("text", "image")]
+    for a, b in edges:
+        (x1, y1), (x2, y2) = points[a], points[b]
+        ax.plot([x1, x2], [y1, y2], color="#4a2f6a", lw=0.7, alpha=0.45, zorder=4)
+    for name, (x, y) in points.items():
+        ax.scatter([x], [y], s=55, color="#4a2f6a", zorder=5)
+        dx, dy = label_offset[name]
+        ax.text(x + dx, y + dy, name, ha="center", fontsize=8, color="#4a2f6a", zorder=5)
 
-    arrow(ax, (28, 34), (hx0, dot_y + 3), color="#2f5c8a", rad=-0.15)
-    arrow(ax, (28, 10), (hx0, dot_y - 3), color="#2f5c8a", rad=0.15)
+    # Both arrows stay within their own half of the canvas (upper source ->
+    # upper entry, lower source -> lower entry) so neither dips down into
+    # "THE SEMANTIC GAP" label's row in the middle.
+    arrow(ax, (28, 34), (hx0, 27), color="#2f5c8a", rad=-0.15)
+    arrow(ax, (28, 10), (hx0, 12), color="#2f5c8a", rad=0.15)
 
     ax.text(50, -5, "Two different representations of the same song, mapped into one shared space --\nclose together there means semantically similar, independent of which side either one started on.",
             ha="center", va="bottom", fontsize=8.5, color="#444444", style="italic")
