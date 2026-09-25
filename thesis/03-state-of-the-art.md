@@ -82,6 +82,55 @@ Table 3.1 summarizes the external data sources evaluated as candidate inputs.
 
 A permissive, redistributable license and a scriptable, individually-addressable download path (rather than one large archive that must be fetched in full before any subsetting is possible) mattered most in practice for a reproducible ingestion run at the 200-500 track scale target. Jamendo satisfied both for this thesis's seed dataset; MusicBrainz supplies identity resolution rather than audio and is therefore never a candidate seed source in its own right; Freesound's role is deliberately different again, supplying short, clearly-licensed clips for use case 8.3's simulated live stream rather than catalog tracks. FMA was the closest runner-up and its rejection is detailed concretely, not just in the abstract, alongside the ingestion pipeline itself in Section 5.3.1: a disk-footprint argument specific to how FMA is distributed (per-split archives) rather than a licensing objection. Spotify and Last.fm were evaluated for their richer commercial metadata and scrobble/tag data respectively, but neither was pursued once Jamendo's API alone proved sufficient for the seed range targeted.
 
-## 3.11 Summary and Positioning
+## 3.11 Preliminary Survey: Documenting the Design Process
+
+The material above reflects the pipeline as it was actually built. Before that, at the start of the project, a broader survey of candidate data sources and technologies was carried out to scope the design space; Tables 3.2–3.4 reproduce that preliminary survey as it stood then, to document the progression from initial research to the finalized choices in Section 3.10 and Chapter 4, rather than presenting only the end state as if it had been obvious from the outset.
+
+Table 3.2 lists every API considered for metadata and audio features, a superset of Table 3.1's narrower "actually evaluated for this thesis" list: TheAudioDB and Deezer were surveyed at this stage but never carried into an evaluation, since Jamendo's own API covered the seed dataset's needs before either was tried.
+
+| Source | Type | Key data |
+|---|---|---|
+| Spotify API | REST API | Audio features (tempo, valence, energy, danceability), metadata, playlists |
+| Last.fm API | REST API | User scrobbles, artist/track tags, similar artists, listening history |
+| MusicBrainz API | REST API (open) | Rich music metadata: artist, release, genre, relationships |
+| Freesound API | REST API (open) | Creative Commons audio clips with tags and metadata; live-audio scenario |
+| TheAudioDB | REST API (open) | Artist/album artwork, music metadata, mood/genre tags; free JSON API |
+| Deezer API | REST API | Track metadata, 30s preview URLs, playlist and mood-based charts |
+
+: Table 3.2: APIs surveyed for music metadata and audio features, at project scoping time.
+
+Table 3.3 lists the static, pre-packaged research datasets considered as an alternative to an API-driven ingestion path. None was carried forward: Section 5.3.1 gives the concrete, disk-footprint-based reason FMA specifically was rejected in favor of Jamendo's individually-addressable API, and the same scriptable-subsetting argument ruled out the others, none of which offer a comparably licensed, individually downloadable seed set at the 200–500 track target.
+
+| Dataset | Modality | Size | License / source |
+|---|---|---|---|
+| Million Song Dataset (MSD) | Audio features + metadata | 1M tracks | millionsongdataset.com |
+| GTZAN Genre Collection | Audio | 1,000 clips, 10 genres | marsyas.info |
+| FMA (Free Music Archive) | Audio + metadata | 106,574 tracks | github.com/mdeff/fma |
+| MagnaTagATune | Audio + tags | 25,863 clips | city.ac.uk |
+| LAION-Audio-630K | Audio + text pairs | 630K clips | github.com/LAION-AI |
+| ListenBrainz | User listening history | Millions of scrobbles | listenbrainz.org |
+
+: Table 3.3: Static research datasets surveyed as an alternative seed source, at project scoping time.
+
+Table 3.4 is the original technology recommendation this survey produced, module by module, before implementation experience narrowed several of these choices. It is reproduced as originally written, not corrected against what was actually built, since documenting the narrowing itself is the point: Milvus replaced the FAISS/ChromaDB pairing once the Semantic API needed a managed query service rather than a raw index library (Section 3.3); Essentia, OpenCV/Pillow, VideoMAE and MediaPipe were never exercised, since only the audio and text modalities reached implementation (Section 3.6); LightGCN and collaborative filtering were superseded by this thesis's graph-and-similarity ranking function once no ground-truth relevance data existed to train a learned model against (Section 3.7); and Apache Airflow's batch-DAG orchestration role was never built, since the batch pipeline runs as a single script rather than a scheduled multi-job DAG at this dataset's scale. Table 4.2 (Section 4.4) is the corresponding as-built table.
+
+| Pipeline sub-module | Function | Recommended technologies (at proposal time) |
+|---|---|---|
+| Data ingestion | Batch & stream input | Apache Kafka, Apache Spark, FFmpeg |
+| Data preparation | Cleaning, deduplication, normalization | Apache Spark, Pandas, OpenCV, FFmpeg |
+| Feature extraction: audio | MFCCs, tempo, spectral features | Librosa, Essentia, CLAP |
+| Feature extraction: image | Color, texture, visual embeddings | CLIP, OpenCV, Pillow, BLIP-2 |
+| Feature extraction: video | Motion, temporal, frame embeddings | FFmpeg, VideoMAE, MediaPipe |
+| Feature extraction: text | Embeddings, keyword extraction | HuggingFace Transformers, SBERT, spaCy |
+| Stream processing | Real-time windowed feature extraction | Apache Flink, Kafka Streams |
+| Semantic enrichment | Knowledge-graph construction/inference | Neo4j, Protégé (OWL), Apache Jena, RDF/SPARQL |
+| Recommendation engine (use case) | Context-aware ranking | LightGCN, collaborative filtering, FAISS, FastAPI |
+| Orchestration | Batch pipeline scheduling | Apache Airflow |
+| Data sources | Audio metadata, features, user data | Spotify API, Last.fm, MusicBrainz, FMA, ListenBrainz |
+| Storage | Persistent storage by concern | L1: S3/MinIO, Parquet/Delta Lake, PostgreSQL; L2: Neo4j, Milvus/ChromaDB; L3: FastAPI |
+
+: Table 3.4: The original, pre-implementation technology recommendation, module by module. Compare against Table 4.2 (Section 4.4) for what was actually built.
+
+## 3.12 Summary and Positioning
 
 Existing research addresses individual components of this workflow in isolation: MIR contributes feature extraction, cross-modal representation learning contributes joint embeddings, vector-database research contributes the retrieval layer those embeddings need at scale, knowledge-graph research contributes semantic structuring and interpretability, and stream-processing and session-based recommendation research separately contribute real-time ingestion and continuously updated ranking, but these areas are rarely integrated within a single, reusable pipeline that spans both batch and streaming regimes and multiple modalities. This thesis's contribution is precisely that integration, instantiated concretely through a demo Recommender Engine that consumes, but does not define, a generic, reusable Semantic API.
