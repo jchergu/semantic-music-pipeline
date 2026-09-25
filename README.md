@@ -11,7 +11,7 @@ another:
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — see below |
 | 8.2 | Streaming | Reactive | **Complete** — see below |
-| 8.3 | Streaming | Proactive | Not started (design only, see CLAUDE.md) |
+| 8.3 | Streaming | Proactive | Design + minimal real demo slice (not evaluated to 8.1/8.2's rigor, see CLAUDE.md) |
 
 **8.1 status: build order complete.** 411 tracks ingested, embedded, and
 graphed; 4,110 recommendations generated. See

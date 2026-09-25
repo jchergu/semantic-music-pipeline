@@ -3,9 +3,13 @@
 Master's thesis (Bologna). Kappa-style streaming pipeline, 3 layers, with a
 Recommender Engine as the Layer 3 demo for the first use case. **8.1
 (batch, reactive) and 8.2 (streaming, reactive) are both complete** — code,
-evaluation and thesis chapter, for each. **8.3 is not started.** Do not build
-8.3 work, or extend 8.2, unless explicitly asked — they are separate modules,
-not shared code paths with each other or with 8.1.
+evaluation and thesis chapter, for each. **8.3 now has a minimal real code
+slice, explicitly requested 2026-09-25 under a hard submission deadline —
+see "8.3 (streaming, proactive) — minimal demo slice" below.** It is
+deliberately NOT built to 8.1/8.2's full rigor (no `eval/8_3` harness, no
+failure injection, no exhaustive edge-case handling) — do not extend it
+further, or extend 8.2, unless explicitly asked; they remain separate
+modules, not shared code paths with each other or with 8.1.
 
 8.2's per-stage narrative has been removed from this file now that it is
 closed; each stage's record lives in its own `docs/platform/stageNN-*.md`.
@@ -94,7 +98,7 @@ notes.
 |---|---|---|---|
 | 8.1 | Batch | Reactive | **Complete** — build order done, results evaluated |
 | 8.2 | Streaming | Reactive | **Complete** — stages 13-16 done; `eval/8_2` metrics 1-8; daemons + `session_api` delivering; thesis §6.1 written |
-| 8.3 | Streaming | Proactive | Not started — auto-tagging reused as live classifier only, no live writes to Neo4j |
+| 8.3 | Streaming | Proactive | **Minimal demo slice built 2026-09-25** — real CLAP zero-shot live classifier, `media-stream`'s first producer/consumer, WebSocket push; not built to 8.1/8.2's rigor (no eval harness). See below. |
 
 8.1 / 8.2 / 8.3 are independent modules: no shared runtime state, no shared
 code paths between them. They are independent OF EACH OTHER, not of the
@@ -1104,6 +1108,139 @@ actual PNG, and only move on once nothing overlaps — not by reasoning about
 coordinates alone, which is what let both pre-existing bugs ship in the
 first place. Rebuilt the thesis afterward: page count unchanged at **64**
 (only the embedded images changed, not any text or figure dimensions).
+
+### 8.3 (streaming, proactive) — minimal demo slice, built 2026-09-25
+
+**Explicitly requested, overriding this file's own "8.3 is not started, do
+not build" instruction**: the professor's feedback on the draft said the
+committee needs to see three real implemented use cases with live demo
+screenshots, not two plus a design chapter, under a two-day submission
+deadline. Per the Working agreement ("if something in this file conflicts
+with what I ask you to do in a message, my message wins — but flag the
+conflict first"), that conflict was flagged to the user before starting;
+they chose to build a minimal real slice rather than present 8.3 as
+design-only. This section is that flag's resolution, not a silent
+override — every session's "8.3 still NOT started" write-up above (the
+thesis §6.2 section, the 2026-09-13 consistency pass, etc.) is left
+untouched as an accurate record of what was true *at the time it was
+written*; this section supersedes their status claim, not their content.
+
+**Scope, deliberately smaller than 8.1/8.2's stage-by-stage treatment**:
+one session, no `eval/8_3` harness, no failure injection, no exhaustive
+edge-case handling, no attempt at the same documentation depth every
+8.1/8.2 stage got. What exists is real and tested, not a mock — but it is
+sized for "the committee sees three working things," not for the same
+scrutiny 8.1/8.2 already received.
+
+**What it builds, honoring every §6.2 design commitment**:
+`usecases/8_3_streaming_proactive/`:
+- `precompute_genre_labels.py` — one-off script (laion_clap, same model
+  stage 3 already uses) computing a CLAP TEXT embedding for each of the
+  77 genre tags already in the catalog. Checked-in output:
+  `genre_label_embeddings.json`.
+- `live_classifier.py` — pure cosine-similarity classification (no I/O,
+  unit-tested against synthetic vectors) between a track's existing AUDIO
+  embedding and the 77 label embeddings. This is "auto-tagging reused as
+  live classifier" (§6.2): CLAP zero-shot, not a trained model, and
+  nothing here writes to Neo4j — confirmed, not just asserted, since this
+  module has no Neo4j import at all.
+- `media_stream_producer.py` — `media-stream`'s first real producer
+  (§6.2's commitment), publishing "now playing" events
+  (`{session_id, track_id, event_time}`) directly via
+  `streaming.producer.produce()` — deliberately simpler than the
+  behavioral-event simulator (no skip/like/position bookkeeping; a
+  now-playing beacon only ever means "this track started").
+- `proactive_service.py` — a FastAPI service that is `media-stream`'s
+  first consumer: its own Kafka consumer group
+  (`uc83-proactive-consumer`), committing offsets like the stage 16
+  daemons (same at-least-once reasoning — a restartable, canonical-group
+  consumer, not a bounded test read). For each now-playing event it (1)
+  classifies live via `live_classifier.py`, (2) computes a proactive
+  suggestion by reusing `context_builder.build_context()` +
+  `platform/scoring/ranking.py::score_recommendations()` **exactly** as
+  8.1's `recommend.py` and 8.2's `recommendation_refresh.py` cold-start
+  path already do (Decision D, again) — the currently-playing track
+  stands in for the seed, top-ranked candidate is the suggestion; 8.3
+  changes *when* this runs and *how it's delivered*, not what it
+  computes. (3) Pushes the result over WebSocket (`/ws/{session_id}`) to
+  any connected client — push, not pull, per Decision E, the one place in
+  this repo that works this way. Also exposes a GET polling fallback
+  (`/sessions/{id}/now-playing`) and a demo-only `POST
+  /simulate/{session_id}/{track_id}` (publishes one now-playing event
+  directly, for the dashboard's "play track" buttons — same producer call
+  `media_stream_producer.py` makes, not a second ingestion path).
+- Three new canonical Redis key functions added to
+  `platform/streaming/session_state.py` (`now_playing_key`,
+  `live_tags_key`, `proactive_suggestion_key`) — platform-owned key
+  *definitions*, per the existing convention that every `session:{id}:*`
+  key name lives there regardless of which use case's code writes it
+  (recs_key()/profile_key() already set this precedent for 8.2).
+
+**Verified against the live stack, not assumed**: a real run against the
+running example (seed track #16 "Give Me Hope") produced a genuine CLAP
+zero-shot classification (top tags: artrock/country/poprock — a real,
+imperfect result on this small amateur catalog, not cherry-picked) and a
+real proactive suggestion (#141 "Boys, Girls, Toys & Words", same artist
++ genre-sibling + 0.85 similarity). Zero-shot classification quality
+varies genuinely by track — track #1 ("Wish You Were Here", tagged
+dance/electronic/house) misclassifies as smoothjazz/jazz in its top-3;
+this is a real, measured limitation of applying CLAP's general-purpose
+zero-shot text tower to a niche amateur catalog, not hidden, consistent
+with this project's standing practice of reporting what it finds rather
+than only what looks good.
+
+**Tests**: 8 new (`usecases/8_3_streaming_proactive/tests/`, prefixed
+`test_uc83_*` per the eval/-package naming-collision lesson, applied here
+even though `usecases/` doesn't share that specific collision risk) — 6
+pure (`live_classifier.py`, no I/O) plus 2 live integration tests
+(`process_now_playing()` against a real `semantic_api_server` fixture and
+real Redis, reusing `tests/conftest.py`'s fixture the same way 8.1's own
+tests do). Full suite: 223/223 passing (215 pre-existing + 8 new), no
+regressions from the `session_state.py` addition.
+
+**Demo dashboards** (`demo/` at the repo root, static HTML/CSS/vanilla
+JS, no build step, one shared stylesheet): `index.html` (running-example
+overview), `uc81.html`, `uc82.html`, `uc83.html` — one page per use case,
+each calling the real, live backend for the same running example (rock
+tracks #14 "Gates" / #15 "Billy Comes Home" / #16 "Give Me Hope"; a
+same-artist pair, #1/#12, for the signal 14-15-16 doesn't exercise).
+`uc81.html` needed one new demo-only endpoint,
+`usecases/8_1_batch_reactive/demo_api.py` — NOT a change to the frozen
+Semantic API contract, it wraps the same `context_builder` +
+`ranking.score_recommendations()` call `recommend.py` already makes per
+seed, just exposed live over HTTP for the dashboard instead of run as a
+batch. `uc82.html` calls `session_api` directly (already existed,
+untouched beyond CORS). `uc83.html` is the one page that opens a
+WebSocket instead of polling. CORS (`allow_origins=["*"]`) was added to
+`session_api`, `demo_api`, and `proactive_service` — permissive and
+explicitly demo-only, commented as such at each call site, since these
+pages are only ever opened from a local static file server for
+screenshots/video, never deployed.
+
+Run (from the repo root, stack up, `preload_embeddings_to_redis.py`
+already run):
+
+```bash
+platform/enrichment/.venv/bin/python usecases/8_3_streaming_proactive/precompute_genre_labels.py   # one-off, already committed
+platform/enrichment/.venv/bin/python -m uvicorn semantic_api.main:app --app-dir platform --port 8000
+platform/enrichment/.venv/bin/python -m uvicorn session_api.main:app --app-dir platform --port 8030
+platform/enrichment/.venv/bin/python -m uvicorn event_ingestion.main:app --app-dir platform --port 8020
+platform/enrichment/.venv/bin/python -m uvicorn demo_api:app --app-dir usecases/8_1_batch_reactive --port 8010
+PYTHONPATH=platform platform/enrichment/.venv/bin/python -m uvicorn proactive_service:app --app-dir usecases/8_3_streaming_proactive --port 8040
+PYTHONPATH=platform platform/enrichment/.venv/bin/python -m streaming.session_consumer_daemon
+PYTHONPATH=platform platform/enrichment/.venv/bin/python -m streaming.refresh_daemon --semantic-api-url http://127.0.0.1:8000
+python3 -m http.server 8080 --directory demo   # then open localhost:8080
+```
+
+**Operational gotcha, found running this session**: `streaming.session_consumer_daemon` and `streaming.refresh_daemon`, left running for the demo, made 10 tests fail (`test_stage9_redis`, `test_stage10_postgres_events`, `test_stage11_event_ingestion`, `test_stage12_event_simulator`, `test_stage14_recommendation_refresh`, `test_stage16_refresh_daemon`, `test_stage16_session_api`) — both daemons hold the canonical `SESSION_CONSUMER_GROUP_ID`/`RECS_REFRESH_GROUP_ID` Kafka consumer groups, and several of those tests spin up their own consumer under the same canonical group id to test the real daemon behavior, so two live consumers in one group split the message stream between them. Not a code bug — confirmed by killing both daemons and re-running: 223/223 pass clean. **Stop both daemons before running the test suite; only start them again for a live demo.**
+
+**Not done, deliberately, given the deadline**: the thesis chapters
+(§6.2, the abstract, README's status table, every place that currently
+says "8.3 not started" or "design and feasibility only, not implemented
+or measured") have NOT been rewritten yet — that is a separate, explicit
+thesis-writing pass, not implied by building the code. Do not treat this
+section as license to also silently rewrite thesis prose; that still
+needs its own session per the Working agreement's `thesis/` rule.
 
 ## Stack (all open-source, self-hostable)
 
