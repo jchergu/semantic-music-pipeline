@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8.3 Demo — Streaming, Proactive</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>8.3 &mdash; Streaming, Proactive</h1>
+  <span class="tag">Live classification + a pushed suggestion, unasked</span>
+  <nav class="usecase-nav">
+    <a href="index.html">Overview</a>
+    <a href="uc81.html">8.1</a>
+    <a href="uc82.html">8.2</a>
+    <a href="uc83.html" class="active">8.3</a>
+  </nav>
+</header>
+<main>
+  <div class="panel">
+    <h2>Session</h2>
+    <div class="row">
+      <input id="session-id" value="demo-rock-thread" size="24">
+      <button onclick="connect()">Connect</button>
+    </div>
+    <p class="status-line" id="status"><span class="dot" id="status-dot"></span><span id="status-text">Not connected.</span></p>
+    <div class="row" style="margin-top:8px">
+      <span style="color:var(--muted);font-size:13px">Simulate now playing:</span>
+      <button onclick="play(14)">#14 Gates</button>
+      <button onclick="play(15)">#15 Billy Comes Home</button>
+      <button onclick="play(16)">#16 Give Me Hope</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Now playing</h2>
+    <div id="now-playing"><p class="empty">Connect, then click a track above.</p></div>
+  </div>
+
+  <div class="panel">
+    <h2>Live classification (CLAP zero-shot)</h2>
+    <div id="live-tags"><p class="empty">&mdash;</p></div>
+  </div>
+
+  <div class="panel">
+    <h2>Proactive suggestion &mdash; pushed, not requested</h2>
+    <div id="suggestion"><p class="empty">&mdash;</p></div>
+  </div>
+</main>
+<footer>Connects over WebSocket to <code>usecases/8_3_streaming_proactive/proactive_service.py</code>
+  (port 8040), the one service in this pipeline that pushes rather than serves on request
+  (Decision E). Classification and suggestion are recomputed live from
+  <code>media-stream</code> events; nothing here is precomputed for this page.</footer>
+
+<script>
+const PROACTIVE_API = "http://127.0.0.1:8040";
+const PROACTIVE_WS = "ws://127.0.0.1:8040";
+let socket = null;
+
+function connect() {
+  const sessionId = document.getElementById("session-id").value.trim();
+  const statusDot = document.getElementById("status-dot");
+  const statusText = document.getElementById("status-text");
+
+  if (socket) socket.close();
+  socket = new WebSocket(`${PROACTIVE_WS}/ws/${encodeURIComponent(sessionId)}`);
+
+  socket.onopen = () => {
+    statusDot.className = "dot ok";
+    statusText.textContent = `Live: connected to session "${sessionId}"`;
+    loadInitialState(sessionId);
+  };
+  socket.onclose = () => {
+    statusDot.className = "dot err";
+    statusText.textContent = "Disconnected.";
+  };
+  socket.onerror = () => {
+    statusDot.className = "dot err";
+    statusText.textContent = `Could not reach ${PROACTIVE_API}. Is proactive_service.py running?`;
+  };
+  socket.onmessage = (msg) => render(JSON.parse(msg.data));
+}
+
+async function loadInitialState(sessionId) {
+  try {
+    const resp = await fetch(`${PROACTIVE_API}/sessions/${encodeURIComponent(sessionId)}/now-playing`);
+    const data = await resp.json();
+    if (data.now_playing) render(data);
+  } catch (e) { /* fine -- nothing played yet */ }
+}
+
+async function play(trackId) {
+  const sessionId = document.getElementById("session-id").value.trim();
+  await fetch(`${PROACTIVE_API}/simulate/${encodeURIComponent(sessionId)}/${trackId}`, { method: "POST" });
+}
+
+function render(data) {
+  const nowPlayingEl = document.getElementById("now-playing");
+  const tagsEl = document.getElementById("live-tags");
+  const suggestionEl = document.getElementById("suggestion");
+
+  if (data.now_playing) {
+    nowPlayingEl.innerHTML = `
+      <div class="track-card">
+        <div class="meta">
+          <div class="title">${data.now_playing.title}</div>
+          <div class="artist">${data.now_playing.artist_name}</div>
+        </div>
+        <span class="pill live">now playing</span>
+      </div>`;
+  }
+
+  if (data.live_tags) {
+    tagsEl.innerHTML = data.live_tags
+      .map(([label, score]) => `<span class="badge on-genre">${label} (${score.toFixed(3)})</span>`)
+      .join(" ");
+  }
+
+  if (data.proactive_suggestion) {
+    const s = data.proactive_suggestion;
+    const badges = [];
+    if (s.similarity > 0) badges.push(`<span class="badge on-similarity">similarity ${s.similarity.toFixed(3)}</span>`);
+    if (s.genre_sibling) badges.push('<span class="badge on-genre">genre sibling</span>');
+    if (s.same_artist) badges.push('<span class="badge on-artist">same artist</span>');
+    suggestionEl.innerHTML = `
+      <div class="track-card">
+        <div class="meta">
+          <div class="title">${s.title}</div>
+          <div class="artist">${s.artist_name || "unknown artist"}</div>
+        </div>
+        <div class="badges">${badges.join("")}</div>
+        <div class="score">${s.score.toFixed(3)}</div>
+      </div>`;
+  } else {
+    suggestionEl.innerHTML = '<p class="empty">No suggestion yet.</p>';
+  }
+}
+
+connect();
+</script>
+</body>
+</html>

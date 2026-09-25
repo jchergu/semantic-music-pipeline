@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8.1 Demo — Batch, Reactive</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>8.1 &mdash; Batch, Reactive</h1>
+  <span class="tag">"More like this" &mdash; one seed track, an explicit query</span>
+  <nav class="usecase-nav">
+    <a href="index.html">Overview</a>
+    <a href="uc81.html" class="active">8.1</a>
+    <a href="uc82.html">8.2</a>
+    <a href="uc83.html">8.3</a>
+  </nav>
+</header>
+<main>
+  <div class="panel">
+    <h2>Seed track</h2>
+    <div class="row">
+      <select id="seed-select">
+        <option value="14" selected>#14 &mdash; Gates (Bellevue)</option>
+        <option value="15">#15 &mdash; Billy Comes Home (Heifervescent)</option>
+        <option value="16">#16 &mdash; Give Me Hope (Modern Pitch)</option>
+        <option value="1">#1 &mdash; Wish You Were Here (The.madpix.project)</option>
+        <option value="12">#12 &mdash; Moments (The.madpix.project)</option>
+      </select>
+      <button onclick="loadRecs()">Get recommendations</button>
+    </div>
+    <p class="status-line" id="status"><span class="dot" id="status-dot"></span><span id="status-text">Ready.</span></p>
+  </div>
+
+  <div class="panel">
+    <h2 id="seed-heading">Recommendations</h2>
+    <div id="results"><p class="empty">Pick a seed track and click "Get recommendations".</p></div>
+  </div>
+</main>
+<footer>Calls the live Semantic API + <code>context_builder.build_context()</code> +
+  <code>platform/scoring/ranking.py::score_recommendations()</code> &mdash; the exact
+  production code path 8.1's batch <code>recommend.py</code> runs per seed, exposed live
+  via <code>usecases/8_1_batch_reactive/demo_api.py</code> for this page only.</footer>
+
+<script>
+const DEMO_API = "http://127.0.0.1:8010";
+
+function badge(cls, label) {
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+async function loadRecs() {
+  const trackId = document.getElementById("seed-select").value;
+  const statusDot = document.getElementById("status-dot");
+  const statusText = document.getElementById("status-text");
+  const results = document.getElementById("results");
+  statusDot.className = "dot";
+  statusText.textContent = "Querying live stack...";
+  results.innerHTML = "";
+  try {
+    const resp = await fetch(`${DEMO_API}/recommend/${trackId}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    statusDot.className = "dot ok";
+    statusText.textContent = `Live: seed #${data.seed.track_id} "${data.seed.title}" by ${data.seed.artist_name}`;
+    document.getElementById("seed-heading").textContent =
+      `Recommendations for "${data.seed.title}"`;
+
+    data.recommendations.forEach((r, i) => {
+      const badges = [];
+      if (r.similarity > 0) badges.push(badge("on-similarity", `similarity ${r.similarity.toFixed(3)}`));
+      if (r.genre_sibling) badges.push(badge("on-genre", "genre sibling"));
+      if (r.same_artist) badges.push(badge("on-artist", "same artist"));
+      const card = document.createElement("div");
+      card.className = "track-card";
+      card.innerHTML = `
+        <div class="rank">${i + 1}</div>
+        <div class="meta">
+          <div class="title">${r.title}</div>
+          <div class="artist">${r.artist_name || "unknown artist"}</div>
+        </div>
+        <div class="badges">${badges.join("")}</div>
+        <div class="score">${r.score.toFixed(3)}</div>
+      `;
+      results.appendChild(card);
+    });
+  } catch (e) {
+    statusDot.className = "dot err";
+    statusText.textContent = `Could not reach the demo API at ${DEMO_API} (${e.message}). Is it running?`;
+    results.innerHTML = '<p class="empty">No data.</p>';
+  }
+}
+
+loadRecs();
+</script>
+</body>
+</html>

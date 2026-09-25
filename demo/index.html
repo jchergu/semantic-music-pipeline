@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Semantic Music Pipeline — Demo</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>Semantic Music Pipeline</h1>
+  <span class="tag">Running example demos — 8.1 / 8.2 / 8.3</span>
+</header>
+<main>
+  <div class="panel">
+    <h2>The running example</h2>
+    <p>A rock/pop/indie listening thread, real tracks from the 411-track Jamendo catalog,
+       used across all three use cases below:</p>
+    <div class="example-thread">
+      <div class="step">#14 &mdash; <strong>Gates</strong><br><span style="color:var(--muted)">Bellevue</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="step">#15 &mdash; <strong>Billy Comes Home</strong><br><span style="color:var(--muted)">Heifervescent</span></div>
+      <span class="arrow">&rarr;</span>
+      <div class="step">#16 &mdash; <strong>Give Me Hope</strong><br><span style="color:var(--muted)">Modern Pitch</span></div>
+    </div>
+    <p style="margin-top:16px">A secondary pair illustrates the same-artist signal, which this thread
+       doesn't exercise: <strong>#1 Wish You Were Here</strong> and <strong>#12 Moments</strong>,
+       both by The.madpix.project.</p>
+  </div>
+
+  <div class="panel">
+    <h2>8.1 &mdash; Batch, Reactive</h2>
+    <p>An explicit "more like this" query against one seed track. Combines CLAP similarity,
+       genre-sibling and same-artist signals into a ranked list.</p>
+    <a href="uc81.html"><button>Open demo</button></a>
+  </div>
+
+  <div class="panel">
+    <h2>8.2 &mdash; Streaming, Reactive</h2>
+    <p>A listening session builds an implicit taste profile (a weighted CLAP centroid) as it plays.
+       An on-demand query then reflects the whole session, not just one seed.</p>
+    <a href="uc82.html"><button>Open demo</button></a>
+  </div>
+
+  <div class="panel">
+    <h2>8.3 &mdash; Streaming, Proactive</h2>
+    <p>Design-and-feasibility use case, given a minimal real vertical slice: while a track is
+       <em>currently playing</em>, the system classifies it live (CLAP zero-shot) and proactively
+       pushes a suggestion &mdash; unasked, over a WebSocket.</p>
+    <a href="uc83.html"><button>Open demo</button></a>
+  </div>
+</main>
+<footer>Semantic Music Pipeline &mdash; MSc thesis demo pages. Every number and track on these pages
+  comes from the live stack, not mocked data.</footer>
+</body>
+</html>

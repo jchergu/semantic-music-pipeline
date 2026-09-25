@@ -1,0 +1,203 @@
+:root {
+  --bg: #12141a;
+  --panel: #1b1e27;
+  --panel-2: #232733;
+  --border: #2e3342;
+  --text: #e8eaf0;
+  --muted: #9aa1b2;
+  --accent: #6ea8fe;
+  --accent-2: #f2b84b;
+  --good: #5fd88f;
+  --bad: #e88b8b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header.top {
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+header.top h1 {
+  font-size: 18px;
+  margin: 0;
+  font-weight: 600;
+}
+
+header.top .tag {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+nav.usecase-nav {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+nav.usecase-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+nav.usecase-nav a.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: rgba(110, 168, 254, 0.12);
+}
+
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 15px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.track-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.track-card .rank {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--muted);
+  width: 28px;
+  text-align: center;
+}
+
+.track-card .meta { flex: 1; }
+.track-card .title { font-weight: 600; }
+.track-card .artist { color: var(--muted); font-size: 13px; }
+
+.badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.badge.on-similarity { border-color: var(--accent); color: var(--accent); }
+.badge.on-genre { border-color: var(--accent-2); color: var(--accent-2); }
+.badge.on-artist { border-color: var(--good); color: var(--good); }
+
+.score {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 13px;
+  width: 60px;
+  text-align: right;
+}
+
+input, select, button {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+button {
+  background: var(--accent);
+  color: #0b0d12;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+button:hover { filter: brightness(1.08); }
+
+.row { display: flex; gap: 10px; align-items: center; }
+
+.pill {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-right: 6px;
+}
+
+.pill.live { color: var(--good); border-color: var(--good); }
+
+.note {
+  color: var(--muted);
+  font-size: 13px;
+  border-left: 3px solid var(--accent-2);
+  padding: 8px 12px;
+  background: rgba(242, 184, 75, 0.08);
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.empty { color: var(--muted); font-style: italic; padding: 20px 0; }
+
+.example-thread {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.example-thread .step {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.example-thread .arrow { color: var(--muted); }
+
+footer {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 32px 40px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.status-line { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+.status-line .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.status-line .dot.ok { background: var(--good); }
+.status-line .dot.err { background: var(--bad); }

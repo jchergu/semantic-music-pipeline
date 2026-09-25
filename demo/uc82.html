@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>8.2 Demo — Streaming, Reactive</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>8.2 &mdash; Streaming, Reactive</h1>
+  <span class="tag">A session's implicit taste profile, queried on demand</span>
+  <nav class="usecase-nav">
+    <a href="index.html">Overview</a>
+    <a href="uc81.html">8.1</a>
+    <a href="uc82.html" class="active">8.2</a>
+    <a href="uc83.html">8.3</a>
+  </nav>
+</header>
+<main>
+  <div class="panel">
+    <h2>Session</h2>
+    <div class="row">
+      <input id="session-id" value="demo-rock-thread" size="24">
+      <button onclick="loadSession()">Refresh</button>
+    </div>
+    <p class="status-line" id="status"><span class="dot" id="status-dot"></span><span id="status-text">Ready.</span></p>
+  </div>
+
+  <div class="panel">
+    <h2>Session state</h2>
+    <div id="state"><p class="empty">Enter a session id and click Refresh.</p></div>
+  </div>
+
+  <div class="panel">
+    <h2>Current recommendations</h2>
+    <div id="recs"><p class="empty">&mdash;</p></div>
+  </div>
+</main>
+<footer>Reads <code>platform/session_api/</code> directly (port 8030) &mdash; read-only over Redis,
+  serving exactly what <code>streaming/session_consumer_daemon.py</code> (raw state) and
+  <code>streaming/refresh_daemon.py</code> (recommendations) have already written. Nothing on this
+  page computes anything.</footer>
+
+<script>
+const SESSION_API = "http://127.0.0.1:8030";
+
+async function loadSession() {
+  const sessionId = document.getElementById("session-id").value.trim();
+  const statusDot = document.getElementById("status-dot");
+  const statusText = document.getElementById("status-text");
+  const stateEl = document.getElementById("state");
+  const recsEl = document.getElementById("recs");
+  statusDot.className = "dot";
+  statusText.textContent = "Querying live session API...";
+
+  try {
+    const resp = await fetch(`${SESSION_API}/sessions/${encodeURIComponent(sessionId)}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const s = await resp.json();
+    statusDot.className = "dot ok";
+    statusText.textContent = `Live: session "${s.session_id}"`;
+
+    stateEl.innerHTML = `
+      <p><span class="pill ${s.raw_events.present ? 'live' : ''}">raw events: ${s.raw_events.count}</span>
+         <span class="pill ${s.profile.present ? 'live' : ''}">profile: ${s.profile.present ? `computed (${s.profile.dimension}-dim, ${s.profile.n_events} events)` : 'not yet computed'}</span>
+         <span class="pill ${s.recommendations.present ? 'live' : ''}">recommendations: ${s.recommendations.count}</span></p>
+      ${s.notes.map(n => `<div class="note">${n}</div>`).join("")}
+    `;
+
+    if (s.recommendations.present) {
+      const recResp = await fetch(`${SESSION_API}/sessions/${encodeURIComponent(sessionId)}/recommendations`);
+      const recData = await recResp.json();
+      recsEl.innerHTML = "";
+      recData.recommendations.forEach((r, i) => {
+        const badges = [];
+        if (r.similarity > 0) badges.push(`<span class="badge on-similarity">similarity ${r.similarity.toFixed(3)}</span>`);
+        if (r.genre_sibling) badges.push('<span class="badge on-genre">genre sibling</span>');
+        if (r.same_artist) badges.push('<span class="badge on-artist">same artist</span>');
+        const card = document.createElement("div");
+        card.className = "track-card";
+        card.innerHTML = `
+          <div class="rank">${i + 1}</div>
+          <div class="meta">
+            <div class="title">${r.title}</div>
+            <div class="artist">${r.artist_name || "unknown artist"}</div>
+          </div>
+          <div class="badges">${badges.join("")}</div>
+          <div class="score">${r.score.toFixed(3)}</div>
+        `;
+        recsEl.appendChild(card);
+      });
+    } else {
+      recsEl.innerHTML = '<p class="empty">No recommendations yet for this session.</p>';
+    }
+  } catch (e) {
+    statusDot.className = "dot err";
+    statusText.textContent = `Could not reach the session API at ${SESSION_API} (${e.message}). Is it running?`;
+    stateEl.innerHTML = '<p class="empty">No data.</p>';
+    recsEl.innerHTML = "";
+  }
+}
+
+loadSession();
+</script>
+</body>
+</html>
