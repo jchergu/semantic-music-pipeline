@@ -156,7 +156,7 @@ def fig_runtime():
     arrow(ax, (17, 67), (20, 67))
 
     # --- Kafka spine -----------------------------------------------------
-    box(ax, 40, 28, 8, 56, "behavioral-events", None, "broker", fs=10)
+    box(ax, 40, 28, 8, 56, "behavioral\nevents", None, "broker", fs=10)
     ax.text(44, 25.5, "Kafka topic\n(never purged)", ha="center", va="top",
             fontsize=8, color="#8a6318")
     arrow(ax, (36, 67), (40, 67), "produce", ly=3.4)
@@ -393,7 +393,7 @@ def fig_uc83_design():
         "read-only, Redis only\nrequest/response\n(stage 16)", fs=9.5, sub_fs=7.5)
     box(ax, 112, 28, 11, 15, "Client", None, "external", fs=9.5)
 
-    for x0, x1 in ((18, 35.5), (38, 43), (64, 69), (88, 93), (109, 112)):
+    for x0, x1 in ((18, 23), (38, 43), (64, 69), (88, 93), (109, 112)):
         arrow(ax, (x0, 35.5), (x1, 35.5))
 
     # --- the whole of 8.3's coupling to the platform: two arrows ----------
@@ -706,15 +706,25 @@ def fig_semantic_gap():
     ax.plot([37, 63], [30, 15], color="#c99", lw=1.2, linestyle=(0, (3, 3)))
     ax.plot([37, 63], [15, 30], color="#c99", lw=1.2, linestyle=(0, (3, 3)))
 
-    hub = box(ax, 68, 10, 30, 26, "CLAP joint\nembedding space", style="compute", fs=10)
-    cx, cy = hub[0] + hub[2] / 2, hub[1] + hub[3] / 2
-    ax.scatter([cx - 4, cx + 3], [cy + 3, cy - 2], s=60, color="#4a2f6a", zorder=5)
-    ax.text(cx - 4, cy + 6, "audio", ha="center", fontsize=8, color="#4a2f6a")
-    ax.text(cx + 3, cy - 5, "text", ha="center", fontsize=8, color="#4a2f6a")
-    ax.plot([cx - 4, cx + 3], [cy + 3, cy - 2], color="#4a2f6a", lw=0.8, linestyle=(0, (1, 2)))
+    hub = box(ax, 68, 8, 30, 30, "", style="compute")
+    hx0, hy0, hw, hh = hub
+    cx = hx0 + hw / 2
+    # Title placed near the top of the box, not vertically centered, so it
+    # cannot collide with the four modality points below regardless of how
+    # many there are -- box()'s own centered title is what the original
+    # two-point version got away with and four points would not have.
+    ax.text(cx, hy0 + hh - 3, "Joint embedding\nspace", ha="center", va="top",
+            fontsize=10.5, fontweight="bold", linespacing=1.3)
 
-    arrow(ax, (28, 34), (68, 28), color="#2f5c8a", rad=-0.15)
-    arrow(ax, (28, 10), (68, 16), color="#2f5c8a", rad=0.15)
+    dot_y = hy0 + 9
+    label_y = dot_y - 3.5
+    modalities = [("text", hx0 + 5), ("audio", hx0 + 12), ("image", hx0 + 19), ("video", hx0 + 26)]
+    for name, x in modalities:
+        ax.scatter([x], [dot_y], s=55, color="#4a2f6a", zorder=5)
+        ax.text(x, label_y, name, ha="center", fontsize=8, color="#4a2f6a")
+
+    arrow(ax, (28, 34), (hx0, dot_y + 3), color="#2f5c8a", rad=-0.15)
+    arrow(ax, (28, 10), (hx0, dot_y - 3), color="#2f5c8a", rad=0.15)
 
     ax.text(50, -5, "Two different representations of the same song, mapped into one shared space --\nclose together there means semantically similar, independent of which side either one started on.",
             ha="center", va="bottom", fontsize=8.5, color="#444444", style="italic")
