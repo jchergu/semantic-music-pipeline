@@ -229,7 +229,7 @@ Five limitations bound what this section claims, over and above the caveats alre
 
 ## 5.6 Software Architecture
 
-Section 5.3's stage-by-stage narrative describes what each stage does; this section describes how stage 5's own Recommender Engine is put together internally (its module boundaries, the request sequence one recommendation triggers, and the API contract those modules assume), a level of detail the pipeline-wide architecture diagram (Figure 4.1) does not carry, since that figure is about the platform's three layers, not about the internals of a single Layer-3 consumer.
+Section 5.3's stage-by-stage narrative describes what each stage does; this section describes how stage 5's own Recommender Engine is put together internally (its module boundaries, the request sequence one recommendation triggers, and the API contract those modules assume), a level of detail the pipeline-wide architecture diagram (Figure 4.2) does not carry, since that figure is about the platform's three layers, not about the internals of a single Layer-3 consumer.
 
 ### 5.6.1 Internal Module Structure
 

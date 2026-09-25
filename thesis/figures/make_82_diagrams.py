@@ -6,23 +6,25 @@ for the eval packs. Run from the repository root:
 
     platform/enrichment/.venv/bin/python thesis/figures/make_82_diagrams.py
 
-Writes fig-4-1-architecture.png, fig-6-1-runtime.png, fig-6-2-cold-warm.png,
+Writes fig-4-2-architecture.png, fig-6-1-runtime.png, fig-6-2-cold-warm.png,
 fig-6-3-warm-path.png and fig-6-9-uc83-design.png into this directory. The
 measurement figures in chapter 6.1 are NOT generated here -- they are
 eval/8_2/figures/*.png, referenced in place so the thesis cites the
 evaluation pack's own output rather than a copy of it.
 
-Figure 4.1 (Chapter 4's three-layer architecture overview) and Figure 6.9
-(Chapter 6.2, use case 8.3's design) both live in this file rather than in
-one of their own, for the same reason: everything here is *drawn* from
-hardcoded coordinates rather than plotted from data, so a cross-chapter or
-unimplemented-use-case diagram costs nothing and claims nothing -- unlike
-make_81_figures.py, which cannot produce a figure without a completed
-evaluation run. Figure 4.1 replaces a hand-drawn PNG that had drifted out of
-sync with the built system (OWL/Protégé/Jena, "ChromaDB for MVP",
-LightGCN+CF, `media.*`/`events.*` topic names, the pre-rename title); this
-version is regenerated from the same source of truth as every other diagram
-here, so it can't drift the same way again.
+Figure 4.2 (Chapter 4's three-layer architecture overview, renumbered from
+4.1 once Figure 4.1 became the intuitive, non-technical opener above it --
+fig_layers_overview()) and Figure 6.9 (Chapter 6.2, use case 8.3's design)
+both live in this file rather than in one of their own, for the same
+reason: everything here is *drawn* from hardcoded coordinates rather than
+plotted from data, so a cross-chapter or unimplemented-use-case diagram
+costs nothing and claims nothing -- unlike make_81_figures.py, which cannot
+produce a figure without a completed evaluation run. Figure 4.2 replaces a
+hand-drawn PNG that had drifted out of sync with the built system
+(OWL/Protégé/Jena, "ChromaDB for MVP", LightGCN+CF, `media.*`/`events.*`
+topic names, the pre-rename title); this version is regenerated from the
+same source of truth as every other diagram here, so it can't drift the
+same way again.
 """
 from pathlib import Path
 
@@ -522,7 +524,7 @@ def fig_architecture():
             box(ax, lx, 100.3, 3, 3, "", None, style)
         ax.text(lx + 4, 101.8, label, ha="left", va="center", fontsize=7.8)
 
-    save(fig, "fig-4-1-architecture.png")
+    save(fig, "fig-4-2-architecture.png")
 
 
 # --------------------------------------------------------------------------
@@ -686,6 +688,130 @@ def fig_shared_layer():
     save(fig, "fig-1-1-shared-layer.png")
 
 
+def fig_semantic_gap():
+    """Figure 3.1 (Chapter 3, Section 3.2) -- the semantic gap itself, named
+    repeatedly in prose since Chapter 1 but never drawn anywhere before this.
+    Two representations of the same song (a waveform and a plain-language
+    description) start in different, incompatible spaces; CLAP's joint
+    embedding is what lands them close together in one shared space, which
+    is the entire mechanical content of "zero-shot classification" the
+    surrounding prose cites but does not visualize."""
+    fig, ax = canvas(10, 5.0, xlim=(0, 100), ylim=(-6, 46))
+
+    box(ax, 2, 28, 26, 12, "Low-level audio", "spectral features,\nMFCCs, waveform", style="external", fs=10, sub_fs=8.5)
+    box(ax, 2, 4, 26, 12, "High-level concept", '"energetic rock song"', style="external", fs=10, sub_fs=8.5)
+
+    ax.text(50, 22.5, "THE SEMANTIC GAP", ha="center", va="center", fontsize=10,
+            fontweight="bold", color="#8a3a3a", style="italic")
+    ax.plot([37, 63], [30, 15], color="#c99", lw=1.2, linestyle=(0, (3, 3)))
+    ax.plot([37, 63], [15, 30], color="#c99", lw=1.2, linestyle=(0, (3, 3)))
+
+    hub = box(ax, 68, 10, 30, 26, "CLAP joint\nembedding space", style="compute", fs=10)
+    cx, cy = hub[0] + hub[2] / 2, hub[1] + hub[3] / 2
+    ax.scatter([cx - 4, cx + 3], [cy + 3, cy - 2], s=60, color="#4a2f6a", zorder=5)
+    ax.text(cx - 4, cy + 6, "audio", ha="center", fontsize=8, color="#4a2f6a")
+    ax.text(cx + 3, cy - 5, "text", ha="center", fontsize=8, color="#4a2f6a")
+    ax.plot([cx - 4, cx + 3], [cy + 3, cy - 2], color="#4a2f6a", lw=0.8, linestyle=(0, (1, 2)))
+
+    arrow(ax, (28, 34), (68, 28), color="#2f5c8a", rad=-0.15)
+    arrow(ax, (28, 10), (68, 16), color="#2f5c8a", rad=0.15)
+
+    ax.text(50, -5, "Two different representations of the same song, mapped into one shared space --\nclose together there means semantically similar, independent of which side either one started on.",
+            ha="center", va="bottom", fontsize=8.5, color="#444444", style="italic")
+
+    save(fig, "fig-3-1-semantic-gap.png")
+
+
+def fig_kappa_lambda():
+    """Figure 3.2 (Chapter 3, Section 3.5) -- Lambda vs. Kappa, the
+    architectural argument Kreps makes (cited in the surrounding prose)
+    and this thesis's own reuse of platform/scoring/ranking.py across the
+    batch and streaming paths (Chapter 6) both instantiate. Same visual
+    grammar as Figure 1.1 (duplicated effort vs. one shared thing) applied
+    to a different pair of things being duplicated or shared."""
+    fig, ax = canvas(11, 5.0, xlim=(0, 100), ylim=(0, 50))
+
+    ax.text(20, 47, "Lambda architecture", ha="center", fontsize=12, fontweight="bold")
+    box(ax, 4, 36, 16, 7, "Raw data", style="external", fs=9)
+    box(ax, 2, 22, 18, 8, "Batch layer", "slow, correct", style="compute", fs=9, sub_fs=7.5)
+    box(ax, 22, 22, 18, 8, "Speed layer", "fast, approximate", style="compute", fs=9, sub_fs=7.5)
+    box(ax, 3, 5, 36, 8, "Serving layer\n(merges both)", style="service", fs=9)
+    arrow(ax, (10, 36), (11, 30), rad=0.1)
+    arrow(ax, (14, 36), (31, 30), rad=-0.2)
+    arrow(ax, (11, 22), (13, 13))
+    arrow(ax, (31, 22), (29, 13))
+    ax.text(20, 1.5, "two implementations of the same business logic,\nkept consistent by hand", ha="center", va="top",
+            fontsize=8.5, color="#8a3a3a", style="italic")
+
+    ax.plot([50, 50], [-2, 48], color="#cccccc", lw=1.0, linestyle=(0, (2, 3)))
+
+    ax.text(78, 47, "Kappa architecture (this thesis)", ha="center", fontsize=12, fontweight="bold")
+    box(ax, 56, 36, 16, 7, "Raw data", style="external", fs=9)
+    box(ax, 76, 36, 20, 7, "Replayable log", "(Kafka)", style="broker", fs=9, sub_fs=7.5)
+    box(ax, 66, 22, 28, 7, "One processing logic", "reused for both regimes", style="compute", fs=9, sub_fs=7.5)
+    box(ax, 62, 9, 24, 8, "Serving layer", style="service", fs=9)
+    arrow(ax, (72, 39.5), (76, 39.5))
+    arrow(ax, (86, 36), (80, 29))
+    arrow(ax, (80, 22), (74, 17))
+    ax.text(78, 1.5, "batch and streaming call the SAME function --\nthis thesis's ranking.py, reused verbatim (Chapter 6)",
+            ha="center", va="top", fontsize=8.5, color="#2f6a3a", style="italic")
+
+    save(fig, "fig-3-2-kappa-lambda.png")
+
+
+def fig_kg_fragment():
+    """Figure 3.3 (Chapter 3, Section 3.4) -- a real fragment of this
+    thesis's own knowledge graph, using the running example (Section 1.3)
+    instead of a generic abstract graph: exactly the two traversals
+    (genre-sibling, same-artist) the surrounding literature review and
+    Chapter 5's ranking function both discuss, made concrete."""
+    fig, ax = canvas(8.5, 4.6, xlim=(0, 100), ylim=(0, 50))
+
+    box(ax, 2, 18, 24, 10, '"Gates"', "track #14", style="external", fs=10, sub_fs=8)
+    box(ax, 38, 32, 24, 10, "Bellevue", "artist", style="service", fs=10, sub_fs=8)
+    box(ax, 38, 4, 24, 10, "rock", "genre", style="compute", fs=10, sub_fs=8)
+    box(ax, 74, 18, 24, 10, '"Give Me Hope"', "track #16", style="external", fs=9.5, sub_fs=8)
+
+    arrow(ax, (26, 26), (38, 35), label="ARTIST_OF", fs=7.5)
+    arrow(ax, (26, 21), (38, 10), label="HAS_GENRE", fs=7.5)
+    arrow(ax, (62, 10), (74, 20), label="HAS_GENRE", fs=7.5, rad=-0.1)
+
+    ax.text(50, 45, "same-artist signal: no direct edge here (different artists)", ha="center",
+            fontsize=8, color="#666666", style="italic")
+    ax.text(50, -1, "genre-sibling signal: \"Gates\" and \"Give Me Hope\" both traverse to \"rock\" --\nthe path this thesis's ranking function boosts (Section 5.6.1)",
+            ha="center", va="top", fontsize=8.5, color="#444444", style="italic")
+
+    save(fig, "fig-3-3-kg-fragment.png")
+
+
+def fig_layers_overview():
+    """Figure 4.1 (Chapter 4 opener) -- the non-technical version of Figure
+    4.2 (the real architecture diagram, renumbered from 4.1 to make room for
+    this one): no store or protocol names, just what happens to a piece of
+    raw data on its way to becoming something an application can use.
+    Deliberately placed first, the same intuitive-before-technical pairing
+    Chapter 1 (Figures 1.1/1.2) and Chapter 2 (Figure 1.2) already use."""
+    fig, ax = canvas(11, 3.4, xlim=(0, 100), ylim=(0, 34))
+
+    box(ax, 1, 8, 18, 16, "Raw data", "audio, image,\ntext, streams", style="external", fs=10, sub_fs=8.5)
+    box(ax, 24, 8, 18, 16, "Prepare", "clean, extract\nfeatures", style="compute", fs=10, sub_fs=8.5)
+    box(ax, 47, 8, 18, 16, "Give it meaning", "genre, mood,\nrelationships", style="service", fs=10, sub_fs=8.5)
+    box(ax, 70, 8, 22, 16, "Applications", "recommend, tag,\nsearch, playlist", style="external", fs=10, sub_fs=8.5)
+
+    for x_from, x_to in [(19, 24), (42, 47), (65, 70)]:
+        arrow(ax, (x_from, 16), (x_to, 16))
+
+    ax.text(10, 27, "Layer 1", ha="center", fontsize=8.5, color="#666666")
+    ax.text(33, 27, "Layer 1", ha="center", fontsize=8.5, color="#666666")
+    ax.text(56, 27, "Layer 2", ha="center", fontsize=8.5, color="#666666")
+    ax.text(81, 27, "Layer 3", ha="center", fontsize=8.5, color="#666666")
+
+    ax.text(50, 1.5, "Figure 4.2 gives the real components behind each of these four steps.",
+            ha="center", va="bottom", fontsize=8.5, color="#444444", style="italic")
+
+    save(fig, "fig-4-1-layers-overview.png")
+
+
 if __name__ == "__main__":
     fig_architecture()
     fig_uc81_modules()
@@ -695,3 +821,7 @@ if __name__ == "__main__":
     fig_warm_path()
     fig_uc83_design()
     fig_shared_layer()
+    fig_semantic_gap()
+    fig_kappa_lambda()
+    fig_kg_fragment()
+    fig_layers_overview()
