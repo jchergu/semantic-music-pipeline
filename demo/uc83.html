@@ -16,7 +16,7 @@
     <a href="uc83.html" class="active">8.3</a>
   </nav>
 </header>
-<main>
+<main class="wide">
   <div class="panel">
     <h2>Session</h2>
     <div class="row">
@@ -32,19 +32,34 @@
     </div>
   </div>
 
-  <div class="panel">
-    <h2>Now playing</h2>
-    <div id="now-playing"><p class="empty">Connect, then click a track above.</p></div>
-  </div>
+  <div class="viz-grid">
+    <div class="viz-panel">
+      <svg id="scatter" width="640" height="560"></svg>
+      <div class="viz-legend">
+        <span><span class="swatch" style="background:#3d4560"></span>catalog</span>
+        <span><span class="swatch" style="background:#6ea8fe"></span>now playing</span>
+        <span><span class="swatch" style="background:#5fd88f"></span>pushed suggestion</span>
+      </div>
+      <div class="viz-caption">The currently-playing track pulses live on the map; a suggestion is computed and pushed the moment it starts &mdash; nobody asked for it.</div>
+      <div class="push-toast" id="push-toast">&#9679; pushed over WebSocket &mdash; unrequested</div>
+    </div>
 
-  <div class="panel">
-    <h2>Live classification (CLAP zero-shot)</h2>
-    <div id="live-tags"><p class="empty">&mdash;</p></div>
-  </div>
+    <div style="display:flex; flex-direction:column; gap:20px">
+      <div class="panel" style="margin-bottom:0">
+        <h2>Now playing</h2>
+        <div id="now-playing"><p class="empty">Connect, then click a track above.</p></div>
+      </div>
 
-  <div class="panel">
-    <h2>Proactive suggestion &mdash; pushed, not requested</h2>
-    <div id="suggestion"><p class="empty">&mdash;</p></div>
+      <div class="panel" style="margin-bottom:0">
+        <h2>Live classification (CLAP zero-shot)</h2>
+        <div id="live-tags" class="classify-bars"><p class="empty">&mdash;</p></div>
+      </div>
+
+      <div class="panel" style="margin-bottom:0">
+        <h2>Proactive suggestion &mdash; pushed, not requested</h2>
+        <div id="suggestion"><p class="empty">&mdash;</p></div>
+      </div>
+    </div>
   </div>
 </main>
 <footer>Connects over WebSocket to <code>usecases/8_3_streaming_proactive/proactive_service.py</code>
@@ -52,10 +67,18 @@
   (Decision E). Classification and suggestion are recomputed live from
   <code>media-stream</code> events; nothing here is precomputed for this page.</footer>
 
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="scatter.js"></script>
 <script>
 const PROACTIVE_API = "http://127.0.0.1:8040";
 const PROACTIVE_WS = "ws://127.0.0.1:8040";
 let socket = null;
+let scatterCtx = null;
+
+async function initScatter() {
+  const data = await loadEmbeddingSpace();
+  scatterCtx = createScatter("#scatter", data.tracks);
+}
 
 function connect() {
   const sessionId = document.getElementById("session-id").value.trim();
@@ -78,14 +101,14 @@ function connect() {
     statusDot.className = "dot err";
     statusText.textContent = `Could not reach ${PROACTIVE_API}. Is proactive_service.py running?`;
   };
-  socket.onmessage = (msg) => render(JSON.parse(msg.data));
+  socket.onmessage = (msg) => render(JSON.parse(msg.data), true);
 }
 
 async function loadInitialState(sessionId) {
   try {
     const resp = await fetch(`${PROACTIVE_API}/sessions/${encodeURIComponent(sessionId)}/now-playing`);
     const data = await resp.json();
-    if (data.now_playing) render(data);
+    if (data.now_playing) render(data, false);
   } catch (e) { /* fine -- nothing played yet */ }
 }
 
@@ -94,7 +117,13 @@ async function play(trackId) {
   await fetch(`${PROACTIVE_API}/simulate/${encodeURIComponent(sessionId)}/${trackId}`, { method: "POST" });
 }
 
-function render(data) {
+function showPushToast() {
+  const toast = document.getElementById("push-toast");
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 2400);
+}
+
+function render(data, isPush) {
   const nowPlayingEl = document.getElementById("now-playing");
   const tagsEl = document.getElementById("live-tags");
   const suggestionEl = document.getElementById("suggestion");
@@ -108,12 +137,23 @@ function render(data) {
         </div>
         <span class="pill live">now playing</span>
       </div>`;
+
+    if (scatterCtx) {
+      clearOverlay(scatterCtx);
+      const point = scatterCtx.byId.get(data.now_playing.track_id);
+      if (point) {
+        highlightTracks(scatterCtx, [data.now_playing.track_id], { color: "#6ea8fe", radius: 8, ring: true });
+      }
+    }
   }
 
   if (data.live_tags) {
-    tagsEl.innerHTML = data.live_tags
-      .map(([label, score]) => `<span class="badge on-genre">${label} (${score.toFixed(3)})</span>`)
-      .join(" ");
+    const maxScore = Math.max(...data.live_tags.map(([, s]) => s), 0.001);
+    tagsEl.innerHTML = data.live_tags.map(([label, score]) => `
+      <div class="classify-row">
+        <div class="tag-name"><span>${label}</span><span class="val">${score.toFixed(3)}</span></div>
+        <div class="classify-bar-track"><div class="classify-bar-fill" style="width:${(score / maxScore) * 100}%"></div></div>
+      </div>`).join("");
   }
 
   if (data.proactive_suggestion) {
@@ -131,12 +171,23 @@ function render(data) {
         <div class="badges">${badges.join("")}</div>
         <div class="score">${s.score.toFixed(3)}</div>
       </div>`;
+
+    if (scatterCtx) {
+      const point = scatterCtx.byId.get(s.track_id);
+      if (point) {
+        const now = scatterCtx.byId.get(data.now_playing.track_id);
+        const ox = scatterCtx.x(now.x), oy = scatterCtx.y(now.y);
+        connectFrom(scatterCtx, [ox, oy], [s.track_id], { color: "#5fd88f", stagger: 0 });
+        setTimeout(() => highlightTracks(scatterCtx, [s.track_id], { color: "#5fd88f", radius: 7, ring: true }), 500);
+      }
+    }
+    if (isPush) showPushToast();
   } else {
     suggestionEl.innerHTML = '<p class="empty">No suggestion yet.</p>';
   }
 }
 
-connect();
+initScatter().then(connect);
 </script>
 </body>
 </html>

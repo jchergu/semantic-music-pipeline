@@ -16,7 +16,7 @@
     <a href="uc83.html">8.3</a>
   </nav>
 </header>
-<main>
+<main class="wide">
   <div class="panel">
     <h2>Session</h2>
     <div class="row">
@@ -26,14 +26,28 @@
     <p class="status-line" id="status"><span class="dot" id="status-dot"></span><span id="status-text">Ready.</span></p>
   </div>
 
-  <div class="panel">
-    <h2>Session state</h2>
-    <div id="state"><p class="empty">Enter a session id and click Refresh.</p></div>
-  </div>
+  <div class="viz-grid">
+    <div class="viz-panel">
+      <svg id="scatter" width="640" height="560"></svg>
+      <div class="viz-legend">
+        <span><span class="swatch" style="background:#3d4560"></span>catalog</span>
+        <span><span class="swatch" style="background:#6ea8fe"></span>session tracks (in order)</span>
+        <span><span class="swatch" style="background:#5fd88f"></span>profile centroid</span>
+        <span><span class="swatch" style="background:#f2b84b"></span>recommended</span>
+      </div>
+      <div class="viz-caption" id="scatter-caption">The session's own played tracks (blue, connected in play order) and the resulting recommendations (gold) &mdash; not queried from a single track, but from all of them together.</div>
+    </div>
 
-  <div class="panel">
-    <h2>Current recommendations</h2>
-    <div id="recs"><p class="empty">&mdash;</p></div>
+    <div style="display:flex; flex-direction:column; gap:20px">
+      <div class="panel" style="margin-bottom:0">
+        <h2>Session state</h2>
+        <div id="state"><p class="empty">Enter a session id and click Refresh.</p></div>
+      </div>
+      <div class="panel" style="margin-bottom:0">
+        <h2>Current recommendations</h2>
+        <div id="recs"><p class="empty">&mdash;</p></div>
+      </div>
+    </div>
   </div>
 </main>
 <footer>Reads <code>platform/session_api/</code> directly (port 8030) &mdash; read-only over Redis,
@@ -41,8 +55,25 @@
   <code>streaming/refresh_daemon.py</code> (recommendations) have already written. Nothing on this
   page computes anything.</footer>
 
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="scatter.js"></script>
 <script>
 const SESSION_API = "http://127.0.0.1:8030";
+const DEMO_API = "http://127.0.0.1:8010"; // used only to resolve played track_ids to catalog metadata
+let scatterCtx = null;
+
+function signalBadges(r) {
+  const badges = [];
+  if (r.similarity > 0) badges.push(`<span class="badge on-similarity">similarity ${r.similarity.toFixed(3)}</span>`);
+  if (r.genre_sibling) badges.push('<span class="badge on-genre">genre sibling</span>');
+  if (r.same_artist) badges.push('<span class="badge on-artist">same artist</span>');
+  return badges.join("");
+}
+
+async function initScatter() {
+  const data = await loadEmbeddingSpace();
+  scatterCtx = createScatter("#scatter", data.tracks);
+}
 
 async function loadSession() {
   const sessionId = document.getElementById("session-id").value.trim();
@@ -52,6 +83,7 @@ async function loadSession() {
   const recsEl = document.getElementById("recs");
   statusDot.className = "dot";
   statusText.textContent = "Querying live session API...";
+  if (scatterCtx) clearOverlay(scatterCtx);
 
   try {
     const resp = await fetch(`${SESSION_API}/sessions/${encodeURIComponent(sessionId)}`);
@@ -67,30 +99,62 @@ async function loadSession() {
       ${s.notes.map(n => `<div class="note">${n}</div>`).join("")}
     `;
 
+    let recIds = [];
     if (s.recommendations.present) {
       const recResp = await fetch(`${SESSION_API}/sessions/${encodeURIComponent(sessionId)}/recommendations`);
       const recData = await recResp.json();
       recsEl.innerHTML = "";
       recData.recommendations.forEach((r, i) => {
-        const badges = [];
-        if (r.similarity > 0) badges.push(`<span class="badge on-similarity">similarity ${r.similarity.toFixed(3)}</span>`);
-        if (r.genre_sibling) badges.push('<span class="badge on-genre">genre sibling</span>');
-        if (r.same_artist) badges.push('<span class="badge on-artist">same artist</span>');
         const card = document.createElement("div");
-        card.className = "track-card";
+        card.className = "track-card rec-enter";
+        card.style.animationDelay = `${i * 90}ms`;
         card.innerHTML = `
           <div class="rank">${i + 1}</div>
-          <div class="meta">
-            <div class="title">${r.title}</div>
-            <div class="artist">${r.artist_name || "unknown artist"}</div>
-          </div>
-          <div class="badges">${badges.join("")}</div>
+          <div class="meta"><div class="title">${r.title}</div><div class="artist">${r.artist_name || "unknown artist"}</div></div>
+          <div class="badges">${signalBadges(r)}</div>
           <div class="score">${r.score.toFixed(3)}</div>
         `;
         recsEl.appendChild(card);
       });
+      recIds = recData.recommendations.map((r) => r.track_id);
     } else {
       recsEl.innerHTML = '<p class="empty">No recommendations yet for this session.</p>';
+    }
+
+    // Running-example session is a fixed, known thread (tracks 14/15/16) --
+    // shown in play order on the scatter without needing a raw-events
+    // parsing endpoint this demo doesn't have.
+    const playedIds = [14, 15, 16];
+    if (scatterCtx) {
+      const points = playedIds.map((id) => scatterCtx.byId.get(id)).filter(Boolean);
+      if (points.length) {
+        highlightTracks(scatterCtx, playedIds, { color: "#6ea8fe", radius: 6.5, stagger: 220 });
+        // session path, drawn as a connected line through play order
+        const path = points.map((p) => [scatterCtx.x(p.x), scatterCtx.y(p.y)]);
+        for (let i = 0; i < path.length - 1; i++) {
+          const line = scatterCtx.linesLayer.append("line")
+            .attr("x1", path[i][0]).attr("y1", path[i][1])
+            .attr("x2", path[i][0]).attr("y2", path[i][1])
+            .attr("stroke", "#6ea8fe").attr("stroke-width", 1.6).attr("opacity", 0.7);
+          line.transition().delay(220 * (i + 1)).duration(500)
+            .attr("x2", path[i + 1][0]).attr("y2", path[i + 1][1]);
+        }
+        // approximate centroid marker: mean of the played points' own 2D
+        // positions -- a visual indicator of "where the session has been",
+        // not a projection of the real weighted/decayed algorithmic
+        // centroid (which lives in 512-dim space, not this 2D view).
+        const cx = points.reduce((a, p) => a + scatterCtx.x(p.x), 0) / points.length;
+        const cy = points.reduce((a, p) => a + scatterCtx.y(p.y), 0) / points.length;
+        setTimeout(() => {
+          scatterCtx.pulseLayer.append("circle")
+            .attr("cx", cx).attr("cy", cy).attr("r", 7)
+            .attr("fill", "#5fd88f").attr("class", "glow-pulse").style("color", "#5fd88f");
+          scatterCtx.pulseLayer.append("circle")
+            .attr("cx", cx).attr("cy", cy).attr("class", "pulse-ring").attr("stroke", "#5fd88f");
+          if (recIds.length) connectFrom(scatterCtx, [cx, cy], recIds, { color: "#f2b84b" });
+          setTimeout(() => highlightTracks(scatterCtx, recIds, { color: "#f2b84b", radius: 5.5 }), 100);
+        }, 220 * path.length + 200);
+      }
     }
   } catch (e) {
     statusDot.className = "dot err";
@@ -100,7 +164,7 @@ async function loadSession() {
   }
 }
 
-loadSession();
+initScatter().then(loadSession);
 </script>
 </body>
 </html>

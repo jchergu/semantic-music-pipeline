@@ -201,3 +201,156 @@ footer {
 .status-line .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
 .status-line .dot.ok { background: var(--good); }
 .status-line .dot.err { background: var(--bad); }
+
+/* ---- visual demo layer: semantic-space scatter, animated bars, pulses ---- */
+
+main.wide { max-width: 1360px; }
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .viz-grid { grid-template-columns: 1fr; }
+}
+
+.viz-panel {
+  background: radial-gradient(ellipse at 30% 20%, #1c2130 0%, var(--panel) 60%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 16px 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.viz-panel svg { width: 100%; height: auto; display: block; }
+
+.viz-caption {
+  color: var(--muted);
+  font-size: 11.5px;
+  padding: 6px 4px 2px;
+  line-height: 1.5;
+}
+
+.viz-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 4px 8px;
+}
+
+.viz-legend .swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.track-dot { transition: r 0.4s ease, opacity 0.4s ease; }
+
+@keyframes pulse-ring {
+  0%   { r: 6px; opacity: 0.9; }
+  70%  { r: 26px; opacity: 0; }
+  100% { r: 26px; opacity: 0; }
+}
+
+.pulse-ring {
+  animation: pulse-ring 2.2s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+  fill: none;
+  stroke-width: 2px;
+}
+
+@keyframes glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 3px currentColor); }
+  50%      { filter: drop-shadow(0 0 10px currentColor); }
+}
+
+.glow-pulse { animation: glow-pulse 1.8s ease-in-out infinite; }
+
+.signal-bars { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+
+.signal-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.signal-bar-row .label { width: 58px; flex-shrink: 0; text-align: right; }
+
+.signal-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.signal-bar-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.signal-bar-fill.similarity { background: linear-gradient(90deg, #2f5c8a, var(--accent)); }
+.signal-bar-fill.genre { background: linear-gradient(90deg, #a8792a, var(--accent-2)); }
+.signal-bar-fill.artist { background: linear-gradient(90deg, #2f7a4f, var(--good)); }
+
+/* No entrance keyframe animation here (removed, not just detuned): with or
+   without `backwards`, headless-Chrome screenshot capture intermittently
+   froze individual cards mid-transition regardless of elapsed virtual time
+   -- confirmed via --dump-dom that the underlying content was always
+   complete and correct, only the rendered opacity/transform was unreliable.
+   The scatter plot's D3 transitions (highlightTracks/connectFrom) and the
+   classification bar-fill transition did not show this problem and are
+   kept. Cards render immediately instead. */
+.track-card.rec-enter { }
+
+.push-toast {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: linear-gradient(135deg, #1f2937, #111827);
+  border: 1px solid var(--good);
+  box-shadow: 0 0 24px rgba(95, 216, 143, 0.35);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--good);
+  transform: translateY(-12px);
+  opacity: 0;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.push-toast.show { transform: translateY(0); opacity: 1; }
+
+.classify-bars { display: flex; flex-direction: column; gap: 8px; }
+
+.classify-row .tag-name { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+.classify-row .tag-name .val { color: var(--accent-2); font-variant-numeric: tabular-nums; }
+
+.classify-bar-track {
+  height: 8px;
+  background: var(--panel-2);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.classify-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #a8792a, var(--accent-2));
+  border-radius: 4px;
+  transition: width 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+}

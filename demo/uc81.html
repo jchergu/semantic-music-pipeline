@@ -16,7 +16,7 @@
     <a href="uc83.html">8.3</a>
   </nav>
 </header>
-<main>
+<main class="wide">
   <div class="panel">
     <h2>Seed track</h2>
     <div class="row">
@@ -32,9 +32,21 @@
     <p class="status-line" id="status"><span class="dot" id="status-dot"></span><span id="status-text">Ready.</span></p>
   </div>
 
-  <div class="panel">
-    <h2 id="seed-heading">Recommendations</h2>
-    <div id="results"><p class="empty">Pick a seed track and click "Get recommendations".</p></div>
+  <div class="viz-grid">
+    <div class="viz-panel">
+      <svg id="scatter" width="640" height="560"></svg>
+      <div class="viz-legend">
+        <span><span class="swatch" style="background:#3d4560"></span>catalog (411 tracks)</span>
+        <span><span class="swatch" style="background:#6ea8fe"></span>seed track</span>
+        <span><span class="swatch" style="background:#f2b84b"></span>recommended</span>
+      </div>
+      <div class="viz-caption">A real 2D projection (PCA on CLAP embeddings, 22% variance explained &mdash; an approximate view of the space, not an exact map) of all 411 catalog tracks. Lines animate in from the seed to each of its top-10 recommendations as they're computed.</div>
+    </div>
+
+    <div class="panel" style="margin-bottom:0">
+      <h2 id="seed-heading">Recommendations</h2>
+      <div id="results"><p class="empty">Pick a seed track and click "Get recommendations".</p></div>
+    </div>
   </div>
 </main>
 <footer>Calls the live Semantic API + <code>context_builder.build_context()</code> +
@@ -42,21 +54,46 @@
   production code path 8.1's batch <code>recommend.py</code> runs per seed, exposed live
   via <code>usecases/8_1_batch_reactive/demo_api.py</code> for this page only.</footer>
 
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="scatter.js"></script>
 <script>
 const DEMO_API = "http://127.0.0.1:8010";
+let scatterCtx = null;
 
 function badge(cls, label) {
   return `<span class="badge ${cls}">${label}</span>`;
 }
 
+function signalBars(r) {
+  const simPct = Math.max(0, Math.min(100, r.similarity * 100));
+  const genrePct = r.genre_sibling ? 100 : 0;
+  const artistPct = r.same_artist ? 100 : 0;
+  return `
+    <div class="signal-bars">
+      <div class="signal-bar-row"><span class="label">similarity</span>
+        <div class="signal-bar-track"><div class="signal-bar-fill similarity" style="width:${simPct}%"></div></div></div>
+      <div class="signal-bar-row"><span class="label">genre</span>
+        <div class="signal-bar-track"><div class="signal-bar-fill genre" style="width:${genrePct}%"></div></div></div>
+      <div class="signal-bar-row"><span class="label">artist</span>
+        <div class="signal-bar-track"><div class="signal-bar-fill artist" style="width:${artistPct}%"></div></div></div>
+    </div>`;
+}
+
+async function initScatter() {
+  const data = await loadEmbeddingSpace();
+  scatterCtx = createScatter("#scatter", data.tracks);
+}
+
 async function loadRecs() {
-  const trackId = document.getElementById("seed-select").value;
+  const trackId = parseInt(document.getElementById("seed-select").value, 10);
   const statusDot = document.getElementById("status-dot");
   const statusText = document.getElementById("status-text");
   const results = document.getElementById("results");
   statusDot.className = "dot";
   statusText.textContent = "Querying live stack...";
   results.innerHTML = "";
+  if (scatterCtx) clearOverlay(scatterCtx);
+
   try {
     const resp = await fetch(`${DEMO_API}/recommend/${trackId}`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -72,18 +109,31 @@ async function loadRecs() {
       if (r.genre_sibling) badges.push(badge("on-genre", "genre sibling"));
       if (r.same_artist) badges.push(badge("on-artist", "same artist"));
       const card = document.createElement("div");
-      card.className = "track-card";
+      card.className = "track-card rec-enter";
+      card.style.animationDelay = `${i * 90}ms`;
       card.innerHTML = `
         <div class="rank">${i + 1}</div>
         <div class="meta">
           <div class="title">${r.title}</div>
           <div class="artist">${r.artist_name || "unknown artist"}</div>
+          ${signalBars(r)}
         </div>
         <div class="badges">${badges.join("")}</div>
         <div class="score">${r.score.toFixed(3)}</div>
       `;
       results.appendChild(card);
     });
+
+    if (scatterCtx) {
+      const seedPoint = scatterCtx.byId.get(data.seed.track_id);
+      if (seedPoint) {
+        const ox = scatterCtx.x(seedPoint.x), oy = scatterCtx.y(seedPoint.y);
+        highlightTracks(scatterCtx, [data.seed.track_id], { color: "#6ea8fe", radius: 8, ring: true });
+        const recIds = data.recommendations.map((r) => r.track_id);
+        connectFrom(scatterCtx, [ox, oy], recIds, { color: "#f2b84b" });
+        setTimeout(() => highlightTracks(scatterCtx, recIds, { color: "#f2b84b", radius: 5.5 }), 80);
+      }
+    }
   } catch (e) {
     statusDot.className = "dot err";
     statusText.textContent = `Could not reach the demo API at ${DEMO_API} (${e.message}). Is it running?`;
@@ -91,7 +141,7 @@ async function loadRecs() {
   }
 }
 
-loadRecs();
+initScatter().then(loadRecs);
 </script>
 </body>
 </html>
