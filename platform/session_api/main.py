@@ -41,6 +41,7 @@ from typing import Optional
 
 import redis
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from streaming.config import REDIS_HOST, REDIS_PORT
@@ -64,6 +65,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Session API", lifespan=lifespan)
+# Permissive and demo-only: lets demo/uc82.html (a local static file) call
+# this read-only service directly from the browser for thesis screenshots.
+# Not a change to this service's own read-only/no-compute contract above.
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
 
 
 class Recommendation(BaseModel):

@@ -77,6 +77,35 @@ def refresh_meta_key(session_id: str) -> str:
     return f"session:{session_id}:refresh_meta"
 
 
+def now_playing_key(session_id: str) -> str:
+    """The session's current media-stream position (hash fields: track_id,
+    event_time), DERIVED state written by usecases/8_3_streaming_proactive/
+    proactive_service.py's media-stream consumer. Canonical definition kept
+    here alongside its 8.2 siblings for the same reason as recs_key() and
+    profile_key(): one place records every session key regardless of which
+    use case's code writes it."""
+    return f"session:{session_id}:now_playing"
+
+
+def live_tags_key(session_id: str) -> str:
+    """The live CLAP zero-shot classification of the track now_playing_key()
+    names (JSON list of [label, similarity] pairs), DERIVED state written by
+    the same 8.3 proactive_service.py consumer. See
+    usecases/8_3_streaming_proactive/live_classifier.py for the pure
+    classification logic; nothing here decides labels, this only names the
+    key they're stored under."""
+    return f"session:{session_id}:live_tags"
+
+
+def proactive_suggestion_key(session_id: str) -> str:
+    """The unsolicited next-track suggestion computed for the session's
+    current now-playing track, DERIVED state written by the same 8.3
+    consumer. Distinct from recs_key() (8.2's on-demand top-10, refreshed on
+    a debounce): this is the single top suggestion recomputed on every
+    media-stream event, pushed rather than pulled (Decision E)."""
+    return f"session:{session_id}:proactive_suggestion"
+
+
 def expire_derived(client, session_id: str, *keys: str) -> None:
     """Applies DERIVED_TTL_SECONDS to derived session keys.
 

@@ -1,0 +1,5 @@
+# Nothing beyond platform/enrichment/.venv's existing defaults plus
+# platform/streaming/requirements.txt (confluent-kafka, redis) and the
+# fastapi/uvicorn[standard]/httpx pins already installed for stages
+# 4/11/16 -- see CLAUDE.md's Commands section for the shared install
+# command. Listed here for documentation, not a separate install step.
