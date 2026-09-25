@@ -1,6 +1,6 @@
 # 6. Streaming Use Cases: 8.2 and 8.3
 
-Chapter 5 built the batch/reactive Recommender Engine over a static catalog. This chapter documents the streaming half of the use-case taxonomy: 8.2 (streaming, reactive), implemented and evaluated in full, and 8.3 (streaming, proactive), which remains unimplemented and is set out here as a design rather than a result.
+Chapter 5 built the batch/reactive Recommender Engine over a static catalog. This chapter documents the streaming half of the use-case taxonomy: 8.2 (streaming, reactive), implemented and evaluated in full, and 8.3 (streaming, proactive), set out here as a design with a minimal real demonstration slice (Section 6.2.8) built to show the mechanism working end-to-end — not evaluated to 8.1/8.2's standard, and reporting no metrics or verdict of its own.
 
 The two are independent modules (they share no runtime state and no code path with each other), but both build on the same shared platform, extended for this chapter with the streaming capabilities the batch use case did not need.
 
@@ -19,6 +19,10 @@ Three consequences follow, and they account for essentially all of the new work:
 - It needs recommendations that are *already current* when a client asks, rather than computed on demand, which means a background refresh loop with an explicit policy for how often it may run (Section 6.1.5) and a delivery service that reads what that loop wrote (Section 6.1.6).
 
 The scoring function itself is unchanged. `ranking.score_recommendations()` (the additive weighted sum defined and justified in Section 5.3.4) is reused verbatim by 8.2, after being moved from the 8.1 use-case directory into the shared platform package. The independence rule between use cases (Section 4.5) is a rule about 8.1, 8.2 and 8.3 not depending on *each other*; it was never a rule against either of them depending on the platform, and re-implementing a scoring function that already exists and is already tested would have been the worse outcome. What 8.2 changes is the *input* to that function, not the function.
+
+Figure 6.12 is the original conceptual sketch of this use case, and one honest correction against it is worth stating before the rest of the chapter builds on the real pipeline. The three input streams on the left and the five processing stages both hold up: stream ingestion, incremental feature extraction, and a continuously updated recommendation are exactly what Sections 6.1.4–6.1.6 build. The one part of this picture that was **not** built is the "Other Users Listening Stream" input and the cross-session "Real-Time Similarity Computation" it feeds: this thesis's implemented 8.2 computes a session's profile from that session's own events alone (Section 6.1.4's centroid), with no signal from any other listener's session. The figure is kept here as it was originally conceived, not edited to match the implementation after the fact, precisely so this gap is visible rather than quietly smoothed over — a genuine simplification, not an oversight discovered late.
+
+![Figure 6.12: The original conceptual design for a real-time adaptive recommendation session. "Stream Ingestion" through "Continuous Recommendation Update" describe Sections 6.1.4–6.1.6 accurately; the "Other Users Listening Stream" and its cross-session similarity step do not — this thesis's 8.2 uses only the current session's own events.](figures/fig-6-12-streaming-recommendation-concept.png){width=6.3in}
 
 ### 6.1.2 A Correction to the Planned Transport: Request/Response, Not WebSocket
 
@@ -281,9 +285,17 @@ The pipeline adapts to a taste change at the first refresh after it, in one to t
 
 Of the 215 automated tests in the repository, all of which pass, 162 belong to the streaming stages and their evaluation packs.
 
+### 6.1.13 Demonstration
+
+Sections 6.1.1–6.1.12 report what the harness measured. This section shows the same pipeline running against the running example of Section 1.3, continuing directly from Figure 5.7: the same three tracks, "Gates," "Billy Comes Home," and "Give Me Hope," played in sequence as one session rather than queried one at a time.
+
+![Figure 6.10: 8.2's demonstration page, live against the running example. Left: session state, showing a computed 512-dimensional profile from three events (the Flink job of Section 6.1.4 has already fired a window). Right: the resulting recommendations, computed by the warm path of Figure 6.3 over the session profile rather than over any single track.](figures/fig-6-10-uc82-demo.png){width=6.3in}
+
+The list this session returns is not the list Figure 5.7 returned for "Gates" alone: "When the Stars Fall from Grace" now ranks first, a track that appeared nowhere in Chapter 5's single-seed result. This is the cold-start-to-warm handoff of Figure 6.2 made visible on one concrete example: querying "Gates" in isolation (Section 5.7) and playing "Gates" as the opening track of a session that continues through "Billy Comes Home" and "Give Me Hope" are different inputs to the same scoring function, and Section 6.1.5's warm path is what makes the second one session-aware rather than seed-aware. Reaching this state on the live stack required exactly what Section 6.1.5 describes: the raw-state daemon caching three events, the Flink job's window firing once enough event time had passed, and the refresh daemon's debounce re-evaluating on a subsequent event and finding a profile where its previous refresh had found none — the race Figure 6.2 describes, observed rather than staged.
+
 ## 6.2 Use Case 8.3: Streaming, Proactive
 
-The third row of the taxonomy in Section 4.5 is streaming and proactive: a suggestion the system offers from what is currently playing, without the listener having asked for anything. It is not implemented. What follows is its design, the platform surface it would stand on, and what Section 6.1's measurements already determine about it. It reports no results of its own, and Section 6.2.2 explains why that separation is a methodological commitment rather than a hedge.
+The third row of the taxonomy in Section 4.5 is streaming and proactive: a suggestion the system offers from what is currently playing, without the listener having asked for anything. What follows is its design, the platform surface it stands on, and what Section 6.1's measurements already determine about it. A minimal real slice of this design has been built and is shown running in Section 6.2.8 — but it reports no evaluation results of its own, and Section 6.2.2 explains why that separation is a methodological commitment rather than a hedge, unaffected by whether a demonstration exists.
 
 ### 6.2.1 Scope: What Proactive Actually Changes
 
@@ -300,6 +312,8 @@ Section 6.1.7 committed the evaluation of 8.2 to four methodological rules, and 
 So no number in this section is an 8.3 measurement. Section 6.2.6 does cite measured values, and every one of them is 8.2's, taken from Tables 6.3 to 6.7 and reported there against a live run. They appear because 8.3 would execute on the same substrate, which makes them inherited bounds rather than predictions: the claim is not that 8.3 would behave a certain way, but that 8.3 could not behave better than a component already measured beneath it. That is a weaker claim than a result and a stronger one than an estimate, and it is the strongest form available to an unimplemented design.
 
 Nothing in Section 6.1 depends on this section. The eight metrics, the eight scenarios and the 162 streaming tests stand whether or not 8.3 is ever built.
+
+This holds equally after Section 6.2.8's demonstration slice was built. A working demonstration answers "does the mechanism run end-to-end", which is a systems question; it does not answer, and was never used to answer, any question this section's pre-registration rule governs. No pass/fail rule was written for it before it ran, so none is reported now — the same rule that forbids retroactively scoring an unbuilt design forbids retroactively scoring a demonstration that was never set up as a measurement in the first place.
 
 ### 6.2.3 The Proposed Design
 
@@ -374,3 +388,13 @@ Both evaluation packs in this thesis refuse accuracy metrics for the same stated
 This is the honest reason 8.3 is scoped out, and it is a better reason than time. The platform is ready, the pipeline is measured, and the remaining question is one the available data cannot answer. Building a trigger policy anyway would produce a system that emits suggestions on a schedule chosen arbitrarily and defended by nothing, and the thesis would have to say so.
 
 What could still be pre-registered, if 8.3 were built, is worth naming, because the boundary is not where it first appears. Time from track onset to first suggestion, classifier latency as a new hop in Table 6.3's decomposition, suggestion rate per session, how often a suggestion is superseded before a listener could act on it, and whether a client can detect staleness are all systems and behaviour measures, all label-free, and all answerable by the same kind of harness Section 6.1.7 describes. The single measure that would matter most, whether the interruption was welcome, is the one that would require a user study rather than a metric. That is the shape of the future work, and it is a different kind of work from anything in this thesis.
+
+### 6.2.8 A Minimal Demonstration
+
+Everything in Sections 6.2.3–6.2.7 was, until now, unbuilt. A minimal real slice of it was implemented to show the mechanism running end-to-end, continuing the running example of Section 1.3: "Give Me Hope" (#16), the last track of the same three-track session Section 5.7 and Section 6.1's own examples already used.
+
+The slice deliberately does not settle the question Section 6.2.7 raises. It triggers a suggestion on every "now playing" event — the simplest possible trigger, not a data-driven policy for *when* to interrupt — because a demonstration only needs some trigger to show the pipeline working, and inventing a principled one here would be exactly the arbitrary, undefended trigger policy Section 6.2.7 already declined to build. What it does show is every other piece of Section 6.2.3's design actually working together: `media-stream` carrying its first real messages, a live CLAP zero-shot classification (auto-tagging reused as a classifier, writing nothing to Neo4j, as Section 6.2.3 specifies), a suggestion computed by the unmodified Section 5.6.1 scoring function, and delivery over a WebSocket rather than a request/response poll — the one place in this pipeline that pushes.
+
+![Figure 6.11: Use case 8.3's minimal demonstration slice, live against the running example. "Give Me Hope" is playing; the live classifier's top-3 CLAP zero-shot tags (artrock/country/poprock) are a real, imperfect result on this small amateur catalog, not a cherry-picked one; the pushed suggestion is the same-artist, genre-sibling, high-similarity track the batch signals of Chapter 5 already favour.](figures/fig-6-11-uc83-demo.png){width=6.3in}
+
+The suggestion in Figure 6.11 illustrates why this is a demonstration and not an evaluation. It is a strong result on this one example — the same artist, a genre sibling, and 0.854 cosine similarity all agreeing — but one example is not a sample, and the live classifier's own top-3 tags are visibly imperfect (an art-rock/country/pop-rock reading of a track catalogued as rock/pop/indie). This is a real, unhidden observation about applying a general-purpose zero-shot classifier to a small, amateur catalog, consistent with Section 3.2's note that CLAP's training distribution is general-purpose rather than music-specific — but it is one example, not a measurement, and no accuracy claim is made from it. Neither observation is a finding; both are exactly what Section 6.2.2 predicts a demonstration can and cannot show. What the screenshot demonstrates is narrower and more defensible: that the design of Sections 6.2.3–6.2.4 is not merely proposed, it runs, on real data, against the same pipeline Section 6.1 measured.

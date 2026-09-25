@@ -136,7 +136,7 @@ def canvas(w_in, h_in, xlim=(0, 100), ylim=(0, 100)):
 
 def save(fig, name):
     path = OUT_DIR / name
-    fig.savefig(path, dpi=200, bbox_inches="tight", facecolor="white")
+    fig.savefig(path, dpi=300, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     print(f"wrote {path}")
 
@@ -642,6 +642,45 @@ def fig_uc81_sequence():
     save(fig, "fig-5-6-uc81-sequence.png")
 
 
+def fig_shared_layer():
+    """Figure 1.1 (Chapter 1, Motivation) -- the one deliberately NON-technical
+    figure in this file: no protocol names, no store names, no code paths.
+    Contrasts four applications each maintaining their own private
+    understanding of a track (left) against four applications reading one
+    shared semantic layer (right) -- the intuitive version of the
+    architectural argument Section 1.1's prose already makes from the
+    literature. Every other figure in this module explains a mechanism;
+    this one explains why the mechanism is worth having at all."""
+    fig, ax = canvas(11, 5.2, xlim=(0, 100), ylim=(0, 52))
+
+    apps = ["Recommender", "Similarity\nSearch", "Auto-tagging", "Playlist\nGeneration"]
+
+    # --- left panel: one private model per application ---
+    ax.text(20, 49, "Without a shared layer", ha="center", fontsize=12, fontweight="bold")
+    app_y = [37, 26, 15, 4]
+    for label, y in zip(apps, app_y):
+        box(ax, 2, y, 17, 8, label, style="external", fs=9)
+        box(ax, 22, y, 16, 8, "own private\ntrack model", style="compute", fs=8)
+        arrow(ax, (19, y + 4), (22, y + 4), color="#8a3a3a")
+    ax.text(20, -2.5, "4 duplicated models -> 4x the cold-start problem,\nno shared improvement",
+            ha="center", va="top", fontsize=8.5, color="#8a3a3a", style="italic")
+
+    # --- right panel: one shared semantic layer ---
+    ax.text(78, 49, "With a shared semantic layer", ha="center", fontsize=12, fontweight="bold")
+    app_y2 = [37, 26, 15, 4]
+    hub = box(ax, 68, 15.5, 22, 14, "Shared semantic\nlayer", "(what a track IS,\nonce)", style="service", fs=10, sub_fs=8.5)
+    for label, y in zip(apps, app_y2):
+        box(ax, 44, y, 17, 8, label, style="external", fs=9)
+        arrow(ax, (61, y + 4), (68, hub[1] + hub[3] / 2), color="#2f6a3a", rad=0.15 if y != 22.5 else 0.0)
+    ax.text(78, -2.5, "one enriched representation, reused --\nan improvement to it helps every application",
+            ha="center", va="top", fontsize=8.5, color="#2f6a3a", style="italic")
+
+    ax.plot([50, 50], [-4, 50], color="#cccccc", lw=1.0, linestyle=(0, (2, 3)))
+
+    fig.subplots_adjust(bottom=0.12)
+    save(fig, "fig-1-1-shared-layer.png")
+
+
 if __name__ == "__main__":
     fig_architecture()
     fig_uc81_modules()
@@ -650,3 +689,4 @@ if __name__ == "__main__":
     fig_cold_warm()
     fig_warm_path()
     fig_uc83_design()
+    fig_shared_layer()

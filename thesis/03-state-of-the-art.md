@@ -64,6 +64,8 @@ Table 3.1 summarizes the external data sources evaluated as candidate inputs.
   FMA (Free Music Archive)   Static dataset                  Evaluated as seed source, rejected (see Section 5.3.1)
   ------------------------------------------------------------------------------------------------------------------------------
 
+  : Table 3.1: External data sources evaluated as candidate inputs.
+
 A permissive, redistributable license and a scriptable, individually-addressable download path (rather than one large archive that must be fetched in full before any subsetting is possible) mattered most in practice for a reproducible ingestion run at the 200-500 track scale target. Jamendo satisfied both for this thesis's seed dataset; MusicBrainz supplies identity resolution rather than audio and is therefore never a candidate seed source in its own right; Freesound's role is deliberately different again, supplying short, clearly-licensed clips for use case 8.3's simulated live stream rather than catalog tracks. FMA was the closest runner-up and its rejection is detailed concretely, not just in the abstract, alongside the ingestion pipeline itself in Section 5.3.1: a disk-footprint argument specific to how FMA is distributed (per-split archives) rather than a licensing objection. Spotify and Last.fm were evaluated for their richer commercial metadata and scrobble/tag data respectively, but neither was pursued once Jamendo's API alone proved sufficient for the seed range targeted.
 
 ## 3.11 Summary and Positioning

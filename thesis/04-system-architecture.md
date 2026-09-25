@@ -2,6 +2,18 @@
 
 The proposed system is structured as a modular, extensible, input-agnostic pipeline composed of three layers: Data Preparation, Semantic Enrichment, and a Semantic API / Application layer. The pipeline supports both batch processing of static datasets and stream processing of continuous, real-time data, allowing multiple specialized processing flows to be generated from the same underlying architecture.
 
+Table 4.1 states plainly what that duality means before the layer-by-layer description below gets specific about it. The architecture is Kappa-inspired rather than Lambda-style (Section 4.4): batch is the primary paradigm, and the streaming path is a real-time extension of the same enrichment logic rather than a second, independently maintained implementation of it.
+
+| Aspect | Batch (this thesis's 8.1) | Stream (this thesis's 8.2/8.3) |
+|---|---|---|
+| Input | A static catalog of media files | A continuous event stream |
+| Processing | The full dataset at once | Incremental, window-based |
+| Latency | Seconds per query, minutes for a full catalog pass | Milliseconds to seconds per event |
+| Trigger | An explicit, one-off query | A continuously updated session |
+| State | Stateless between queries | Stateful (session profile, sliding windows) |
+
+: Table 4.1: Batch and streaming processing, as this thesis's own use cases instantiate the distinction (not a generic industry comparison — the specific latencies and triggers are measured in Chapters 5 and 6).
+
 ## 4.1 Layer 1: Data Preparation
 
 Responsible for transforming raw inputs into structured representations: cleaning, deduplication, normalization, and modality-specific feature extraction (audio: tempo, spectral features, MFCCs; image: color/texture/visual embeddings; video: motion/temporal features; text: embeddings and keyword extraction). Streaming inputs are processed incrementally over time windows rather than requiring a complete dataset. Storage is split by concern into three distinct systems, each addressing a different access pattern: object storage (MinIO/S3) for raw media blobs, a columnar feature store (Parquet/Delta Lake) for extracted numerical features, and PostgreSQL as the relational system of record for track metadata.

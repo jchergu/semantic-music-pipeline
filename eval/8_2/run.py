@@ -607,7 +607,7 @@ def write_figures(reactivity_results: list[dict], latency_results: dict) -> None
     if plotted:
         ax.legend()
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "reactivity_curves.png", dpi=150)
+    fig.savefig(FIGURES_DIR / "reactivity_curves.png", dpi=300)
     plt.close(fig)
 
     hops = [("H1 ingest POST", "h1_ingest_post_seconds"),
@@ -635,7 +635,7 @@ def write_figures(reactivity_results: list[dict], latency_results: dict) -> None
         ax.set_title("Metric 2: latency per hop (wall-clock, log scale)")
         ax.legend()
         fig.tight_layout()
-        fig.savefig(FIGURES_DIR / "latency_breakdown.png", dpi=150)
+        fig.savefig(FIGURES_DIR / "latency_breakdown.png", dpi=300)
         plt.close(fig)
 
 
@@ -663,7 +663,7 @@ def write_coherence_figure(coherence_results: list[dict], late_event_results: di
         ax.set_title(f"Metric 4: semantic coherence over session time ({res['name']})")
         ax.legend()
         fig.tight_layout()
-        fig.savefig(FIGURES_DIR / f"coherence_{res['name']}.png", dpi=150)
+        fig.savefig(FIGURES_DIR / f"coherence_{res['name']}.png", dpi=300)
         plt.close(fig)
 
     if not late_event_results:
@@ -687,7 +687,7 @@ def write_coherence_figure(coherence_results: list[dict], late_event_results: di
     if plotted:
         ax.legend()
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "late_event_coherence.png", dpi=150)
+    fig.savefig(FIGURES_DIR / "late_event_coherence.png", dpi=300)
     plt.close(fig)
 
 
@@ -717,7 +717,7 @@ def write_coverage_figure(coverage_results: list[dict]) -> None:
     ax.set_title("Metric 5: catalog coverage accumulation over a 40-track session")
     ax.legend()
     fig.tight_layout()
-    fig.savefig(FIGURES_DIR / "coverage_curve.png", dpi=150)
+    fig.savefig(FIGURES_DIR / "coverage_curve.png", dpi=300)
     plt.close(fig)
 
 

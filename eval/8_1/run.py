@@ -82,7 +82,7 @@ def write_figures(coverage: dict, diversity: dict, latency_summary: dict | None,
     ax.set_ylabel("Times recommended (top-10 appearances)")
     ax.set_title("Catalog coverage long tail")
     fig.tight_layout()
-    fig.savefig(figures_dir / "coverage_long_tail.png", dpi=150)
+    fig.savefig(figures_dir / "coverage_long_tail.png", dpi=300)
     plt.close(fig)
 
     # Diversity histogram
@@ -93,7 +93,7 @@ def write_figures(coverage: dict, diversity: dict, latency_summary: dict | None,
     ax.set_ylabel("Number of seeds")
     ax.set_title("Intra-list diversity distribution")
     fig.tight_layout()
-    fig.savefig(figures_dir / "diversity_histogram.png", dpi=150)
+    fig.savefig(figures_dir / "diversity_histogram.png", dpi=300)
     plt.close(fig)
 
     # Latency breakdown -- only if latency was measured for this pass
@@ -112,7 +112,7 @@ def write_figures(coverage: dict, diversity: dict, latency_summary: dict | None,
         ax.set_title("Per-stage latency breakdown")
         ax.legend()
         fig.tight_layout()
-        fig.savefig(figures_dir / "latency_breakdown.png", dpi=150)
+        fig.savefig(figures_dir / "latency_breakdown.png", dpi=300)
         plt.close(fig)
 
 

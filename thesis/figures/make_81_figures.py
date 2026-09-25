@@ -72,7 +72,7 @@ def load(path: Path) -> dict:
 def save(fig, name: str) -> None:
     path = OUT_DIR / name
     fig.tight_layout()
-    fig.savefig(path, dpi=200, facecolor="white")
+    fig.savefig(path, dpi=300, facecolor="white")
     plt.close(fig)
     print(f"wrote {path}")
 
