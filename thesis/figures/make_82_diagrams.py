@@ -669,9 +669,14 @@ def fig_shared_layer():
     ax.text(78, 49, "With a shared semantic layer", ha="center", fontsize=12, fontweight="bold")
     app_y2 = [37, 26, 15, 4]
     hub = box(ax, 68, 15.5, 22, 14, "Shared semantic\nlayer", "(what a track IS,\nonce)", style="service", fs=10, sub_fs=8.5)
-    for label, y in zip(apps, app_y2):
+    # Straight lines (no curvature) into four distinct points spread across the
+    # hub's left edge, highest source to highest entry point and so on --
+    # avoids both the mid-air crossing curved arrows produced and the
+    # bunching-up all four had converging on the exact same center point.
+    entry_ys = [27.5, 24.17, 20.83, 17.5]
+    for label, y, entry_y in zip(apps, app_y2, entry_ys):
         box(ax, 44, y, 17, 8, label, style="external", fs=9)
-        arrow(ax, (61, y + 4), (68, hub[1] + hub[3] / 2), color="#2f6a3a", rad=0.15 if y != 22.5 else 0.0)
+        arrow(ax, (61, y + 4), (68, entry_y), color="#2f6a3a")
     ax.text(78, -2.5, "one enriched representation, reused --\nan improvement to it helps every application",
             ha="center", va="top", fontsize=8.5, color="#2f6a3a", style="italic")
 

@@ -45,12 +45,20 @@ The same listening moment means something different under each use-case mode, an
 : Table 1.1: The use-case taxonomy this thesis builds against.
 
 -   **Use case 8.1 (batch, reactive; Chapter 5)** treats "Gates" as an explicit query: the listener asks, once, for more tracks like this one, and the system answers from that single track alone, with no memory of anything played before or after it.
+
+    ![Figure 1.2: The general shape of use case 8.1 — an explicit, one-off query against a single track's context. Chapter 5 (Figure 5.7) shows this same flow running against "Gates," the running example's real seed track.](figures/fig-2-1-batch-recommendation-concept.png){width=6.0in}
+
 -   **Use case 8.2 (streaming, reactive; Chapter 6)** treats the same three tracks as a *session*: nothing is asked explicitly, but the system builds an implicit taste profile from all three as they play, and a query issued after "Give Me Hope" gets an answer shaped by the whole session, not by "Give Me Hope" alone.
+
+    ![Figure 1.3: The original conceptual design for use case 8.2. Section 6.1.1 states one correction against it up front: the "Other Users Listening Stream" and its cross-session similarity step were never built — this thesis's 8.2 uses only the current session's own events, not signals from other listeners.](figures/fig-6-12-streaming-recommendation-concept.png){width=6.0in}
+
 -   **Use case 8.3 (streaming, proactive; Chapter 6)** treats "Give Me Hope" as a moment to act on unprompted: while it is playing, the system classifies it live and pushes a suggestion to the listener before they ask for one.
 
-Figure 1.2 shows this thread as it actually runs against the live system — not a mock-up, a screenshot of the demonstration pages this thesis's implementation chapters revisit for each use case (Figures 5.7, 6.10 and 6.11).
+    ![Figure 1.4: The earliest conceptual sketch for a proactive use case, drawn before this thesis's scope was fixed — a live-performing musician rather than a listener. Section 6.2.3 gives the design actually specified and built (live classification of a playing track, not a live instrument feed); Section 7.3 returns to this sketch as a separate, unimplemented illustration of the architecture's generality.](figures/fig-7-1-live-audio-understanding-concept.png){width=6.0in}
 
-![Figure 1.2: The running example, as it runs against the live pipeline. The same three-track thread (#14 -> #15 -> #16) reappears, specialized to each use-case mode, in Figures 5.7, 6.10 and 6.11.](figures/fig-1-2-running-example-overview.png){width=6.3in}
+Figure 1.5 shows the thread as it actually runs against the live system, after each concept sketch above met its real implementation — not a mock-up, a screenshot of the demonstration pages this thesis's implementation chapters revisit for each use case (Figures 5.7, 6.10 and 6.11).
+
+![Figure 1.5: The running example, as it runs against the live pipeline. The same three-track thread (#14 -> #15 -> #16) reappears, specialized to each use-case mode, in Figures 5.7, 6.10 and 6.11.](figures/fig-1-2-running-example-overview.png){width=6.3in}
 
 ## 1.4 Thesis Structure
 
