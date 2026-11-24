@@ -354,3 +354,35 @@ main.wide { max-width: 1360px; }
   border-radius: 4px;
   transition: width 1.1s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ---- viz tab toggle: switch a viz-panel between the embedding scatter and
+   the knowledge-graph view without duplicating the surrounding panel chrome ---- */
+
+.viz-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 4px 10px;
+}
+
+.viz-tab {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.viz-tab.active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: #232a3d;
+}
+
+.viz-view { display: none; }
+.viz-view.active { display: block; }
+
+.graph-node circle { cursor: grab; }
+.graph-node text { user-select: none; }
+

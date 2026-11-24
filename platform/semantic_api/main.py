@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pymilvus import Collection
@@ -29,6 +30,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Semantic API", lifespan=lifespan)
+
+# Permissive and demo-only: lets demo/graph.js (a local static file) call
+# /tracks/{id}/graph directly from the browser for the thesis screenshots.
+# Not a change to this service's frozen, read-only contract above.
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
 
 
 class Track(BaseModel):

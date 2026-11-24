@@ -34,14 +34,34 @@
 
   <div class="viz-grid">
     <div class="viz-panel">
-      <svg id="scatter" width="640" height="560"></svg>
-      <div class="viz-legend">
-        <span><span class="swatch" style="background:#3d4560"></span>catalog</span>
-        <span><span class="swatch" style="background:#6ea8fe"></span>now playing</span>
-        <span><span class="swatch" style="background:#5fd88f"></span>pushed suggestion</span>
+      <div class="viz-tabs">
+        <button class="viz-tab active" onclick="switchView('scatter-view', this)">Embedding space</button>
+        <button class="viz-tab" onclick="switchView('graph-view', this)">Knowledge graph</button>
       </div>
-      <div class="viz-caption">The currently-playing track pulses live on the map; a suggestion is computed and pushed the moment it starts &mdash; nobody asked for it.</div>
-      <div class="push-toast" id="push-toast">&#9679; pushed over WebSocket &mdash; unrequested</div>
+
+      <div class="viz-view active" id="scatter-view">
+        <svg id="scatter" width="640" height="560"></svg>
+        <div class="viz-legend">
+          <span><span class="swatch" style="background:#3d4560"></span>catalog</span>
+          <span><span class="swatch" style="background:#6ea8fe"></span>now playing</span>
+          <span><span class="swatch" style="background:#5fd88f"></span>pushed suggestion</span>
+        </div>
+        <div class="viz-caption">The currently-playing track pulses live on the map; a suggestion is computed and pushed the moment it starts &mdash; nobody asked for it.</div>
+        <div class="push-toast" id="push-toast">&#9679; pushed over WebSocket &mdash; unrequested</div>
+      </div>
+
+      <div class="viz-view" id="graph-view">
+        <svg id="graph" width="640" height="560"></svg>
+        <div class="viz-legend">
+          <span><span class="swatch" style="background:#6ea8fe"></span>now playing</span>
+          <span><span class="swatch" style="background:#5fd88f"></span>pushed suggestion</span>
+          <span><span class="swatch" style="background:#5b6178"></span>genre-sibling (context)</span>
+          <span><span class="swatch" style="background:#b892e8"></span>artist</span>
+          <span><span class="swatch" style="background:#5fc9d8"></span>genre</span>
+          <span><span class="swatch" style="background:#e8956e"></span>live CLAP tag (predicted)</span>
+        </div>
+        <div class="viz-caption">Solid edges are the real catalog graph (true artist/genre). Dashed orange edges are the live classifier's own top-3 zero-shot tags &mdash; shown on the same graph specifically to make any gap between prediction and ground truth visible, not hidden.</div>
+      </div>
     </div>
 
     <div style="display:flex; flex-direction:column; gap:20px">
@@ -69,9 +89,11 @@
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="scatter.js"></script>
+<script src="graph.js"></script>
 <script>
 const PROACTIVE_API = "http://127.0.0.1:8040";
 const PROACTIVE_WS = "ws://127.0.0.1:8040";
+const SEMANTIC_API = "http://127.0.0.1:8000";
 let socket = null;
 let scatterCtx = null;
 
@@ -185,9 +207,29 @@ function render(data, isPush) {
   } else {
     suggestionEl.innerHTML = '<p class="empty">No suggestion yet.</p>';
   }
+
+  if (data.now_playing) {
+    const graphTracks = [
+      { id: data.now_playing.track_id, title: data.now_playing.title, role: "now-playing", siblings: true },
+    ];
+    if (data.proactive_suggestion) {
+      graphTracks.push({ id: data.proactive_suggestion.track_id, title: data.proactive_suggestion.title, role: "suggestion", siblings: false });
+    }
+    buildGraphData(SEMANTIC_API, graphTracks).then((g) => {
+      const nowPlayingNodeId = `track:${data.now_playing.track_id}`;
+      const withTags = data.live_tags ? addPredictedTags({ ...g, nodes: g.nodes }, nowPlayingNodeId, data.live_tags) : g;
+      createGraph("#graph", withTags);
+    });
+  }
 }
 
 initScatter().then(connect);
+activateRequestedView();
+// Screenshot-only convenience: ?static=1 auto-triggers "now playing" so a
+// headless capture has real content without a manual click.
+if (new URLSearchParams(location.search).has("static")) {
+  setTimeout(() => play(16), 800);
+}
 </script>
 </body>
 </html>

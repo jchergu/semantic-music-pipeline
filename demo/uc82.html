@@ -28,14 +28,33 @@
 
   <div class="viz-grid">
     <div class="viz-panel">
-      <svg id="scatter" width="640" height="560"></svg>
-      <div class="viz-legend">
-        <span><span class="swatch" style="background:#3d4560"></span>catalog</span>
-        <span><span class="swatch" style="background:#6ea8fe"></span>session tracks (in order)</span>
-        <span><span class="swatch" style="background:#5fd88f"></span>profile centroid</span>
-        <span><span class="swatch" style="background:#f2b84b"></span>recommended</span>
+      <div class="viz-tabs">
+        <button class="viz-tab active" onclick="switchView('scatter-view', this)">Embedding space</button>
+        <button class="viz-tab" onclick="switchView('graph-view', this)">Knowledge graph</button>
       </div>
-      <div class="viz-caption" id="scatter-caption">The session's own played tracks (blue, connected in play order) and the resulting recommendations (gold) &mdash; not queried from a single track, but from all of them together.</div>
+
+      <div class="viz-view active" id="scatter-view">
+        <svg id="scatter" width="640" height="560"></svg>
+        <div class="viz-legend">
+          <span><span class="swatch" style="background:#3d4560"></span>catalog</span>
+          <span><span class="swatch" style="background:#6ea8fe"></span>session tracks (in order)</span>
+          <span><span class="swatch" style="background:#5fd88f"></span>profile centroid</span>
+          <span><span class="swatch" style="background:#f2b84b"></span>recommended</span>
+        </div>
+        <div class="viz-caption" id="scatter-caption">The session's own played tracks (blue, connected in play order) and the resulting recommendations (gold) &mdash; not queried from a single track, but from all of them together.</div>
+      </div>
+
+      <div class="viz-view" id="graph-view">
+        <svg id="graph" width="640" height="560"></svg>
+        <div class="viz-legend">
+          <span><span class="swatch" style="background:#6ea8fe"></span>session track</span>
+          <span><span class="swatch" style="background:#f2b84b"></span>recommended</span>
+          <span><span class="swatch" style="background:#5b6178"></span>genre-sibling (context)</span>
+          <span><span class="swatch" style="background:#b892e8"></span>artist</span>
+          <span><span class="swatch" style="background:#5fc9d8"></span>genre</span>
+        </div>
+        <div class="viz-caption">The real Neo4j graph across all three played tracks at once &mdash; shared artist/genre nodes across the session make visible, structurally, the same taste continuity the profile centroid captures numerically. Drag any node.</div>
+      </div>
     </div>
 
     <div style="display:flex; flex-direction:column; gap:20px">
@@ -57,9 +76,11 @@
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="scatter.js"></script>
+<script src="graph.js"></script>
 <script>
 const SESSION_API = "http://127.0.0.1:8030";
 const DEMO_API = "http://127.0.0.1:8010"; // used only to resolve played track_ids to catalog metadata
+const SEMANTIC_API = "http://127.0.0.1:8000";
 let scatterCtx = null;
 
 function signalBadges(r) {
@@ -100,9 +121,10 @@ async function loadSession() {
     `;
 
     let recIds = [];
+    let recData = null;
     if (s.recommendations.present) {
       const recResp = await fetch(`${SESSION_API}/sessions/${encodeURIComponent(sessionId)}/recommendations`);
-      const recData = await recResp.json();
+      recData = await recResp.json();
       recsEl.innerHTML = "";
       recData.recommendations.forEach((r, i) => {
         const card = document.createElement("div");
@@ -155,6 +177,14 @@ async function loadSession() {
           setTimeout(() => highlightTracks(scatterCtx, recIds, { color: "#f2b84b", radius: 5.5 }), 100);
         }, 220 * path.length + 200);
       }
+
+      const graphTracks = [
+        ...playedIds.map((id) => ({ id, title: scatterCtx.byId.get(id)?.title, role: "session", siblings: true })),
+        ...(recIds.length ? recIds.map((id) => ({
+          id, title: recData.recommendations.find((r) => r.track_id === id)?.title, role: "recommended", siblings: false,
+        })) : []),
+      ];
+      buildGraphData(SEMANTIC_API, graphTracks).then((g) => createGraph("#graph", g));
     }
   } catch (e) {
     statusDot.className = "dot err";
@@ -165,6 +195,7 @@ async function loadSession() {
 }
 
 initScatter().then(loadSession);
+activateRequestedView();
 </script>
 </body>
 </html>

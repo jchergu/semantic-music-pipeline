@@ -34,13 +34,32 @@
 
   <div class="viz-grid">
     <div class="viz-panel">
-      <svg id="scatter" width="640" height="560"></svg>
-      <div class="viz-legend">
-        <span><span class="swatch" style="background:#3d4560"></span>catalog (411 tracks)</span>
-        <span><span class="swatch" style="background:#6ea8fe"></span>seed track</span>
-        <span><span class="swatch" style="background:#f2b84b"></span>recommended</span>
+      <div class="viz-tabs">
+        <button class="viz-tab active" onclick="switchView('scatter-view', this)">Embedding space</button>
+        <button class="viz-tab" onclick="switchView('graph-view', this)">Knowledge graph</button>
       </div>
-      <div class="viz-caption">A real 2D projection (PCA on CLAP embeddings, 22% variance explained &mdash; an approximate view of the space, not an exact map) of all 411 catalog tracks. Lines animate in from the seed to each of its top-10 recommendations as they're computed.</div>
+
+      <div class="viz-view active" id="scatter-view">
+        <svg id="scatter" width="640" height="560"></svg>
+        <div class="viz-legend">
+          <span><span class="swatch" style="background:#3d4560"></span>catalog (411 tracks)</span>
+          <span><span class="swatch" style="background:#6ea8fe"></span>seed track</span>
+          <span><span class="swatch" style="background:#f2b84b"></span>recommended</span>
+        </div>
+        <div class="viz-caption">A real 2D projection (PCA on CLAP embeddings, 22% variance explained &mdash; an approximate view of the space, not an exact map) of all 411 catalog tracks. Lines animate in from the seed to each of its top-10 recommendations as they're computed.</div>
+      </div>
+
+      <div class="viz-view" id="graph-view">
+        <svg id="graph" width="640" height="560"></svg>
+        <div class="viz-legend">
+          <span><span class="swatch" style="background:#6ea8fe"></span>seed track</span>
+          <span><span class="swatch" style="background:#f2b84b"></span>recommended</span>
+          <span><span class="swatch" style="background:#5b6178"></span>genre-sibling (context)</span>
+          <span><span class="swatch" style="background:#b892e8"></span>artist</span>
+          <span><span class="swatch" style="background:#5fc9d8"></span>genre</span>
+        </div>
+        <div class="viz-caption">The real Neo4j graph behind the ranking's genre-sibling and same-artist signals &mdash; each shown track's actual artist and genre edges, plus (dotted) up to five further genre-sibling tracks from the same query the ranking function draws on. Drag any node.</div>
+      </div>
     </div>
 
     <div class="panel" style="margin-bottom:0">
@@ -56,8 +75,10 @@
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="scatter.js"></script>
+<script src="graph.js"></script>
 <script>
 const DEMO_API = "http://127.0.0.1:8010";
+const SEMANTIC_API = "http://127.0.0.1:8000";
 let scatterCtx = null;
 
 function badge(cls, label) {
@@ -134,6 +155,12 @@ async function loadRecs() {
         setTimeout(() => highlightTracks(scatterCtx, recIds, { color: "#f2b84b", radius: 5.5 }), 80);
       }
     }
+
+    const graphTracks = [
+      { id: data.seed.track_id, title: data.seed.title, role: "seed", siblings: true },
+      ...data.recommendations.map((r) => ({ id: r.track_id, title: r.title, role: "recommended", siblings: false })),
+    ];
+    buildGraphData(SEMANTIC_API, graphTracks).then((g) => createGraph("#graph", g));
   } catch (e) {
     statusDot.className = "dot err";
     statusText.textContent = `Could not reach the demo API at ${DEMO_API} (${e.message}). Is it running?`;
@@ -142,6 +169,7 @@ async function loadRecs() {
 }
 
 initScatter().then(loadRecs);
+activateRequestedView();
 </script>
 </body>
 </html>

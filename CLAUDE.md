@@ -1234,13 +1234,114 @@ python3 -m http.server 8080 --directory demo   # then open localhost:8080
 
 **Operational gotcha, found running this session**: `streaming.session_consumer_daemon` and `streaming.refresh_daemon`, left running for the demo, made 10 tests fail (`test_stage9_redis`, `test_stage10_postgres_events`, `test_stage11_event_ingestion`, `test_stage12_event_simulator`, `test_stage14_recommendation_refresh`, `test_stage16_refresh_daemon`, `test_stage16_session_api`) — both daemons hold the canonical `SESSION_CONSUMER_GROUP_ID`/`RECS_REFRESH_GROUP_ID` Kafka consumer groups, and several of those tests spin up their own consumer under the same canonical group id to test the real daemon behavior, so two live consumers in one group split the message stream between them. Not a code bug — confirmed by killing both daemons and re-running: 223/223 pass clean. **Stop both daemons before running the test suite; only start them again for a live demo.**
 
-**Not done, deliberately, given the deadline**: the thesis chapters
-(§6.2, the abstract, README's status table, every place that currently
-says "8.3 not started" or "design and feasibility only, not implemented
-or measured") have NOT been rewritten yet — that is a separate, explicit
-thesis-writing pass, not implied by building the code. Do not treat this
-section as license to also silently rewrite thesis prose; that still
-needs its own session per the Working agreement's `thesis/` rule.
+**Correction, 2026-09-25 (later the same day)**: the paragraph above is
+stale. A subsequent thesis session (same day) closed exactly the gap it
+describes — §6.2, the abstract, the Chapter 1 roadmap, and Chapter 7's
+conclusion were all updated to reflect the built demo slice — but this
+file was never synced to say so at the time, so it kept asserting "not
+rewritten yet" after it no longer was. Left here, struck through in
+spirit rather than deleted, as the record of what was true when it was
+written; see the two entries below for what's true now.
+
+### Demo dashboards given a real knowledge-graph view, 2026-09-25
+
+Explicitly requested: the three `demo/` dashboards' single visualization
+(the PCA embedding-space scatter) was replaced with a two-tab view adding
+a real force-directed knowledge-graph panel, plus fresh screenshots for
+all three thesis demonstration figures. Real, not decorative: `demo/graph.js`
+calls the Semantic API's existing `/tracks/{id}/graph` endpoint (Neo4j —
+artist, genres, up to 10 genre-sibling tracks per track) live from the
+browser, the same endpoint `context_builder.py` already uses server-side;
+nothing new was computed for this, only surfaced. Each page's graph shows
+every relevant track's real artist/genre edges plus, dotted, a handful of
+further genre-sibling context tracks. 8.3's graph additionally overlays the
+live CLAP zero-shot tags (dashed orange, distinct styling) on the same
+now-playing track's real genre nodes — deliberately, to make the gap
+between the classifier's prediction and the catalog's ground truth visible
+on the graph itself rather than only in prose (Section 3.2's zero-shot
+caveat, already in the thesis, now has a picture).
+
+Found and fixed one real bug building this: the Semantic API
+(`platform/semantic_api/main.py`) had no CORS middleware, so `demo/graph.js`'s
+browser-side fetches to it silently failed (blocked client-side; the
+server logged 200s the whole time) — every fetch's `catch` swallowed the
+failure as "not enriched," so the graph rendered as an empty SVG with no
+error surfaced anywhere. Fixed the same permissive, demo-only way
+`session_api`/`demo_api`/`proactive_service` already do it
+(`allow_origins=["*"]`, commented as demo-only at the call site, not a
+change to the frozen read-only contract). A second real bug, caught by
+looking at the rendered screenshot rather than trusting the code: a track
+that is both a primary node (e.g. 8.3's pushed suggestion) and a
+genre-sibling of another shown track got the wrong color, because the
+first-inserted role silently won; fixed by making a track's own primary
+role always overwrite an incidental "context" role, never the reverse.
+
+New `demo/graph.js`, shared across all three pages like `scatter.js`;
+`?static=1`/`?view=graph` query-param conventions added for deterministic
+headless-Chrome screenshot capture, following `scatter.js`'s own documented
+precedent (rAF-driven D3 transitions are unreliable under
+`--virtual-time-budget`; a force simulation is worse, since it never
+"finishes" on its own — `?static=1` runs it synchronously to a fixed tick
+count instead of animating). Screenshots taken via
+`google-chrome --headless=new --force-device-scale-factor=2`, matching the
+existing figures' 2800×2000 resolution.
+
+### New Chapter 7, "Live Demonstration", 2026-09-25
+
+Explicitly requested, citing supervisor feedback: the thesis needed a
+separate chapter, near the end, giving a concrete demonstration of all
+three use cases through an interface suitable for an ordinary end user —
+not only the technical record Chapters 5 and 6 already give. The three
+demonstration sections that used to close out Chapter 5 (§5.7) and Chapter
+6 (§6.1.13, §6.2.8) were extracted verbatim (prose lightly adapted, six
+screenshots instead of three per the graph-view work above) into a new
+`thesis/07-demonstration.md`, with `07-conclusion.md` → `08-conclusion.md`
+and `08-references.md` → `09-references.md` (`git mv`) to make room —
+Makefile's `CHAPTERS := $(sort $(wildcard [0-9][0-9]-*.md))` picks up the
+new ordering automatically, no Makefile change needed. Every cross-file
+reference to the moved figures/sections was grepped and fixed: `Figure
+5.7`/`6.10`/`6.11` → `7.1`/`7.3`/`7.5` (scatter) and new `7.2`/`7.4`/`7.6`
+(graph), `Section 6.1.13`/`6.2.8` → `7.2`/`7.3`, and every `Section
+7.1`/`7.2`/`7.3`/`Chapter 7` reference belonging to the *old* Conclusion
+chapter (its own three subsections, plus `01-introduction.md`'s roadmap
+sentence and `03-state-of-the-art.md`'s one Chapter 7 citation) renumbered
+to `8.1`/`8.2`/`8.3`/`Chapter 8` — the two numbering spaces collide by
+name (old "Section 7.3" = Future Work; new "Section 7.3" = 8.3's demo) so
+this pass was done by reading every hit, not by a blind find-replace.
+
+Also folded into this same session: the arc_diagram concept sketch
+(supplied by the user, not generated) added as new **Figure 1.2** in §1.3,
+ahead of the three existing per-use-case concept sketches — deliberately
+labeled as an early, superseded sketch (its Neo4j+Jena, ChromaDB,
+LightGCN+CF, and `media.*`/`events.*` topic-name details all predate and
+disagree with the real build) rather than presented as architecture,
+consistent with how Figures 1.3/1.4/1.5 already handle their own
+superseded concept art. Cascaded the resulting renumber (old 1.2→1.3,
+1.3→1.4, 1.4→1.5, 1.5→1.6) through every cross-file citation
+(`02-problem-statement.md`, `06-streaming-use-cases.md`, the old
+`07-conclusion.md`), and added one backlink from Chapter 4's real
+architecture figure (now Figure 4.2) back to Figure 1.2, naming exactly
+what changed.
+
+Verified the same way as every prior figure session in this file: `make`
+rebuilt clean, converted to PDF, and every new/renumbered figure and TOC
+entry was visually inspected in the rendered PNG, not assumed correct from
+source — this caught the graph CORS bug and the role-priority color bug
+above before either reached a screenshot. Final page count: 93 (up from
+89 before this session's two additions). `grep`-verified afterward: no
+`Figure 5.7`/`6.10`/`6.11` or `Section 6.1.13`/`6.2.8` reference survives
+anywhere in `thesis/`, `README.md`, or this file.
+
+**Operational note**: this session's live screenshot capture needed the
+full stack running plus a real computed session (`demo-rock-thread`,
+seeded with `event_time`-stamped `complete` events so the Flink job's
+event-time watermark actually advances — a bare POST without `event_time`
+is silently dropped by `flink_session_profile_job.py`'s parser, not an
+error, since the field is required but the ad hoc schema doesn't enforce
+it). Same daemon/test collision as the stage-16 gotcha above applies here
+too — both daemons and the Flink job were left running after this
+session; stop them (and cancel the Flink job via `flink cancel`) before
+running the test suite.
 
 ## Stack (all open-source, self-hostable)
 
